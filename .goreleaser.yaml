@@ -50,7 +50,7 @@ metadata:
 
 release:
   github:
-    owner: mchmarny # NVIDIA
+    owner: mchmarny  # NVIDIA
     name: cloud-native-stack
   prerelease: auto
 
