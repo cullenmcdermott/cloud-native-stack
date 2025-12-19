@@ -18,7 +18,7 @@ jobs:
     env:
       GO_VERSION: '1.25'
     steps:
-          
+
       # Setup Environment
       - name: Checkout Code
         uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8  # v5.0.0
@@ -36,7 +36,7 @@ jobs:
       - name: Install cosign
         uses: sigstore/cosign-installer@d7543c93d881b35a8faa02e8e3605f69b7a1ce62  # v3.10.0
 
-      - name: Install Syft 
+      - name: Install Syft
         uses: anchore/sbom-action/download-syft@43a17d6e7add2b5535efe4dcae9952337c479a93  # v0.20.11
 
       - name: Authenticate
