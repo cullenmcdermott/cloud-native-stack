@@ -61,7 +61,6 @@ func (s *GrubCollector) Collect(ctx context.Context) ([]Configuration, error) {
 		}
 
 		props[key] = val
-
 	}
 
 	res := []Configuration{
