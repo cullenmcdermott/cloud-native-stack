@@ -2,7 +2,7 @@ apiVersion: batch/v1
 kind: Job
 metadata:
   name: eidos
-  namespace: eidos
+  namespace: gpu-operator
   labels:
     app.kubernetes.io/name: eidos
 spec:
