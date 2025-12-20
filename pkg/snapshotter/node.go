@@ -69,23 +69,55 @@ func (n *NodeSnapshotter) Run(ctx context.Context) error {
 		return nil
 	})
 
-	// Collect component concurrently
+	// Collect helm components
 	g.Go(func() error {
-		n.Logger.Debug("collecting component information")
-		c := n.Factory.ComponentCollector()
-		components, err := c.Collect(ctx)
+		n.Logger.Debug("collecting helm components")
+		hc := n.Factory.CreateHelmCollector()
+		helmComps, err := hc.Collect(ctx)
 		if err != nil {
-			n.Logger.Error("failed to collect component", slog.String("error", err.Error()))
-			return fmt.Errorf("failed to collect component info: %w", err)
+			n.Logger.Error("failed to collect helm components", slog.String("error", err.Error()))
+			return fmt.Errorf("failed to collect helm components: %w", err)
 		}
 		mu.Lock()
-		snap.Measurements = append(snap.Measurements, components...)
+		snap.Measurements = append(snap.Measurements, helmComps...)
 		mu.Unlock()
-		n.Logger.Debug("collected component information", slog.Int("count", len(components)))
+		n.Logger.Debug("collected helm components", slog.Int("count", len(helmComps)))
 		return nil
 	})
 
-	// Collect kernel modules concurrently
+	// Collect images
+	g.Go(func() error {
+		n.Logger.Debug("collecting container images")
+		ic := n.Factory.CreateImageCollector()
+		images, err := ic.Collect(ctx)
+		if err != nil {
+			n.Logger.Error("failed to collect container images", slog.String("error", err.Error()))
+			return fmt.Errorf("failed to collect container images: %w", err)
+		}
+		mu.Lock()
+		snap.Measurements = append(snap.Measurements, images...)
+		mu.Unlock()
+		n.Logger.Debug("collected container images", slog.Int("count", len(images)))
+		return nil
+	})
+
+	// Collect k8s resources
+	g.Go(func() error {
+		n.Logger.Debug("collecting kubernetes resources")
+		kc := n.Factory.CreateKubernetesCollector()
+		k8sResources, err := kc.Collect(ctx)
+		if err != nil {
+			n.Logger.Error("failed to collect kubernetes resources", slog.String("error", err.Error()))
+			return fmt.Errorf("failed to collect kubernetes resources: %w", err)
+		}
+		mu.Lock()
+		snap.Measurements = append(snap.Measurements, k8sResources...)
+		mu.Unlock()
+		n.Logger.Debug("collected kubernetes resources", slog.Int("count", len(k8sResources)))
+		return nil
+	})
+
+	// Collect kernel modules
 	g.Go(func() error {
 		n.Logger.Debug("collecting kernel modules")
 		km := n.Factory.CreateKModCollector()
@@ -101,7 +133,7 @@ func (n *NodeSnapshotter) Run(ctx context.Context) error {
 		return nil
 	})
 
-	// Collect systemd concurrently
+	// Collect systemd
 	g.Go(func() error {
 		n.Logger.Debug("collecting systemd services")
 		sd := n.Factory.CreateSystemDCollector()
@@ -117,7 +149,7 @@ func (n *NodeSnapshotter) Run(ctx context.Context) error {
 		return nil
 	})
 
-	// Collect grub concurrently
+	// Collect grub
 	g.Go(func() error {
 		n.Logger.Debug("collecting grub configuration")
 		g := n.Factory.CreateGrubCollector()
@@ -133,7 +165,7 @@ func (n *NodeSnapshotter) Run(ctx context.Context) error {
 		return nil
 	})
 
-	// Collect sysctl concurrently
+	// Collect sysctl
 	g.Go(func() error {
 		n.Logger.Debug("collecting sysctl configuration")
 		s := n.Factory.CreateSysctlCollector()

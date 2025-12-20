@@ -10,7 +10,6 @@ type CollectorFactory interface {
 	CreateHelmCollector() Collector
 	CreateKubernetesCollector() Collector
 	CreateImageCollector() Collector
-	ComponentCollector() Collector
 }
 
 // DefaultCollectorFactory creates collectors with production dependencies.
@@ -26,11 +25,6 @@ func NewDefaultCollectorFactory() *DefaultCollectorFactory {
 }
 
 // ComponentCollector creates a component collector.
-func (f *DefaultCollectorFactory) ComponentCollector() Collector {
-	return &ComponentCollector{}
-}
-
-// CreateKModCollector creates a kernel module collector.
 func (f *DefaultCollectorFactory) CreateKModCollector() Collector {
 	return &KModCollector{}
 }

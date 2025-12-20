@@ -12,19 +12,18 @@ func TestHelmCollector_Collect(t *testing.T) {
 	ctx := context.Background()
 	collector := &HelmCollector{}
 
-	// This test requires helm to be installed and a kubernetes cluster to be available
-	// It will fail gracefully if either is not available
+	// This test requires a kubernetes cluster to be available
+	// It will gracefully handle both no cluster and no helm releases
 	measurements, err := collector.Collect(ctx)
 
-	// If helm is not installed or cluster is not available, we expect an error
+	// If no cluster is available, we expect an error
 	if err != nil {
-		// Accept either "helm not found" or "failed to execute helm list" errors
+		// Accept errors related to kubernetes connectivity
 		errMsg := err.Error()
-		validError := strings.Contains(errMsg, "helm not found in PATH") ||
-			strings.Contains(errMsg, "failed to execute helm list") ||
-			strings.Contains(errMsg, "failed to parse helm releases")
+		validError := strings.Contains(errMsg, "failed to get kubernetes client") ||
+			strings.Contains(errMsg, "failed to list helm secrets")
 		assert.True(t, validError, "unexpected error: %v", err)
-		t.Logf("Helm collector failed as expected (no cluster/helm available): %v", err)
+		t.Logf("Helm collector failed as expected (no cluster available): %v", err)
 		return
 	}
 
@@ -38,7 +37,7 @@ func TestHelmCollector_Collect(t *testing.T) {
 	data, ok := measurements[0].Data.(map[string]any)
 	assert.True(t, ok, "Data should be a map[string]any")
 
-	// Log the number of releases found
+	// Log the number of releases found (may be 0 if no helm releases in cluster)
 	t.Logf("Found %d Helm releases", len(data))
 }
 
