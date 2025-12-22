@@ -65,7 +65,7 @@ func (n *NodeSnapshotter) Run(ctx context.Context) error {
 		mu.Lock()
 		snap.Metadata["snapshot-version"] = n.Version
 		snap.Metadata["source-node"] = nd.Name
-		snap.Metadata["snapshot-timestamp"] = time.Now().UTC().Format(time.RFC1123Z)
+		snap.Metadata["snapshot-timestamp"] = time.Now().UTC().Format(time.RFC3339)
 		mu.Unlock()
 		n.Logger.Debug("obtained node metadata", slog.String("name", nd.Name), slog.String("namespace", nd.Namespace))
 		return nil
