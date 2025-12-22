@@ -1,0 +1,560 @@
+openapi: 3.1.0
+info:
+  title: CNS System Configuration Recommendation API
+  version: 1.0.0
+  description: >
+    Returns an optimized, versioned system configuration payload (recommended components and versions)
+    for a given combination of platform parameters (OS, kernel, environment, Kubernetes, GPU, intent).
+
+servers:
+  - url: https://api.dgxc.io
+    description: Production
+
+tags:
+  - name: Recommendations
+  - name: System
+
+paths:
+  /v1/recommendations:
+    get:
+      tags: [Recommendations]
+      summary: Get optimized system configuration recommendations
+      operationId: getRecommendations
+      parameters:
+        - name: X-Request-Id
+          in: header
+          required: false
+          schema:
+            type: string
+            format: uuid
+          description: Client-provided request ID for tracing
+        - name: osFamily
+          in: query
+          required: false
+          description: OS family (or ALL). If omitted, treated as ALL.
+          schema:
+            type: string
+            enum: [Ubuntu, RHEL, ALL]
+            default: ALL
+        - name: osVersion
+          in: query
+          required: false
+          description: OS version (or ALL). Example Ubuntu 24.04, RHEL 9.3
+          schema:
+            type: string
+            pattern: '^(ALL|\d+\.\d+)$'
+            default: ALL
+            examples: ["24.04", "22.04", "9.3", "ALL"]
+        - name: kernel
+          in: query
+          required: false
+          description: Kernel version (or ALL). Example 6.8
+          schema:
+            type: string
+            pattern: '^(ALL|\d+\.\d+(\.\d+)?)$'
+            default: ALL
+            examples: ["6.8", "5.15.0", "ALL"]
+        - name: environment
+          in: query
+          required: false
+          description: Kubernetes environment (or ALL).
+          schema:
+            type: string
+            enum: [GKE, EKS, OKE, ALL]
+            default: ALL
+        - name: kubernetes
+          in: query
+          required: false
+          description: Kubernetes minor version (or ALL). Example 1.33
+          schema:
+            type: string
+            pattern: '^(ALL|1\.\d+)$'
+            default: ALL
+            examples: ["1.33", "1.32", "ALL"]
+        - name: gpu
+          in: query
+          required: false
+          description: GPU type (or ALL).
+          schema:
+            type: string
+            enum: [H100, GB200, A100, L40, ALL]
+            default: ALL
+        - name: intent
+          in: query
+          required: false
+          description: Workload intent (or ALL).
+          schema:
+            type: string
+            enum: [training, inference, ALL]
+            default: ALL
+        - name: payloadVersion
+          in: query
+          required: false
+          description: >
+            Optional: request a specific payloadVersion (semver-ish string). If not provided,
+            the service returns the latest compatible payloadVersion.
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Recommendation payload for the requested parameter combination
+          headers:
+            X-Request-Id:
+              $ref: "#/components/headers/RequestIdResponse"
+            Cache-Control:
+              $ref: "#/components/headers/CacheControl"
+            X-RateLimit-Limit:
+              $ref: "#/components/headers/RateLimitLimit"
+            X-RateLimit-Remaining:
+              $ref: "#/components/headers/RateLimitRemaining"
+            X-RateLimit-Reset:
+              $ref: "#/components/headers/RateLimitReset"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RecommendationResponse"
+              examples:
+                example1:
+                  summary: Example recommendation response
+                  value:
+                    request:
+                      osFamily: Ubuntu
+                      osVersion: "24.04"
+                      kernel: "6.8"
+                      environment: EKS
+                      kubernetes: "1.33"
+                      gpu: GB200
+                      intent: training
+                      payloadVersionRequested: null
+                    matchedRuleId: "rule-eks-gb200-k8s133-kernel68"
+                    payloadVersion: "2025.12.0"
+                    generatedAt: "2025-12-17T12:00:00Z"
+                    cnsReleases:
+                      - cnsVersion: "16.0"
+                        platforms:
+                          - "NVIDIA Certified Server (x86 & arm64)"
+                          - "DGX Server"
+                        supportedOS:
+                          - "Ubuntu 24.04 LTS"
+                        components:
+                          - name: containerd
+                            version: "2.1.3"
+                          - name: nvidia-container-toolkit
+                            version: "1.17.8"
+                          - name: crio
+                            version: "1.33.2"
+                          - name: kubernetes
+                            version: "1.33.2"
+                          - name: cni-calico
+                            version: "3.30.2"
+                          - name: nvidia-gpu-operator
+                            version: "25.3.4"
+                          - name: nvidia-network-operator
+                            version: null
+                          - name: nvidia-nim-operator
+                            version: "2.0.1"
+                          - name: nvidia-nsight-operator
+                            version: "1.1.2"
+                          - name: nvidia-data-center-driver
+                            version: "580.82.07"
+                          - name: helm
+                            version: "3.18.3"
+                      - cnsVersion: "15.1"
+                        platforms:
+                          - "NVIDIA Certified Server (x86 & arm64)"
+                          - "DGX Server"
+                        supportedOS:
+                          - "Ubuntu 24.04 LTS"
+                        components:
+                          - name: containerd
+                            version: "2.1.3"
+                          - name: nvidia-container-toolkit
+                            version: "1.17.8"
+                          - name: crio
+                            version: "1.32.6"
+                          - name: kubernetes
+                            version: "1.32.6"
+                          - name: cni-calico
+                            version: "3.30.2"
+                          - name: nvidia-gpu-operator
+                            version: "25.3.4"
+                          - name: nvidia-network-operator
+                            version: "25.4.0"
+                          - name: nvidia-nim-operator
+                            version: "2.0.1"
+                          - name: nvidia-nsight-operator
+                            version: "1.1.2"
+                          - name: nvidia-data-center-driver
+                            version: "580.82.07"
+                          - name: helm
+                            version: "3.18.3"
+        "400":
+          description: Invalid request parameters
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: No recommendation found for given parameters
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "429":
+          description: Rate limit exceeded
+          headers:
+            Retry-After:
+              schema:
+                type: integer
+              description: Seconds until retry allowed
+            X-Request-Id:
+              $ref: "#/components/headers/RequestIdResponse"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "500":
+          description: Internal server error
+          headers:
+            X-Request-Id:
+              $ref: "#/components/headers/RequestIdResponse"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "503":
+          description: Service temporarily unavailable
+          headers:
+            Retry-After:
+              schema:
+                type: integer
+              description: Seconds until retry allowed
+            X-Request-Id:
+              $ref: "#/components/headers/RequestIdResponse"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /v1/recommendations/resolve:
+    post:
+      tags: [Recommendations]
+      summary: Resolve recommendations for one or more parameter sets (bulk)
+      operationId: resolveRecommendationsBulk
+      parameters:
+        - name: X-Request-Id
+          in: header
+          required: false
+          schema:
+            type: string
+            format: uuid
+          description: Client-provided request ID for tracing
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BulkResolveRequest"
+      responses:
+        "200":
+          description: Bulk recommendation results
+          headers:
+            X-Request-Id:
+              $ref: "#/components/headers/RequestIdResponse"
+            X-RateLimit-Limit:
+              $ref: "#/components/headers/RateLimitLimit"
+            X-RateLimit-Remaining:
+              $ref: "#/components/headers/RateLimitRemaining"
+            X-RateLimit-Reset:
+              $ref: "#/components/headers/RateLimitReset"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BulkResolveResponse"
+        "400":
+          description: Invalid request parameters
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "429":
+          description: Rate limit exceeded
+          headers:
+            Retry-After:
+              schema:
+                type: integer
+              description: Seconds until retry allowed
+            X-Request-Id:
+              $ref: "#/components/headers/RequestIdResponse"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "500":
+          description: Internal server error
+          headers:
+            X-Request-Id:
+              $ref: "#/components/headers/RequestIdResponse"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "503":
+          description: Service temporarily unavailable
+          headers:
+            Retry-After:
+              schema:
+                type: integer
+              description: Seconds until retry allowed
+            X-Request-Id:
+              $ref: "#/components/headers/RequestIdResponse"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /health:
+    get:
+      tags: [System]
+      summary: Health check endpoint
+      operationId: healthCheck
+      responses:
+        "200":
+          description: Service is healthy
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [status, timestamp]
+                properties:
+                  status:
+                    type: string
+                    enum: [healthy]
+                  timestamp:
+                    type: string
+                    format: date-time
+
+  /ready:
+    get:
+      tags: [System]
+      summary: Readiness check endpoint
+      operationId: readinessCheck
+      responses:
+        "200":
+          description: Service is ready to serve traffic
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [status, timestamp]
+                properties:
+                  status:
+                    type: string
+                    enum: [ready]
+                  timestamp:
+                    type: string
+                    format: date-time
+        "503":
+          description: Service is not ready
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [status, timestamp]
+                properties:
+                  status:
+                    type: string
+                    enum: [not_ready]
+                  timestamp:
+                    type: string
+                    format: date-time
+                  reason:
+                    type: string
+
+components:
+  headers:
+    RequestIdResponse:
+      schema:
+        type: string
+        format: uuid
+      description: Server-assigned or echoed request ID
+    CacheControl:
+      schema:
+        type: string
+      description: Cache directives for CDN/client caching
+      example: "public, max-age=300"
+    RateLimitLimit:
+      schema:
+        type: integer
+      description: Request quota in current window
+    RateLimitRemaining:
+      schema:
+        type: integer
+      description: Remaining requests in current window
+    RateLimitReset:
+      schema:
+        type: integer
+      description: Unix timestamp when quota resets
+
+  schemas:
+    Error:
+      type: object
+      required: [code, message, requestId, timestamp]
+      properties:
+        code:
+          type: string
+          description: Machine-readable error code
+          examples: ["INVALID_PARAMETER", "NO_MATCHING_RULE", "INTERNAL_ERROR"]
+        message:
+          type: string
+          description: Human-readable error message
+        details:
+          type: object
+          additionalProperties: true
+          description: Additional context-specific error details
+        requestId:
+          type: string
+          format: uuid
+          description: Unique request identifier for tracing
+        timestamp:
+          type: string
+          format: date-time
+        retryable:
+          type: boolean
+          description: Whether client should retry this request
+
+    RecommendationRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        osFamily:
+          type: string
+          enum: [Ubuntu, RHEL, ALL]
+          default: ALL
+        osVersion:
+          type: string
+          default: ALL
+        kernel:
+          type: string
+          default: ALL
+        environment:
+          type: string
+          enum: [GKE, EKS, OKE, ALL]
+          default: ALL
+        kubernetes:
+          type: string
+          default: ALL
+        gpu:
+          type: string
+          enum: [H100, GB200, A100, L40, ALL]
+          default: ALL
+        intent:
+          type: string
+          enum: [training, inference, ALL]
+          default: ALL
+        payloadVersionRequested:
+          type: [string, "null"]
+          default: null
+      required: []
+
+    ComponentRecommendation:
+      type: object
+      additionalProperties: false
+      properties:
+        name:
+          type: string
+          description: Stable component identifier (use kebab-case for consistency).
+          examples: ["nvidia-gpu-operator", "kubernetes", "containerd"]
+        version:
+          description: Component version; null means not applicable for this CNS release.
+          type: [string, "null"]
+        notes:
+          type: [string, "null"]
+          description: Optional implementation notes or constraints.
+          default: null
+      required: [name, version]
+
+    CNSReleaseRecommendation:
+      type: object
+      additionalProperties: false
+      properties:
+        cnsVersion:
+          type: string
+          description: CNS release identifier (string; typically semver-like).
+          examples: ["16.0", "15.1", "14.2"]
+        platforms:
+          type: array
+          items: { type: string }
+          description: Supported platform families for this CNS release.
+        supportedOS:
+          type: array
+          items: { type: string }
+          description: Human-readable OS support list for this CNS release.
+        components:
+          type: array
+          items:
+            $ref: "#/components/schemas/ComponentRecommendation"
+      required: [cnsVersion, components]
+
+    RecommendationResponse:
+      type: object
+      additionalProperties: false
+      properties:
+        request:
+          $ref: "#/components/schemas/RecommendationRequest"
+        matchedRuleId:
+          type: string
+          description: Identifier for the rule used to compute this recommendation.
+        payloadVersion:
+          type: string
+          pattern: '^\d{4}\.\d{1,2}\.\d+$'
+          description: Version of the returned payload schema/data.
+          examples: ["2025.12.0", "2024.1.15"]
+        generatedAt:
+          type: string
+          format: date-time
+        cnsReleases:
+          type: array
+          items:
+            $ref: "#/components/schemas/CNSReleaseRecommendation"
+      required: [request, payloadVersion, generatedAt, cnsReleases]
+
+    BulkResolveRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        requests:
+          type: array
+          minItems: 1
+          maxItems: 100
+          items:
+            $ref: "#/components/schemas/RecommendationRequest"
+          description: Array of recommendation requests to process
+        pageSize:
+          type: integer
+          minimum: 1
+          maximum: 100
+          default: 20
+          description: Number of results per page
+        continuationToken:
+          type: string
+          description: Opaque token for fetching next page of results
+      required: [requests]
+
+    BulkResolveResponse:
+      type: object
+      additionalProperties: false
+      properties:
+        results:
+          type: array
+          items:
+            $ref: "#/components/schemas/RecommendationResponse"
+          description: Array of recommendation responses
+        nextContinuationToken:
+          type: [string, "null"]
+          description: Token for next page; null if no more results
+        totalCount:
+          type: integer
+          description: Total results available (may be approximate)
+          minimum: 0
+      required: [results]
