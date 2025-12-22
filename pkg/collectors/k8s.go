@@ -32,12 +32,9 @@ func (k *KubernetesCollector) Collect(ctx context.Context) (*measurement.Measure
 	}
 
 	versionInfo := map[string]measurement.Reading{
-		"version":      measurement.Str(serverVersion.GitVersion),
-		"platform":     measurement.Str(serverVersion.Platform),
-		"buildDate":    measurement.Str(serverVersion.BuildDate),
-		"goVersion":    measurement.Str(serverVersion.GoVersion),
-		"gitCommit":    measurement.Str(serverVersion.GitCommit),
-		"gitTreeState": measurement.Str(serverVersion.GitTreeState),
+		"version":   measurement.Str(serverVersion.GitVersion),
+		"platform":  measurement.Str(serverVersion.Platform),
+		"goVersion": measurement.Str(serverVersion.GoVersion),
 	}
 
 	slog.Debug("collected kubernetes version", slog.String("version", serverVersion.GitVersion))
