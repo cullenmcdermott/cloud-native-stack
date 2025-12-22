@@ -72,9 +72,17 @@ func (i *ImageCollector) collectContainerImages(ctx context.Context, k8sClient *
 				continue
 			}
 
-			// Store with image name as key
-			if _, exists := images[imageName]; !exists {
-				images[imageName] = measurement.Str(imageTag)
+			// Extract just the image name (last part after final slash)
+			shortName := imageName
+			if idx := strings.LastIndex(imageName, "/"); idx != -1 {
+				shortName = imageName[idx+1:]
+			}
+
+			// Store with short image name as key, skip if digest in tag
+			if !strings.Contains(imageTag, "sha256:") {
+				if _, exists := images[shortName]; !exists {
+					images[shortName] = measurement.Str(imageTag)
+				}
 			}
 		}
 	}
