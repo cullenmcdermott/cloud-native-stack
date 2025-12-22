@@ -6,7 +6,6 @@ VERSION            ?= $(shell git describe --tags --abbrev=0 2>/dev/null || echo
 YAML_FILES         := $(shell find . -type f \( -iname "*.yml" -o -iname "*.yaml" \) ! -path "./docs/*")
 COMMIT             := $(shell git rev-parse HEAD)
 BRANCH             := $(shell git rev-parse --abbrev-ref HEAD)
-REGISTRY           := gitlab-master.nvidia.com:5005
 GO_VERSION	       := $(shell go version 2>/dev/null | awk '{print $$3}' | sed 's/go//')
 GOLINT_VERSION     = $(shell golangci-lint --version 2>/dev/null | awk '{print $$4}' | sed 's/golangci-lint version //' || echo "not installed")
 KO_VERSION         = $(shell ko version 2>/dev/null || echo "not installed")
@@ -80,7 +79,7 @@ qualify: test lint scan ## Qualifies the current codebase (test, lint, scan)
 .PHONY: build
 build: tidy ## Builds the release for the current OS and architecture
 	@set -e; \
-	KO_DOCKER_REPO=$(REGISTRY) goreleaser build --clean --single-target --snapshot --timeout 10m0s || exit 1; \
+	goreleaser build --clean --single-target --snapshot --timeout 10m0s || exit 1; \
 	echo "Build completed, binaries are in ./dist"
 
 .PHONY: release
