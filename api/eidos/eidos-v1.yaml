@@ -484,11 +484,11 @@ components:
           examples: ["16.0", "15.1", "14.2"]
         platforms:
           type: array
-          items: { type: string }
+          items: {type: string}
           description: Supported platform families for this CNS release.
         supportedOS:
           type: array
-          items: { type: string }
+          items: {type: string}
           description: Human-readable OS support list for this CNS release.
         components:
           type: array
