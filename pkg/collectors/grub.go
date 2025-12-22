@@ -15,9 +15,6 @@ import (
 type GrubCollector struct {
 }
 
-// GrubType is the type identifier for GRUB configurations
-const GrubType string = "Grub"
-
 // Collect retrieves the GRUB bootloader parameters from /proc/cmdline
 // and parses them into GrubConfig structures
 func (s *GrubCollector) Collect(ctx context.Context) ([]measurement.Measurement, error) {
@@ -67,7 +64,7 @@ func (s *GrubCollector) Collect(ctx context.Context) ([]measurement.Measurement,
 
 	res := []measurement.Measurement{
 		{
-			Type: GrubType,
+			Type: measurement.TypeGrub,
 			Data: props,
 		},
 	}

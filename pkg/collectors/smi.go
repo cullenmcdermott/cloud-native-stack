@@ -15,9 +15,6 @@ import (
 type SMICollector struct {
 }
 
-// SMIType is the type identifier for NVIDIA SMI configurations
-const SMIType string = "SMI"
-
 // Collect retrieves the NVIDIA SMI information by executing nvidia-smi command and
 // parses the XML output into NVSMIDevice structures
 func (s *SMICollector) Collect(ctx context.Context) ([]measurement.Measurement, error) {
@@ -37,7 +34,7 @@ func (s *SMICollector) Collect(ctx context.Context) ([]measurement.Measurement, 
 
 	res := []measurement.Measurement{
 		{
-			Type: SMIType,
+			Type: measurement.TypeSMI,
 			Data: smiDevice,
 		},
 	}

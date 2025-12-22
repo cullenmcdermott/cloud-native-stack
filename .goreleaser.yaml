@@ -79,7 +79,7 @@ release:
   prerelease: auto
 
 kos:
-  - id: eidos
+  - id: eidos-ko
     build: eidos
     repositories:
       - ghcr.io/mchmarny/eidos
@@ -94,7 +94,7 @@ kos:
     bare: true
     sbom: spdx
 
-  - id: server
+  - id: server-ko
     build: server
     repositories:
       - ghcr.io/mchmarny/eidos-server

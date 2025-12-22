@@ -4,6 +4,7 @@ import (
 	"context"
 	"testing"
 
+	"github.com/NVIDIA/cloud-native-stack/pkg/measurement"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -25,7 +26,7 @@ func TestKubernetesCollector_Collect(t *testing.T) {
 	// If cluster is available, validate the measurement
 	assert.NoError(t, err)
 	assert.Len(t, measurements, 1)
-	assert.Equal(t, KubernetesType, measurements[0].Type)
+	assert.Equal(t, measurement.TypeK8s, measurements[0].Type)
 	assert.NotNil(t, measurements[0].Data)
 
 	// Data should be a map with version info

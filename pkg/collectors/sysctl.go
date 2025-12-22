@@ -16,9 +16,6 @@ import (
 type SysctlCollector struct {
 }
 
-// SysctlType is the type identifier for sysctl configurations
-const SysctlType string = "Sysctl"
-
 // Collect gathers sysctl configurations from /proc/sys, excluding /proc/sys/net
 // and returns them as a single Configuration with a map of all parameters.
 func (s *SysctlCollector) Collect(ctx context.Context) ([]measurement.Measurement, error) {
@@ -69,7 +66,7 @@ func (s *SysctlCollector) Collect(ctx context.Context) ([]measurement.Measuremen
 
 	res := []measurement.Measurement{
 		{
-			Type: SysctlType,
+			Type: measurement.TypeSysctl,
 			Data: params,
 		},
 	}

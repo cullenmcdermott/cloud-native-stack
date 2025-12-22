@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/NVIDIA/cloud-native-stack/pkg/collectors"
+	"github.com/NVIDIA/cloud-native-stack/pkg/measurement"
 )
 
 func TestKModCollector_Collect(t *testing.T) {
@@ -71,8 +72,8 @@ func TestKModCollector_Integration(t *testing.T) {
 	}
 
 	cfg := configs[0]
-	if cfg.Type != collectors.KModType {
-		t.Errorf("Expected type %s, got %s", collectors.KModType, cfg.Type)
+	if cfg.Type != measurement.TypeKMod {
+		t.Errorf("Expected type %s, got %s", measurement.TypeKMod, cfg.Type)
 	}
 
 	// Validate that Data is a string slice

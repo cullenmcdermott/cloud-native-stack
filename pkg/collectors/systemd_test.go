@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/NVIDIA/cloud-native-stack/pkg/collectors"
+	"github.com/NVIDIA/cloud-native-stack/pkg/measurement"
 )
 
 func TestSystemDCollector_Collect_ContextCancellation(t *testing.T) {
@@ -62,8 +63,8 @@ func TestSystemDCollector_CustomServices(t *testing.T) {
 
 	// If successful, verify structure
 	for _, cfg := range configs {
-		if cfg.Type != collectors.SystemDType {
-			t.Errorf("Expected type %s, got %s", collectors.SystemDType, cfg.Type)
+		if cfg.Type != measurement.TypeSystemD {
+			t.Errorf("Expected type %s, got %s", measurement.TypeSystemD, cfg.Type)
 		}
 
 		systemdCfg, ok := cfg.Data.(collectors.SystemDConfig)

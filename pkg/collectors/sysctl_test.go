@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/NVIDIA/cloud-native-stack/pkg/collectors"
+	"github.com/NVIDIA/cloud-native-stack/pkg/measurement"
 )
 
 func TestSysctlCollector_Collect_ContextCancellation(t *testing.T) {
@@ -57,8 +58,8 @@ func TestSysctlCollector_Integration(t *testing.T) {
 	}
 
 	cfg := configs[0]
-	if cfg.Type != collectors.SysctlType {
-		t.Errorf("Expected type %s, got %s", collectors.SysctlType, cfg.Type)
+	if cfg.Type != measurement.TypeSysctl {
+		t.Errorf("Expected type %s, got %s", measurement.TypeSysctl, cfg.Type)
 	}
 
 	// Validate that Data is a map

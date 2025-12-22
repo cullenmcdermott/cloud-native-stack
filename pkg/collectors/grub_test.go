@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/NVIDIA/cloud-native-stack/pkg/collectors"
+	"github.com/NVIDIA/cloud-native-stack/pkg/measurement"
 )
 
 func TestGrubCollector_Collect_ContextCancellation(t *testing.T) {
@@ -54,8 +55,8 @@ func TestGrubCollector_Integration(t *testing.T) {
 	}
 
 	cfg := configs[0]
-	if cfg.Type != collectors.GrubType {
-		t.Errorf("Expected type %s, got %s", collectors.GrubType, cfg.Type)
+	if cfg.Type != measurement.TypeGrub {
+		t.Errorf("Expected type %s, got %s", measurement.TypeGrub, cfg.Type)
 	}
 
 	// Validate that Data is a map

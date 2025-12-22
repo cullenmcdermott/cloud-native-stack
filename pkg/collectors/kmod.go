@@ -14,9 +14,6 @@ import (
 type KModCollector struct {
 }
 
-// KModType is the type identifier for kernel module configurations
-const KModType string = "KMod"
-
 // Collect retrieves the list of loaded kernel modules from /proc/modules
 // and parses them into KModConfig structures
 func (s *KModCollector) Collect(ctx context.Context) ([]measurement.Measurement, error) {
@@ -47,7 +44,7 @@ func (s *KModCollector) Collect(ctx context.Context) ([]measurement.Measurement,
 
 	res := []measurement.Measurement{
 		{
-			Type: KModType,
+			Type: measurement.TypeKMod,
 			Data: modules,
 		},
 	}

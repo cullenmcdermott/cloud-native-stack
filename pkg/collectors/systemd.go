@@ -13,9 +13,6 @@ type SystemDCollector struct {
 	Services []string
 }
 
-// SystemDType is the type identifier for systemd configurations.
-const SystemDType string = "SystemD"
-
 // SystemDConfig represents the configuration data collected from a systemd service.
 type SystemDConfig struct {
 	Unit       string         `json:"unit" yaml:"unit"`
@@ -52,7 +49,7 @@ func (s *SystemDCollector) Collect(ctx context.Context) ([]measurement.Measureme
 	}
 
 	res = append(res, measurement.Measurement{
-		Type: SystemDType,
+		Type: measurement.TypeSystemD,
 		Data: list,
 	})
 

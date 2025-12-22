@@ -18,9 +18,6 @@ import (
 type ImageCollector struct {
 }
 
-// ImageType is the type identifier for Image measurements.
-const ImageType string = "Image"
-
 // Collect retrieves unique container images from all pods in the cluster.
 // This provides a snapshot of deployed images for cluster comparison.
 func (i *ImageCollector) Collect(ctx context.Context) ([]measurement.Measurement, error) {
@@ -41,7 +38,7 @@ func (i *ImageCollector) Collect(ctx context.Context) ([]measurement.Measurement
 
 	res := []measurement.Measurement{
 		{
-			Type: ImageType,
+			Type: measurement.TypeImage,
 			Data: images,
 		},
 	}

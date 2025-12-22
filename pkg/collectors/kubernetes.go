@@ -13,9 +13,6 @@ import (
 type KubernetesCollector struct {
 }
 
-// KubernetesType is the type identifier for Kubernetes measurements.
-const KubernetesType string = "Kubernetes"
-
 // Collect retrieves Kubernetes cluster version information from the API server.
 // This provides cluster version details for comparison across environments.
 func (k *KubernetesCollector) Collect(ctx context.Context) ([]measurement.Measurement, error) {
@@ -47,7 +44,7 @@ func (k *KubernetesCollector) Collect(ctx context.Context) ([]measurement.Measur
 
 	res := []measurement.Measurement{
 		{
-			Type: KubernetesType,
+			Type: measurement.TypeK8s,
 			Data: versionInfo,
 		},
 	}
