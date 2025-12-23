@@ -21,6 +21,7 @@ locals {
     "roles/logging.logWriter",
     "roles/monitoring.metricWriter",
     "roles/run.invoker",
+    "roles/run.admin",
     "roles/secretmanager.secretAccessor",
     "roles/storage.objectAdmin",
     "roles/storage.objectViewer",

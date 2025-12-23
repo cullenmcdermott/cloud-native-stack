@@ -70,6 +70,16 @@ make tidy
 make info
 ```
 
+### Common Make Targets
+
+- `make build` – Compile CLI and server binaries into `dist/`.
+- `make test` – Run Go unit tests with coverage.
+- `make lint` – Execute Go and YAML linters (via golangci-lint & yamllint).
+- `make lint-go` / `make lint-yaml` – Run language-specific linting.
+- `make scan` – Security and dependency checks.
+- `make release` – Build artifacts and container images (used by CI tags).
+- `make qualify` – Aggregate test, lint, and scan runs.
+
 ## Development Workflow
 
 ### 1. Create a Branch
