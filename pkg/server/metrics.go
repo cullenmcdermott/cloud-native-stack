@@ -1,0 +1,86 @@
+package server
+
+import (
+	"net/http"
+	"strconv"
+	"time"
+
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promauto"
+)
+
+var (
+	// HTTP request metrics
+	httpRequestsTotal = promauto.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "eidos_http_requests_total",
+			Help: "Total number of HTTP requests",
+		},
+		[]string{"method", "path", "status"},
+	)
+
+	httpRequestDuration = promauto.NewHistogramVec(
+		prometheus.HistogramOpts{
+			Name:    "eidos_http_request_duration_seconds",
+			Help:    "HTTP request latency in seconds",
+			Buckets: prometheus.DefBuckets,
+		},
+		[]string{"method", "path"},
+	)
+
+	httpRequestsInFlight = promauto.NewGauge(
+		prometheus.GaugeOpts{
+			Name: "eidos_http_requests_in_flight",
+			Help: "Current number of HTTP requests being processed",
+		},
+	)
+
+	// Rate limiting metrics
+	rateLimitRejects = promauto.NewCounter(
+		prometheus.CounterOpts{
+			Name: "eidos_rate_limit_rejects_total",
+			Help: "Total number of requests rejected due to rate limiting",
+		},
+	)
+
+	// Panic recovery metrics
+	panicRecoveries = promauto.NewCounter(
+		prometheus.CounterOpts{
+			Name: "eidos_panic_recoveries_total",
+			Help: "Total number of panics recovered in HTTP handlers",
+		},
+	)
+)
+
+// responseWriter wraps http.ResponseWriter to capture status code
+type responseWriter struct {
+	http.ResponseWriter
+	statusCode int
+}
+
+func (rw *responseWriter) WriteHeader(code int) {
+	rw.statusCode = code
+	rw.ResponseWriter.WriteHeader(code)
+}
+
+// metricsMiddleware instruments HTTP requests with Prometheus metrics
+func (s *Server) metricsMiddleware(next http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		start := time.Now()
+		httpRequestsInFlight.Inc()
+		defer httpRequestsInFlight.Dec()
+
+		// Wrap response writer to capture status code
+		wrapped := &responseWriter{ResponseWriter: w, statusCode: http.StatusOK}
+
+		next.ServeHTTP(wrapped, r)
+
+		duration := time.Since(start).Seconds()
+		path := r.URL.Path
+		method := r.Method
+		status := strconv.Itoa(wrapped.statusCode)
+
+		httpRequestsTotal.WithLabelValues(method, path, status).Inc()
+		httpRequestDuration.WithLabelValues(method, path).Observe(duration)
+	}
+}

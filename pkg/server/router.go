@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/NVIDIA/cloud-native-stack/pkg/serializers"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
 // setupRoutes configures all HTTP routes and middleware
@@ -18,6 +19,7 @@ func (s *Server) setupRoutes() http.Handler {
 	// System endpoints (no rate limiting)
 	mux.HandleFunc("/health", s.handleHealth)
 	mux.HandleFunc("/ready", s.handleReady)
+	mux.Handle("/metrics", promhttp.Handler())
 
 	// API endpoints with middleware
 	mux.HandleFunc("/v1/recommendations", s.withMiddleware(s.handleRecommendations))
@@ -47,6 +49,7 @@ func (s *Server) handleDefault(w http.ResponseWriter, r *http.Request) {
 			"GET /v1/recommendations",
 			"GET /health",
 			"GET /ready",
+			"GET /metrics",
 		},
 	}
 

@@ -12,10 +12,12 @@ import (
 
 // withMiddleware wraps handlers with common middleware
 func (s *Server) withMiddleware(handler http.HandlerFunc) http.HandlerFunc {
-	return s.requestIDMiddleware(
-		s.rateLimitMiddleware(
-			s.panicRecoveryMiddleware(
-				s.loggingMiddleware(handler),
+	return s.metricsMiddleware(
+		s.requestIDMiddleware(
+			s.panicRecoveryMiddleware( // Recover first to prevent token waste on panics
+				s.rateLimitMiddleware(
+					s.loggingMiddleware(handler),
+				),
 			),
 		),
 	)
@@ -48,6 +50,7 @@ func (s *Server) requestIDMiddleware(next http.HandlerFunc) http.HandlerFunc {
 func (s *Server) rateLimitMiddleware(next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if !s.rateLimiter.Allow() {
+			rateLimitRejects.Inc()
 			retryAfterSeconds := "1"
 			w.Header().Set("Retry-After", retryAfterSeconds)
 			s.writeError(w, r, http.StatusTooManyRequests, ErrCodeRateLimitExceeded,
@@ -72,6 +75,7 @@ func (s *Server) panicRecoveryMiddleware(next http.HandlerFunc) http.HandlerFunc
 	return func(w http.ResponseWriter, r *http.Request) {
 		defer func() {
 			if err := recover(); err != nil {
+				panicRecoveries.Inc()
 				var errMsg string
 				switch v := err.(type) {
 				case error:

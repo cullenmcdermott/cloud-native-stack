@@ -121,7 +121,7 @@ func TestGetNode(t *testing.T) {
 		client: fakeClient,
 	}
 
-	n, err := Get(opts)
+	n, err := Get(context.TODO(), opts)
 	assert.NoError(t, err)
 	assert.NotNil(t, n)
 	assert.Equal(t, "test-node", n.Name)

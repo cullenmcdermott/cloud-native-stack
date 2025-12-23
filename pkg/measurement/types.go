@@ -55,8 +55,9 @@ type Measurement struct {
 
 // Subtype represents a subtype of measurement with its associated data.
 type Subtype struct {
-	Name string             `json:"subtype,omitempty" yaml:"subtype,omitempty"`
-	Data map[string]Reading `json:"data" yaml:"data"`
+	Name    string             `json:"subtype,omitempty" yaml:"subtype,omitempty"`
+	Data    map[string]Reading `json:"data" yaml:"data"`
+	Context map[string]string  `json:"context,omitempty" yaml:"context,omitempty"`
 }
 
 // UnmarshalJSON custom unmarshaler for Subtype to handle Reading interface

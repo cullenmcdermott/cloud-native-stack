@@ -62,11 +62,13 @@ func NewServer(config *Config) *Server {
 	// Setup HTTP server
 	mux := s.setupRoutes()
 	s.httpServer = &http.Server{
-		Addr:         fmt.Sprintf("%s:%d", config.Address, config.Port),
-		Handler:      mux,
-		ReadTimeout:  config.ReadTimeout,
-		WriteTimeout: config.WriteTimeout,
-		IdleTimeout:  config.IdleTimeout,
+		Addr:              fmt.Sprintf("%s:%d", config.Address, config.Port),
+		Handler:           mux,
+		ReadTimeout:       config.ReadTimeout,
+		WriteTimeout:      config.WriteTimeout,
+		IdleTimeout:       config.IdleTimeout,
+		MaxHeaderBytes:    1 << 16,         // 64KB limit to prevent header-based attacks
+		ReadHeaderTimeout: 5 * time.Second, // Prevent slow header attacks
 	}
 
 	return s

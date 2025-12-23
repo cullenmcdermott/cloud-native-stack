@@ -38,6 +38,12 @@ func (n *NodeSnapshotter) Run(ctx context.Context) error {
 
 	slog.Debug("starting node snapshot")
 
+	// Track overall snapshot collection duration
+	start := time.Now()
+	defer func() {
+		snapshotCollectionDuration.Observe(time.Since(start).Seconds())
+	}()
+
 	// Pre-allocate with estimated capacity
 	var mu sync.Mutex
 	g, ctx := errgroup.WithContext(ctx)
@@ -47,13 +53,17 @@ func (n *NodeSnapshotter) Run(ctx context.Context) error {
 		Kind:         "Snapshot",
 		APIVersion:   "snapshot.dgxc.io/v1",
 		Metadata:     make(map[string]string),
-		Measurements: make([]*measurement.Measurement, 0),
+		Measurements: make([]*measurement.Measurement, 0, 8), // Pre-allocate capacity for 8 collectors
 	}
 
 	// Collect node metadata
 	g.Go(func() error {
+		collectorStart := time.Now()
+		defer func() {
+			snapshotCollectorDuration.WithLabelValues("metadata").Observe(time.Since(collectorStart).Seconds())
+		}()
 		slog.Debug("collecting node metadata")
-		nd, err := node.Get(node.GetOptions{})
+		nd, err := node.Get(ctx, node.GetOptions{})
 		if err != nil {
 			slog.Error("failed to get node info", slog.String("error", err.Error()))
 			return fmt.Errorf("failed to get node info: %w", err)
@@ -69,6 +79,10 @@ func (n *NodeSnapshotter) Run(ctx context.Context) error {
 
 	// Collect images
 	g.Go(func() error {
+		collectorStart := time.Now()
+		defer func() {
+			snapshotCollectorDuration.WithLabelValues("image").Observe(time.Since(collectorStart).Seconds())
+		}()
 		slog.Debug("collecting container images")
 		ic := n.Factory.CreateImageCollector()
 		images, err := ic.Collect(ctx)
@@ -84,6 +98,10 @@ func (n *NodeSnapshotter) Run(ctx context.Context) error {
 
 	// Collect k8s resources
 	g.Go(func() error {
+		collectorStart := time.Now()
+		defer func() {
+			snapshotCollectorDuration.WithLabelValues("k8s").Observe(time.Since(collectorStart).Seconds())
+		}()
 		slog.Debug("collecting kubernetes resources")
 		kc := n.Factory.CreateKubernetesCollector()
 		k8sResources, err := kc.Collect(ctx)
@@ -99,6 +117,10 @@ func (n *NodeSnapshotter) Run(ctx context.Context) error {
 
 	// Collect kernel modules
 	g.Go(func() error {
+		collectorStart := time.Now()
+		defer func() {
+			snapshotCollectorDuration.WithLabelValues("kmod").Observe(time.Since(collectorStart).Seconds())
+		}()
 		slog.Debug("collecting kernel modules")
 		km := n.Factory.CreateKModCollector()
 		kMod, err := km.Collect(ctx)
@@ -114,6 +136,10 @@ func (n *NodeSnapshotter) Run(ctx context.Context) error {
 
 	// Collect systemd
 	g.Go(func() error {
+		collectorStart := time.Now()
+		defer func() {
+			snapshotCollectorDuration.WithLabelValues("systemd").Observe(time.Since(collectorStart).Seconds())
+		}()
 		slog.Debug("collecting systemd services")
 		sd := n.Factory.CreateSystemDCollector()
 		systemd, err := sd.Collect(ctx)
@@ -129,6 +155,10 @@ func (n *NodeSnapshotter) Run(ctx context.Context) error {
 
 	// Collect grub
 	g.Go(func() error {
+		collectorStart := time.Now()
+		defer func() {
+			snapshotCollectorDuration.WithLabelValues("grub").Observe(time.Since(collectorStart).Seconds())
+		}()
 		slog.Debug("collecting grub configuration")
 		g := n.Factory.CreateGrubCollector()
 		grub, err := g.Collect(ctx)
@@ -144,6 +174,10 @@ func (n *NodeSnapshotter) Run(ctx context.Context) error {
 
 	// Collect sysctl
 	g.Go(func() error {
+		collectorStart := time.Now()
+		defer func() {
+			snapshotCollectorDuration.WithLabelValues("sysctl").Observe(time.Since(collectorStart).Seconds())
+		}()
 		slog.Debug("collecting sysctl configuration")
 		s := n.Factory.CreateSysctlCollector()
 		sysctl, err := s.Collect(ctx)
@@ -159,6 +193,10 @@ func (n *NodeSnapshotter) Run(ctx context.Context) error {
 
 	// Collect SMI
 	g.Go(func() error {
+		collectorStart := time.Now()
+		defer func() {
+			snapshotCollectorDuration.WithLabelValues("smi").Observe(time.Since(collectorStart).Seconds())
+		}()
 		slog.Debug("collecting SMI configuration")
 		smi := n.Factory.CreateSMICollector()
 		smiConfigs, err := smi.Collect(ctx)
@@ -174,8 +212,12 @@ func (n *NodeSnapshotter) Run(ctx context.Context) error {
 
 	// Wait for all collectors to complete
 	if err := g.Wait(); err != nil {
+		snapshotCollectionTotal.WithLabelValues("error").Inc()
 		return err
 	}
+
+	snapshotCollectionTotal.WithLabelValues("success").Inc()
+	snapshotMeasurementCount.Set(float64(len(snap.Measurements)))
 
 	slog.Debug("snapshot collection complete", slog.Int("total_configs", len(snap.Measurements)))
 

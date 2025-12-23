@@ -122,7 +122,10 @@ func FormatAge(createdOn time.Time) string {
 	}())
 }
 
-const nodeListPageSizeDefault int64 = 500
+const (
+	nodeListPageSizeDefault int64 = 500
+	nodeListAbsoluteMax     int64 = 10000 // Hard cap to prevent memory exhaustion
+)
 
 // List returns a list of nodes in the cluster based on the provided options.
 // It uses the Kubernetes client to fetch the nodes and applies the specified
@@ -138,19 +141,33 @@ func List(ctx context.Context, opt ListOptions) ([]*v1.Node, error) {
 		opt.Client = client
 	}
 
-	pageSize := nodeListPageSizeDefault
-	if opt.Limit > 0 && opt.Limit < pageSize {
-		pageSize = opt.Limit
+	// Enforce absolute maximum to prevent memory exhaustion
+	effectiveLimit := opt.Limit
+	if effectiveLimit == 0 || effectiveLimit > nodeListAbsoluteMax {
+		effectiveLimit = nodeListAbsoluteMax
 	}
 
+	pageSize := nodeListPageSizeDefault
+	if effectiveLimit > 0 && effectiveLimit < pageSize {
+		pageSize = effectiveLimit
+	}
+
+	// Pre-allocate with reasonable capacity to prevent repeated slice growth
+	estimatedCap := effectiveLimit
+	if estimatedCap > 500 {
+		estimatedCap = 500
+	}
 	var allNodes []*v1.Node
+	if estimatedCap > 0 {
+		allNodes = make([]*v1.Node, 0, estimatedCap)
+	}
 	continueToken := ""
 	totalFetched := int64(0)
 
 	for {
 		currentLimit := pageSize
-		if opt.Limit > 0 && (totalFetched+currentLimit) > opt.Limit {
-			currentLimit = opt.Limit - totalFetched
+		if effectiveLimit > 0 && (totalFetched+currentLimit) > effectiveLimit {
+			currentLimit = effectiveLimit - totalFetched
 		}
 
 		lo := metav1.ListOptions{
@@ -190,7 +207,7 @@ func List(ctx context.Context, opt ListOptions) ([]*v1.Node, error) {
 			break
 		}
 
-		if opt.Limit > 0 && totalFetched >= opt.Limit {
+		if effectiveLimit > 0 && totalFetched >= effectiveLimit {
 			break
 		}
 
@@ -232,7 +249,7 @@ func (opt *GetOptions) Validate() error {
 // it attempts to detect the current node from the NODE_NAME environment variable
 // (typically set via Kubernetes Downward API in pod specs).
 // If the node is not found, it returns a NotFound error.
-func Get(opt GetOptions) (*v1.Node, error) {
+func Get(ctx context.Context, opt GetOptions) (*v1.Node, error) {
 	// If no node name provided, try to get current node from environment
 	if opt.Name == "" {
 		nodeName := getNodeName()
@@ -255,7 +272,7 @@ func Get(opt GetOptions) (*v1.Node, error) {
 		opt.client = client
 	}
 
-	node, err := opt.client.CoreV1().Nodes().Get(context.Background(), opt.Name, metav1.GetOptions{})
+	node, err := opt.client.CoreV1().Nodes().Get(ctx, opt.Name, metav1.GetOptions{})
 	if err != nil {
 		return nil, fmt.Errorf("failed to get node: %w", err)
 	}
