@@ -62,8 +62,6 @@ The recipe can be output in JSON, YAML, or table format.`,
 }
 
 func init() {
-	rootCmd.AddCommand(recipeCmd)
-
 	// Define flags for recipe query parameters
 	recipeCmd.Flags().StringVarP(&recOs, "os", "", "", "Operating system family (e.g., ubuntu, cos)")
 	recipeCmd.Flags().StringVarP(&recOsVersion, "osv", "", "", "Operating system version (e.g., 22.04)")

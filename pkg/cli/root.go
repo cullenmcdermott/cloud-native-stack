@@ -41,16 +41,8 @@ var (
 var rootCmd = &cobra.Command{
 	Use:   name,
 	Short: "eidos - Cloud Native Stack CLI",
-	Long: fmt.Sprintf(`eidos - Cloud Native Stack CLI
-
-Version: %s
-Commit:  %s
-Built:   %s
-
-Tooling to provide system optimization and verification capabilities: 
-
-snapshot - captures system configuration snapshots including kernel modules,
-           systemd services, GRUB parameters, and sysctl settings.`, version, commit, date),
+	Long: fmt.Sprintf(`eidos - Cloud Native Stack CLI (version: %s, commit: %s, built: %s)`,
+		version, commit, date),
 }
 
 // Execute adds all child commands to the root command and sets flags appropriately.
@@ -85,6 +77,12 @@ func init() {
 			Title: "Functional Commands:",
 		},
 	)
+
+	// Note: AddCommand must be done here rather than in individual init() functions
+	// to guarantee order since Go init() execution order is undefined across files
+	rootCmd.AddCommand(snapshotCmd)
+	rootCmd.AddCommand(recipeCmd)
+	rootCmd.AddCommand(versionCmd)
 
 	// Global flags
 	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is $HOME/.eidos.yaml)")
@@ -131,7 +129,7 @@ func initConfig() {
 // --log-level take effect before any command executes.
 func initLogger() {
 	logging.SetDefaultStructuredLoggerWithLevel(name, version, logLevel)
-	slog.Info("starting",
+	slog.Debug("starting",
 		"name", name,
 		"version", version,
 		"commit", commit,

@@ -16,9 +16,7 @@ var versionCmd = &cobra.Command{
 	Short: "Print version information",
 	Long:  `Print detailed version information including commit hash and build date.`,
 	Run: func(_ *cobra.Command, _ []string) {
-		fmt.Printf("%s version %s\n", name, version)
-		fmt.Printf("  commit: %s\n", commit)
-		fmt.Printf("  date:   %s\n", date)
+		fmt.Printf(`%s (commit: %s date: %s)`, version, commit, date)
 	},
 }
 

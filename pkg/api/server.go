@@ -30,7 +30,7 @@ func Serve() error {
 	ctx := context.Background()
 
 	logging.SetDefaultStructuredLogger(name, version)
-	slog.Info("starting",
+	slog.Debug("starting",
 		"name", name,
 		"version", version,
 		"commit", commit,

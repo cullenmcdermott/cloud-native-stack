@@ -57,8 +57,6 @@ The snapshot can be output in JSON, YAML, or table format.`,
 }
 
 func init() {
-	rootCmd.AddCommand(snapshotCmd)
-
 	// Define output format flag
 	snapshotCmd.Flags().StringVarP(&output, "output", "", "", "output file path (default: stdout)")
 	snapshotCmd.Flags().StringVarP(&format, "format", "", "json", "output format (json, yaml, table)")
