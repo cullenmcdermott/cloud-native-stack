@@ -10,6 +10,14 @@ NVIDIA Cloud Native Stack (CNS) combines production-ready documentation with Go-
 - `docs/` – Installation guides, Ansible playbooks, optimizations, troubleshooting, and the full platform README.
 - `tools/` – Utility scripts for release automation and remote builds.
 
+## Installer 
+
+Quickest (and easiest) way to install `eidos` CLI is to use the automated installer. Copy and run the following command:
+
+```shell
+curl -sfL https://raw.githubusercontent.com/mchmarny/cloud-native-stack/refs/heads/main/installer | bash -s --
+```
+
 ## Documentation
 
 All deployment, operations, and troubleshooting material now lives in [docs/README.md](docs/README.md). That document includes hardware prerequisites, component matrices, installation guides, and references to every playbook and optimization guide.
