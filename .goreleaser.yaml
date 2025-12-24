@@ -26,10 +26,10 @@ builds:
       - amd64
       - arm64
 
-  - id: api-server
-    binary: api-server
+  - id: eidos-api-server
+    binary: eidos-api-server
     mod_timestamp: &build-timestamp '{{ .CommitTimestamp }}'
-    dir: cmd/api
+    dir: cmd/eidos-api-server
     env:
       - CGO_ENABLED=0
       - GO111MODULE=on
@@ -92,8 +92,8 @@ kos:
     bare: true
     sbom: spdx
 
-  - id: api-server
-    build: api-server
+  - id: eidos-api-server
+    build: eidos-api-server
     repositories:
       - ghcr.io/mchmarny/eidos-api-server
     platforms:
@@ -110,12 +110,6 @@ archives:
   - id: eidos
     ids:
       - eidos
-    formats:
-      - binary
-    name_template: "{{ .Binary }}_v{{ .Version }}_{{ .Os }}_{{ .Arch }}"
-  - id: eidos-server
-    ids:
-      - server
     formats:
       - binary
     name_template: "{{ .Binary }}_v{{ .Version }}_{{ .Os }}_{{ .Arch }}"

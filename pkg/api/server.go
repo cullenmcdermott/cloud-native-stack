@@ -11,7 +11,7 @@ import (
 )
 
 const (
-	name           = "api-server"
+	name           = "eidos-api-server"
 	versionDefault = "dev"
 )
 
@@ -45,7 +45,11 @@ func Serve() error {
 	}
 
 	// Create and run server
-	s := server.New(server.WithName(name), server.WithHandler(r))
+	s := server.New(
+		server.WithName(name),
+		server.WithVersion(version),
+		server.WithHandler(r),
+	)
 
 	if err := s.Run(ctx); err != nil {
 		slog.Error("server exited with error", "error", err)

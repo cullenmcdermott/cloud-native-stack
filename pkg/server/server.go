@@ -45,6 +45,13 @@ func WithName(name string) Option {
 	}
 }
 
+// WithVersion sets the server version in the configuration
+func WithVersion(version string) Option {
+	return func(s *Server) {
+		s.config.Version = version
+	}
+}
+
 // WithHandler adds custom handlers to the server
 func WithHandler(handlers map[string]http.HandlerFunc) Option {
 	return func(s *Server) {
@@ -199,6 +206,7 @@ func (s *Server) configureRootHandler() {
 
 			response := map[string]interface{}{
 				"service": s.config.Name,
+				"version": s.config.Version,
 				"routes":  routes,
 			}
 

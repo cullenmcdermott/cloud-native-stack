@@ -12,7 +12,8 @@ import (
 // Config holds server configuration
 type Config struct {
 	// Server identity
-	Name string
+	Name    string
+	Version string
 
 	// Additional Handlers to be added to the server
 	Handlers map[string]http.HandlerFunc
@@ -45,6 +46,7 @@ func NewConfig() *Config {
 func parseConfig() *Config {
 	cfg := &Config{
 		Name:            "server",
+		Version:         "undefined",
 		Address:         "",
 		Port:            8080,
 		RateLimit:       100, // 100 req/s
