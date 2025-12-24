@@ -7,6 +7,13 @@ import (
 	"github.com/NVIDIA/cloud-native-stack/pkg/serializers"
 )
 
+// HealthResponse represents health check response
+type HealthResponse struct {
+	Status    string    `json:"status" yaml:"status"`
+	Timestamp time.Time `json:"timestamp" yaml:"timestamp"`
+	Reason    string    `json:"reason,omitempty" yaml:"reason,omitempty"`
+}
+
 // handleHealth handles GET /health
 func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {

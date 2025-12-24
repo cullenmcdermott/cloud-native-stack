@@ -53,7 +53,7 @@ func (s *Server) rateLimitMiddleware(next http.HandlerFunc) http.HandlerFunc {
 			rateLimitRejects.Inc()
 			retryAfterSeconds := "1"
 			w.Header().Set("Retry-After", retryAfterSeconds)
-			s.writeError(w, r, http.StatusTooManyRequests, ErrCodeRateLimitExceeded,
+			WriteError(w, r, http.StatusTooManyRequests, ErrCodeRateLimitExceeded,
 				"Rate limit exceeded", true, map[string]interface{}{
 					"limit": s.config.RateLimit,
 					"burst": s.config.RateLimitBurst,
@@ -89,7 +89,7 @@ func (s *Server) panicRecoveryMiddleware(next http.HandlerFunc) http.HandlerFunc
 					"path", r.URL.Path,
 					"method", r.Method,
 				)
-				s.writeError(w, r, http.StatusInternalServerError, ErrCodeInternalError,
+				WriteError(w, r, http.StatusInternalServerError, ErrCodeInternalError,
 					"Internal server error", true, nil)
 			}
 		}()

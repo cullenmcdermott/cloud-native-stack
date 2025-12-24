@@ -21,10 +21,12 @@ var (
 	defaultBuilder = &Builder{}
 )
 
-// Builder produces recommendation payloads and optionally exposes cache metadata
-// (e.g., TTL) for higher layers like HTTP handlers.
+func NewBuilder() *Builder {
+	return &Builder{}
+}
+
+// Builder constructs Recommendation payloads based on queries.
 type Builder struct {
-	CacheTTL time.Duration
 }
 
 // BuildRecommendation creates a Recommendation based on the query using a shared

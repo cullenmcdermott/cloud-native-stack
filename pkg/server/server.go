@@ -12,55 +12,62 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/NVIDIA/cloud-native-stack/pkg/logging"
-	"github.com/NVIDIA/cloud-native-stack/pkg/recommendation"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 
 	"golang.org/x/sync/errgroup"
 	"golang.org/x/time/rate"
 )
 
-const (
-	name           = "eidos-server"
-	versionDefault = "dev"
-)
-
-var (
-	// overridden during build with ldflags to reflect actual version info
-	// e.g., -X "github.com/NVIDIA/cloud-native-stack/pkg/server.version=1.0.0"
-	version = versionDefault
-	commit  = "unknown"
-	date    = "unknown"
-)
-
 // Server represents the HTTP server for handling requests.
 type Server struct {
-	config                *Config
-	httpServer            *http.Server
-	rateLimiter           *rate.Limiter
-	mu                    sync.RWMutex
-	recommendationBuilder *recommendation.Builder
-	ready                 bool
+	config      *Config
+	httpServer  *http.Server
+	rateLimiter *rate.Limiter
+	mu          sync.RWMutex
+	ready       bool
 }
 
-// NewServer creates a new server instance with the given configuration.
-func NewServer(config *Config) *Server {
-	if config == nil {
-		config = DefaultConfig()
+// Option is a functional option for configuring the Server
+type Option func(*Server)
+
+// WithConfig sets a custom configuration for the server
+func WithConfig(cfg *Config) Option {
+	return func(s *Server) {
+		s.config = cfg
 	}
+}
+
+// New creates a new server instance with the given routes and options.
+// New creates a new server instance with the given routes and options.
+func New(routes map[string]http.HandlerFunc, opts ...Option) *Server {
+	config := parseConfig()
 
 	s := &Server{
 		config:      config,
 		rateLimiter: rate.NewLimiter(config.RateLimit, config.RateLimitBurst),
 	}
 
-	// Initialize recommendation handler
-	rb := &recommendation.Builder{
-		CacheTTL: time.Duration(config.CacheMaxAge) * time.Second,
+	// Apply options
+	for _, opt := range opts {
+		opt(s)
 	}
-	s.recommendationBuilder = rb
+
+	// Re-create rate limiter if config was changed
+	s.rateLimiter = rate.NewLimiter(s.config.RateLimit, s.config.RateLimitBurst)
 
 	// Setup HTTP server
-	mux := s.setupRoutes()
+	mux := http.NewServeMux()
+
+	// System endpoints (no rate limiting)
+	mux.HandleFunc("/health", s.handleHealth)
+	mux.HandleFunc("/ready", s.handleReady)
+	mux.Handle("/metrics", promhttp.Handler())
+
+	// setup application routes
+	for path, handler := range routes {
+		mux.HandleFunc(path, s.withMiddleware(handler))
+	}
+
 	s.httpServer = &http.Server{
 		Addr:              fmt.Sprintf("%s:%d", config.Address, config.Port),
 		Handler:           mux,
@@ -75,7 +82,7 @@ func NewServer(config *Config) *Server {
 }
 
 // SetReady marks the server as ready to serve traffic or not.
-func (s *Server) SetReady(ready bool) {
+func (s *Server) setReady(ready bool) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.ready = ready
@@ -83,7 +90,7 @@ func (s *Server) SetReady(ready bool) {
 
 // Start starts the HTTP server and listens for incoming requests.
 func (s *Server) Start(ctx context.Context) error {
-	s.SetReady(true)
+	s.setReady(true)
 
 	fmt.Printf("starting server on %s\n", s.httpServer.Addr)
 
@@ -106,7 +113,7 @@ func (s *Server) Start(ctx context.Context) error {
 
 // Shutdown gracefully shuts down the server within the given context.
 func (s *Server) Shutdown(ctx context.Context) error {
-	s.SetReady(false)
+	s.setReady(false)
 
 	shutdownCtx, cancel := context.WithTimeout(ctx, s.config.ShutdownTimeout)
 	defer cancel()
@@ -115,55 +122,30 @@ func (s *Server) Shutdown(ctx context.Context) error {
 	return s.httpServer.Shutdown(shutdownCtx)
 }
 
-// Run starts the server with graceful shutdown handling using default configuration
-// and logs any errors encountered during execution.
-func Run() error {
-	if err := RunWithConfig(DefaultConfig()); err != nil {
-		slog.Error("error running server", slog.String("error", err.Error()))
-		return fmt.Errorf("server error: %w", err)
-	}
-	return nil
-}
-
 // RunWithConfig starts the server with custom configuration and graceful shutdown handling.
-func RunWithConfig(config *Config) error {
-	if config == nil {
-		config = DefaultConfig()
-	}
-
-	// Initialize logger
-	logging.SetDefaultStructuredLoggerWithLevel(name, version, config.LogLevel)
-	slog.Debug("starting",
-		"name", name,
-		"version", version,
-		"commit", commit,
-		"date", date)
-
-	server := NewServer(config)
-
+func (s *Server) Run(ctx context.Context) error {
 	slog.Debug("server config",
-		slog.String("address", server.httpServer.Addr),
-		slog.Int("port", config.Port),
-		slog.Any("rateLimit", config.RateLimit),
-		slog.Int("rateLimitBurst", config.RateLimitBurst),
-		slog.Int("maxBulkRequests", config.MaxBulkRequests),
-		slog.Duration("readTimeout", config.ReadTimeout),
-		slog.Duration("writeTimeout", config.WriteTimeout),
-		slog.Duration("idleTimeout", config.IdleTimeout),
-		slog.Duration("shutdownTimeout", config.ShutdownTimeout),
-		slog.String("logLevel", config.LogLevel),
+		slog.String("address", s.httpServer.Addr),
+		slog.Int("port", s.config.Port),
+		slog.Any("rateLimit", s.config.RateLimit),
+		slog.Int("rateLimitBurst", s.config.RateLimitBurst),
+		slog.Int("maxBulkRequests", s.config.MaxBulkRequests),
+		slog.Duration("readTimeout", s.config.ReadTimeout),
+		slog.Duration("writeTimeout", s.config.WriteTimeout),
+		slog.Duration("idleTimeout", s.config.IdleTimeout),
+		slog.Duration("shutdownTimeout", s.config.ShutdownTimeout),
 	)
 
 	// Setup graceful shutdown
-	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	notifCtx, stop := signal.NotifyContext(ctx, os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
 	// Use errgroup for concurrent operations
-	g, gctx := errgroup.WithContext(ctx)
+	g, gctx := errgroup.WithContext(notifCtx)
 
 	// Start HTTP server
 	g.Go(func() error {
-		return server.Start(gctx)
+		return s.Start(gctx)
 	})
 
 	// Wait for completion or error

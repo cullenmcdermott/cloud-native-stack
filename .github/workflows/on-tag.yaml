@@ -87,7 +87,7 @@ jobs:
           set -euo pipefail
           echo "Updating image..."
           gcloud run services update ${{ env.RUN_SERVICE }} \
-            --image "${{ env.RUN_IMAGE_REG }}/eidos-server:${{ github.ref_name }}" \
+            --image "${{ env.RUN_IMAGE_REG }}/eidos-api-server:${{ github.ref_name }}" \
             --region ${{ env.RUN_REGION }} \
             --project ${{ env.PROJECT_ID }}
           echo "Deploy complete."

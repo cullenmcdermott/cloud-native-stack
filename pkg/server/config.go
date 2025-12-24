@@ -2,25 +2,50 @@ package server
 
 import (
 	"fmt"
-	"log/slog"
 	"os"
 	"time"
+
+	"golang.org/x/time/rate"
 )
 
-// DefaultConfig returns sensible defaults
-func DefaultConfig() *Config {
+// Config holds server configuration
+type Config struct {
+	// Server configuration
+	Address string
+	Port    int
+
+	// Rate limiting configuration
+	RateLimit      rate.Limit // requests per second
+	RateLimitBurst int        // burst size
+
+	// Request limits
+	MaxBulkRequests int
+
+	// Timeouts
+	ReadTimeout     time.Duration
+	WriteTimeout    time.Duration
+	IdleTimeout     time.Duration
+	ShutdownTimeout time.Duration
+}
+
+// NewConfig returns a new Config with sensible defaults.
+// Use this when you want to customize config programmatically.
+func NewConfig() *Config {
+	return parseConfig()
+}
+
+// parseConfig returns sensible defaults
+func parseConfig() *Config {
 	cfg := &Config{
 		Address:         "",
 		Port:            8080,
 		RateLimit:       100, // 100 req/s
 		RateLimitBurst:  200, // burst of 200
-		CacheMaxAge:     300, // 5 minutes
 		MaxBulkRequests: 100,
 		ReadTimeout:     10 * time.Second,
 		WriteTimeout:    30 * time.Second,
 		IdleTimeout:     120 * time.Second,
 		ShutdownTimeout: 30 * time.Second,
-		LogLevel:        slog.LevelInfo.String(),
 	}
 
 	// Override with environment variables if set
@@ -29,10 +54,6 @@ func DefaultConfig() *Config {
 		if _, err := fmt.Sscanf(portStr, "%d", &port); err == nil {
 			cfg.Port = port
 		}
-	}
-
-	if logLevelStr := os.Getenv("LOG_LEVEL"); logLevelStr != "" {
-		cfg.LogLevel = logLevelStr
 	}
 
 	return cfg

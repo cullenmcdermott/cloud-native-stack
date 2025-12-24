@@ -26,10 +26,10 @@ builds:
       - amd64
       - arm64
 
-  - id: server
-    binary: server
+  - id: api-server
+    binary: api-server
     mod_timestamp: &build-timestamp '{{ .CommitTimestamp }}'
-    dir: cmd/server
+    dir: cmd/api
     env:
       - CGO_ENABLED=0
       - GO111MODULE=on
@@ -39,9 +39,9 @@ builds:
       -w
       -s
       -extldflags "-static"
-      -X github.com/NVIDIA/cloud-native-stack/pkg/server.version={{.Version}}
-      -X github.com/NVIDIA/cloud-native-stack/pkg/server.commit={{.ShortCommit}}
-      -X github.com/NVIDIA/cloud-native-stack/pkg/server.date={{.Date}}
+      -X github.com/NVIDIA/cloud-native-stack/pkg/api.version={{.Version}}
+      -X github.com/NVIDIA/cloud-native-stack/pkg/api.commit={{.ShortCommit}}
+      -X github.com/NVIDIA/cloud-native-stack/pkg/api.date={{.Date}}
     goos:
       - linux
     goarch:
@@ -92,10 +92,10 @@ kos:
     bare: true
     sbom: spdx
 
-  - id: eidos-server
-    build: server
+  - id: api-server
+    build: api-server
     repositories:
-      - ghcr.io/mchmarny/eidos-server
+      - ghcr.io/mchmarny/eidos-api-server
     platforms:
       - linux/amd64
       - linux/arm64
