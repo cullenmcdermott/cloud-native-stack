@@ -100,7 +100,7 @@ jobs:
       - name: Resolve image digest
         id: img
         run: |
-          REG_URI="ghcr.io/${{ github.repository }}"
+          REG_URI="ghcr.io/${{ github.repository_owner }}"
           TAG="${{ github.ref_name }}"
           IMG_API_DIGEST="$(crane digest "${REG_URI}/eidos-api-server:${TAG}")"
           IMG_CLI_DIGEST="$(crane digest "${REG_URI}/eidos:${TAG}")"
@@ -110,13 +110,13 @@ jobs:
       - name: Generate artifact attestation for eidos-api-server
         uses: actions/attest-build-provenance@00014ed6ed5efc5b1ab7f7f34a39eb55d41aa4f8  # v3.1.0
         with:
-          subject-name: ghcr.io/${{ github.repository }}/eidos-api-server
+          subject-name: ghcr.io/${{ github.repository_owner }}/eidos-api-server
           subject-digest: '${{ steps.img.outputs.image-api-digest }}'
           push-to-registry: true
 
       - name: Generate artifact attestation for eidos
         uses: actions/attest-build-provenance@00014ed6ed5efc5b1ab7f7f34a39eb55d41aa4f8  # v3.1.0
         with:
-          subject-name: ghcr.io/${{ github.repository }}/eidos
+          subject-name: ghcr.io/${{ github.repository_owner }}/eidos
           subject-digest: '${{ steps.img.outputs.image-cli-digest }}'
           push-to-registry: true
