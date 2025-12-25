@@ -49,7 +49,9 @@ The snapshot can be output in JSON, YAML, or table format.`,
 			}
 
 			// Create factory with configured services
-			factory := collector.NewDefaultFactory()
+			factory := collector.NewDefaultFactory(
+				collector.WithVersion(version),
+			)
 
 			// Create and run snapshotter
 			ns := snapshotter.NodeSnapshotter{

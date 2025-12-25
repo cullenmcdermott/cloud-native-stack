@@ -14,6 +14,7 @@ const (
 // Recipe represents the recipe response structure.
 type Recipe struct {
 	PayloadVersion string                     `json:"payloadVersion" yaml:"payloadVersion"`
+	BuilderVersion string                     `json:"builderVersion" yaml:"builderVersion"`
 	GeneratedAt    time.Time                  `json:"generatedAt" yaml:"generatedAt"`
 	Request        *Query                     `json:"request,omitempty" yaml:"request,omitempty"`
 	MatchedRules   []string                   `json:"matchedRules,omitempty" yaml:"matchedRules,omitempty"`

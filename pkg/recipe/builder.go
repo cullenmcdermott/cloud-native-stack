@@ -22,12 +22,23 @@ var (
 	defaultBuilder = &Builder{}
 )
 
-func NewBuilder() *Builder {
-	return &Builder{}
+// Option is a functional option for configuring the Builder
+type Option func(*Builder)
+
+// NewBuilder creates a new Builder with the provided options.
+func NewBuilder(opts ...Option) *Builder {
+	b := &Builder{}
+
+	for _, opt := range opts {
+		opt(b)
+	}
+
+	return b
 }
 
 // Builder constructs Recipe payloads based on queries.
 type Builder struct {
+	Version string
 }
 
 // BuildRecipe creates a Recipe based on the query using a shared
@@ -51,6 +62,7 @@ func (b *Builder) Build(ctx context.Context, q *Query) (*Recipe, error) {
 	r := &Recipe{
 		Request:        q,
 		PayloadVersion: RecipeAPIVersion,
+		BuilderVersion: b.Version,
 		MatchedRules:   make([]string, 0),
 		GeneratedAt:    time.Now().UTC(),
 	}
