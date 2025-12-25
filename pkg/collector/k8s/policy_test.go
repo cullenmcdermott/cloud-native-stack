@@ -9,14 +9,9 @@ import (
 	"github.com/stretchr/testify/assert"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/version"
-	"k8s.io/client-go/discovery"
 	fakediscovery "k8s.io/client-go/discovery/fake"
-	"k8s.io/client-go/dynamic/fake"
 	fakeclient "k8s.io/client-go/kubernetes/fake"
-	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
 )
 
@@ -47,7 +42,7 @@ func createMockClusterPolicy(name, namespace string) *unstructured.Unstructured 
 }
 
 // Helper to create test collector with mocked clients
-func createTestPolicyCollector(policies ...*unstructured.Unstructured) (*Collector, error) {
+func createTestPolicyCollector() *Collector {
 	// Create fake kubernetes client
 	fakeK8sClient := fakeclient.NewClientset()
 	fakeDiscovery := fakeK8sClient.Discovery().(*fakediscovery.FakeDiscovery)
@@ -78,7 +73,7 @@ func createTestPolicyCollector(policies ...*unstructured.Unstructured) (*Collect
 	return &Collector{
 		ClientSet:  fakeK8sClient,
 		RestConfig: restConfig,
-	}, nil
+	}
 }
 
 func TestPolicyCollector_Collect(t *testing.T) {
@@ -87,8 +82,7 @@ func TestPolicyCollector_Collect(t *testing.T) {
 	// so we're testing the parsing logic and structure
 	ctx := context.Background()
 
-	collector, err := createTestPolicyCollector()
-	assert.NoError(t, err)
+	collector := createTestPolicyCollector()
 
 	m, err := collector.Collect(ctx)
 	assert.NoError(t, err)
@@ -112,8 +106,7 @@ func TestPolicyCollector_EmptyCluster(t *testing.T) {
 	// Test behavior when no policies exist
 	ctx := context.Background()
 
-	collector, err := createTestPolicyCollector()
-	assert.NoError(t, err)
+	collector := createTestPolicyCollector()
 
 	policies, err := collector.collectClusterPolicies(ctx)
 	assert.NoError(t, err)
@@ -125,8 +118,7 @@ func TestPolicyCollector_WithCancelledContext(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel() // Cancel immediately
 
-	collector, err := createTestPolicyCollector()
-	assert.NoError(t, err)
+	collector := createTestPolicyCollector()
 
 	m, err := collector.Collect(ctx)
 	assert.Error(t, err)
@@ -175,38 +167,4 @@ func TestPolicyCollector_SpecSerialization(t *testing.T) {
 	err = json.Unmarshal(specJSON, &deserializedSpec)
 	assert.NoError(t, err)
 	assert.NotNil(t, deserializedSpec)
-}
-
-// Integration test helper
-func createFakeDynamicClient(objects ...runtime.Object) *fake.FakeDynamicClient {
-	s := scheme.Scheme
-	s.AddKnownTypeWithName(
-		schema.GroupVersionKind{Group: "nvidia.com", Version: "v1", Kind: "ClusterPolicy"},
-		&unstructured.Unstructured{},
-	)
-
-	return fake.NewSimpleDynamicClient(s, objects...)
-}
-
-// Helper for discovery mock
-func createMockDiscovery() discovery.DiscoveryInterface {
-	fakeClient := fakeclient.NewClientset()
-	fakeDiscovery := fakeClient.Discovery().(*fakediscovery.FakeDiscovery)
-
-	// Set up API resources for ClusterPolicy
-	clusterPolicyResource := metav1.APIResource{
-		Name:         "clusterpolicies",
-		SingularName: "clusterpolicy",
-		Namespaced:   false,
-		Kind:         "ClusterPolicy",
-	}
-
-	fakeDiscovery.Resources = []*metav1.APIResourceList{
-		{
-			GroupVersion: "nvidia.com/v1",
-			APIResources: []metav1.APIResource{clusterPolicyResource},
-		},
-	}
-
-	return fakeDiscovery
 }

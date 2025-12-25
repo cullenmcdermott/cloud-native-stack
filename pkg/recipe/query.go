@@ -27,6 +27,7 @@
 package recipe
 
 import (
+	"errors"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -67,12 +68,11 @@ type Query struct {
 }
 
 func (q *Query) IsEmpty() bool {
-	var zeroVersion version.Version
 	return q.Os == "" &&
-		q.OsVersion == zeroVersion &&
-		q.Kernel == zeroVersion &&
+		!q.OsVersion.IsValid() &&
+		!q.Kernel.IsValid() &&
 		q.Service == "" &&
-		q.K8s == zeroVersion &&
+		!q.K8s.IsValid() &&
 		q.GPU == "" &&
 		q.Intent == ""
 }
@@ -159,9 +159,9 @@ func normalizeValue[T ~string](val T) string {
 }
 
 // normalizeVersionValue normalizes a version value for key generation.
-// If the version has zero precision, it returns "any".
+// If the version is invalid (zero/unset), it returns "any".
 func normalizeVersionValue(val version.Version) string {
-	if val.Precision == 0 {
+	if !val.IsValid() {
 		return anyValue
 	}
 	return normalizeValue(strings.TrimSpace(val.String()))
@@ -387,14 +387,20 @@ func ParseQuery(r *http.Request) (*Query, error) {
 	// Parse OS version
 	if osVerStr := u.Get(QueryParamOSVersion); osVerStr != "" {
 		if q.OsVersion, err = version.ParseVersion(osVerStr); err != nil {
-			return nil, fmt.Errorf("invalid os version: %w", err)
+			if errors.Is(err, version.ErrNegativeComponent) {
+				return nil, fmt.Errorf("os version cannot contain negative numbers: %s", osVerStr)
+			}
+			return nil, fmt.Errorf("invalid os version %q: %w", osVerStr, err)
 		}
 	}
 
 	// Parse kernel version
 	if kernelStr := u.Get(QueryParamKernel); kernelStr != "" {
 		if q.Kernel, err = version.ParseVersion(kernelStr); err != nil {
-			return nil, fmt.Errorf("invalid kernel version: %w", err)
+			if errors.Is(err, version.ErrNegativeComponent) {
+				return nil, fmt.Errorf("kernel version cannot contain negative numbers: %s", kernelStr)
+			}
+			return nil, fmt.Errorf("invalid kernel version %q: %w", kernelStr, err)
 		}
 	}
 
@@ -406,7 +412,10 @@ func ParseQuery(r *http.Request) (*Query, error) {
 	// Parse Kubernetes version
 	if k8sStr := u.Get(QueryParamKubernetes); k8sStr != "" {
 		if q.K8s, err = version.ParseVersion(k8sStr); err != nil {
-			return nil, fmt.Errorf("invalid kubernetes version: %w", err)
+			if errors.Is(err, version.ErrNegativeComponent) {
+				return nil, fmt.Errorf("kubernetes version cannot contain negative numbers: %s", k8sStr)
+			}
+			return nil, fmt.Errorf("invalid kubernetes version %q: %w", k8sStr, err)
 		}
 	}
 
@@ -440,10 +449,10 @@ func matchEnum[T ~string](rule, candidate, wildcard T) bool {
 }
 
 func matchVersion(rule, candidate version.Version) bool {
-	if rule.Precision == 0 {
+	if !rule.IsValid() {
 		return true
 	}
-	if candidate.Precision == 0 {
+	if !candidate.IsValid() {
 		return false
 	}
 	return rule == candidate

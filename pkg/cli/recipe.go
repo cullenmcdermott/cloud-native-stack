@@ -6,6 +6,7 @@ package cli
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"github.com/urfave/cli/v3"
@@ -109,13 +110,19 @@ func buildQueryFromCmd(cmd *cli.Command) (*recipe.Query, error) {
 	if recOsVersion := cmd.String("osv"); recOsVersion != "" {
 		q.OsVersion, err = ver.ParseVersion(recOsVersion)
 		if err != nil {
-			return nil, fmt.Errorf("osv: %q: %w", recOsVersion, err)
+			if errors.Is(err, ver.ErrNegativeComponent) {
+				return nil, fmt.Errorf("os version cannot contain negative numbers: %s", recOsVersion)
+			}
+			return nil, fmt.Errorf("invalid os version %q: %w", recOsVersion, err)
 		}
 	}
 	if recKernel := cmd.String("kernel"); recKernel != "" {
 		q.Kernel, err = ver.ParseVersion(recKernel)
 		if err != nil {
-			return nil, fmt.Errorf("kernel: %q: %w", recKernel, err)
+			if errors.Is(err, ver.ErrNegativeComponent) {
+				return nil, fmt.Errorf("kernel version cannot contain negative numbers: %s", recKernel)
+			}
+			return nil, fmt.Errorf("invalid kernel version %q: %w", recKernel, err)
 		}
 	}
 	if recService := cmd.String("service"); recService != "" {
@@ -128,7 +135,10 @@ func buildQueryFromCmd(cmd *cli.Command) (*recipe.Query, error) {
 	if recK8s := cmd.String("k8s"); recK8s != "" {
 		q.K8s, err = ver.ParseVersion(recK8s)
 		if err != nil {
-			return nil, fmt.Errorf("k8s: %q: %w", recK8s, err)
+			if errors.Is(err, ver.ErrNegativeComponent) {
+				return nil, fmt.Errorf("kubernetes version cannot contain negative numbers: %s", recK8s)
+			}
+			return nil, fmt.Errorf("invalid kubernetes version %q: %w", recK8s, err)
 		}
 	}
 	if recGPU := cmd.String("gpu"); recGPU != "" {

@@ -86,8 +86,8 @@ func TestCompare(t *testing.T) {
 			},
 			wantLen: 1,
 			check: func(t *testing.T, diffs []*Subtype) {
-				if diffs[0].Name != "cluster" {
-					t.Errorf("Expected subtype name 'cluster', got %q", diffs[0].Name)
+				if diffs[0].Name != testSubtypeCluster {
+					t.Errorf("Expected subtype name %q, got %q", testSubtypeCluster, diffs[0].Name)
 				}
 				if len(diffs[0].Data) != 1 {
 					t.Errorf("Expected 1 data item (only changed value), got %d", len(diffs[0].Data))

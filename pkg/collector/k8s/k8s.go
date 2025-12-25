@@ -44,23 +44,16 @@ func (k *Collector) Collect(ctx context.Context) (*measurement.Measurement, erro
 		return nil, fmt.Errorf("failed to collect cluster policies: %w", err)
 	}
 
-	res := &measurement.Measurement{
-		Type: measurement.TypeK8s,
-		Subtypes: []measurement.Subtype{
-			{
-				Name: "server",
-				Data: versions,
-			},
-			{
-				Name: "image",
-				Data: images,
-			},
-			{
-				Name: "policy",
-				Data: policies,
-			},
-		},
-	}
+	// Build measurement using builder pattern
+	res := measurement.NewMeasurement(measurement.TypeK8s).
+		WithSubtypeBuilder(
+			measurement.NewSubtypeBuilder("server").Set(measurement.KeyVersion, versions[measurement.KeyVersion]).
+				Set("platform", versions["platform"]).
+				Set("goVersion", versions["goVersion"]),
+		).
+		WithSubtype(measurement.Subtype{Name: "image", Data: images}).
+		WithSubtype(measurement.Subtype{Name: "policy", Data: policies}).
+		Build()
 
 	return res, nil
 }

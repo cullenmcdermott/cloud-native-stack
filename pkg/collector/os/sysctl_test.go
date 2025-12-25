@@ -10,6 +10,8 @@ import (
 	"github.com/NVIDIA/cloud-native-stack/pkg/measurement"
 )
 
+const sysctlSubtypeName = "sysctl"
+
 func TestSysctlCollector_Collect_ContextCancellation(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 
@@ -69,7 +71,7 @@ func TestSysctlCollector_Integration(t *testing.T) {
 	// Find the sysctl subtype
 	var sysctlSubtype *measurement.Subtype
 	for i := range m.Subtypes {
-		if m.Subtypes[i].Name == "sysctl" {
+		if m.Subtypes[i].Name == sysctlSubtypeName {
 			sysctlSubtype = &m.Subtypes[i]
 			break
 		}
@@ -129,7 +131,7 @@ func TestSysctlCollector_ExcludesNet(t *testing.T) {
 	// Find sysctl subtype
 	var sysctlSubtype *measurement.Subtype
 	for i := range m.Subtypes {
-		if m.Subtypes[i].Name == "sysctl" {
+		if m.Subtypes[i].Name == sysctlSubtypeName {
 			sysctlSubtype = &m.Subtypes[i]
 			break
 		}
@@ -173,7 +175,7 @@ func TestSysctlCollector_MultiLineKeyValueParsing(t *testing.T) {
 	// Find sysctl subtype
 	var sysctlSubtype *measurement.Subtype
 	for i := range m.Subtypes {
-		if m.Subtypes[i].Name == "sysctl" {
+		if m.Subtypes[i].Name == sysctlSubtypeName {
 			sysctlSubtype = &m.Subtypes[i]
 			break
 		}

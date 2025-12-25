@@ -187,40 +187,32 @@ func mergeOverlayMeasurements(base []*measurement.Measurement, index map[measure
 }
 
 // mergeMeasurementSubtypes walks all subtypes so overlay data augments or
-// overrides existing subtype readings.
+// overrides existing subtype readings. Now uses the built-in Merge() method
+// from the measurement package for consistency.
 func mergeMeasurementSubtypes(target, overlay *measurement.Measurement) {
 	if target == nil || overlay == nil {
 		return
 	}
-	subtypeIndex := make(map[string]*measurement.Subtype, len(target.Subtypes))
-	for i := range target.Subtypes {
-		st := &target.Subtypes[i]
-		subtypeIndex[st.Name] = st
-		if st.Data == nil {
-			st.Data = make(map[string]measurement.Reading)
-		}
+
+	// Use the built-in Merge method which handles data merging
+	if err := target.Merge(overlay); err != nil {
+		// This shouldn't happen in practice since we check types when building,
+		// but log it just in case
+		return
 	}
+
+	// Handle context merging (not part of Merge())
 	for _, overlaySubtype := range overlay.Subtypes {
-		if targetSubtype, ok := subtypeIndex[overlaySubtype.Name]; ok {
-			// Merge data
-			if targetSubtype.Data == nil {
-				targetSubtype.Data = make(map[string]measurement.Reading)
-			}
-			if overlaySubtype.Data != nil {
-				for key, reading := range overlaySubtype.Data {
-					targetSubtype.Data[key] = reading
-				}
-			}
-			// Merge context
-			if targetSubtype.Context == nil && len(overlaySubtype.Context) > 0 {
-				targetSubtype.Context = make(map[string]string)
-			}
-			for key, value := range overlaySubtype.Context {
-				targetSubtype.Context[key] = value
-			}
+		targetSubtype := target.GetSubtype(overlaySubtype.Name)
+		if targetSubtype == nil {
 			continue
 		}
-		target.Subtypes = append(target.Subtypes, cloneSubtype(overlaySubtype))
-		subtypeIndex[overlaySubtype.Name] = &target.Subtypes[len(target.Subtypes)-1]
+		// Merge context fields
+		if targetSubtype.Context == nil && len(overlaySubtype.Context) > 0 {
+			targetSubtype.Context = make(map[string]string)
+		}
+		for key, value := range overlaySubtype.Context {
+			targetSubtype.Context[key] = value
+		}
 	}
 }

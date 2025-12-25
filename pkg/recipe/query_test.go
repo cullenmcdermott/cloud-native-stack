@@ -9,9 +9,9 @@ import (
 )
 
 func TestQueryString(t *testing.T) {
-	osv := mustParseVersion(t, "22.04")
-	kernel := mustParseVersion(t, "5.15.0")
-	k8s := mustParseVersion(t, "1.28.3")
+	osv := version.MustParseVersion("22.04")
+	kernel := version.MustParseVersion("5.15.0")
+	k8s := version.MustParseVersion("1.28.3")
 
 	tests := []struct {
 		name  string
@@ -51,9 +51,9 @@ func TestQueryString(t *testing.T) {
 }
 
 func TestQueryIsMatch(t *testing.T) {
-	osv := mustParseVersion(t, "22.04")
-	kernel := mustParseVersion(t, "5.15.0")
-	k8s := mustParseVersion(t, "1.28.3")
+	osv := version.MustParseVersion("22.04")
+	kernel := version.MustParseVersion("5.15.0")
+	k8s := version.MustParseVersion("1.28.3")
 
 	base := Query{
 		Os:        OSUbuntu,
@@ -80,16 +80,16 @@ func TestQueryIsMatch(t *testing.T) {
 		{name: "os mismatch", left: base, right: Query{Os: OSCOS}, want: false},
 		{name: "os wildcard left", left: Query{Os: OSAny}, right: base, want: true, reverseWant: boolPtr(false)},
 		{name: "os wildcard right", left: base, right: Query{Os: OSAny}, want: false, reverseWant: boolPtr(true)},
-		{name: "os version mismatch", left: base, right: Query{OsVersion: mustParseVersion(t, "24.04")}, want: false},
+		{name: "os version mismatch", left: base, right: Query{OsVersion: version.MustParseVersion("24.04")}, want: false},
 		{name: "os version wildcard left", left: Query{Os: base.Os, OsVersion: zeroVersion}, right: base, want: true, reverseWant: boolPtr(false)},
 		{name: "os version wildcard right", left: base, right: Query{Os: base.Os, OsVersion: zeroVersion}, want: false, reverseWant: boolPtr(true)},
-		{name: "kernel mismatch", left: base, right: Query{Kernel: mustParseVersion(t, "6.0.0")}, want: false},
+		{name: "kernel mismatch", left: base, right: Query{Kernel: version.MustParseVersion("6.0.0")}, want: false},
 		{name: "kernel wildcard left", left: Query{Os: base.Os, Kernel: zeroVersion}, right: base, want: true, reverseWant: boolPtr(false)},
 		{name: "kernel wildcard right", left: base, right: Query{Os: base.Os, Kernel: zeroVersion}, want: false, reverseWant: boolPtr(true)},
 		{name: "service mismatch", left: base, right: Query{Service: ServiceGKE}, want: false},
 		{name: "service wildcard left", left: Query{Service: ServiceAny}, right: base, want: true, reverseWant: boolPtr(false)},
 		{name: "service wildcard right", left: base, right: Query{Service: ServiceAny}, want: false, reverseWant: boolPtr(true)},
-		{name: "k8s mismatch", left: base, right: Query{K8s: mustParseVersion(t, "1.29.0")}, want: false},
+		{name: "k8s mismatch", left: base, right: Query{K8s: version.MustParseVersion("1.29.0")}, want: false},
 		{name: "k8s wildcard left", left: Query{Os: base.Os, K8s: zeroVersion}, right: base, want: true, reverseWant: boolPtr(false)},
 		{name: "k8s wildcard right", left: base, right: Query{Os: base.Os, K8s: zeroVersion}, want: false, reverseWant: boolPtr(true)},
 		{name: "gpu mismatch", left: base, right: Query{GPU: GPUB200}, want: false},
@@ -145,7 +145,7 @@ func TestNormalizeValue(t *testing.T) {
 }
 
 func TestNormalizeVersionValue(t *testing.T) {
-	v := mustParseVersion(t, "1.2.3")
+	v := version.MustParseVersion("1.2.3")
 
 	tests := []struct {
 		name string
@@ -293,9 +293,9 @@ func TestParseIntentType(t *testing.T) {
 }
 
 func TestParseQuery(t *testing.T) {
-	osv := mustParseVersion(t, "22.04")
-	kernel := mustParseVersion(t, "5.15.0")
-	k8s := mustParseVersion(t, "1.28.3")
+	osv := version.MustParseVersion("22.04")
+	kernel := version.MustParseVersion("5.15.0")
+	k8s := version.MustParseVersion("1.28.3")
 
 	tests := []struct {
 		name    string
@@ -353,15 +353,6 @@ func TestParseQuery(t *testing.T) {
 			assertQueryEquals(t, tt.want, got)
 		})
 	}
-}
-
-func mustParseVersion(t *testing.T, val string) version.Version {
-	t.Helper()
-	v, err := version.ParseVersion(val)
-	if err != nil {
-		t.Fatalf("failed to parse version %q: %v", val, err)
-	}
-	return v
 }
 
 func assertQueryEquals(t *testing.T, want, got *Query) {

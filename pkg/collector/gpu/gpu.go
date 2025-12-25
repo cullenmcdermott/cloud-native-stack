@@ -54,11 +54,11 @@ func getSMIReadings(data []byte) (map[string]measurement.Reading, error) {
 
 	smiData := make(map[string]measurement.Reading)
 
-	smiData["driver-version"] = measurement.Str(smiDevice.DriverVersion)
+	smiData[measurement.KeyGPUDriver] = measurement.Str(smiDevice.DriverVersion)
 	smiData["cuda-version"] = measurement.Str(smiDevice.CudaVersion)
 
 	gpuCount := len(smiDevice.GPUs)
-	smiData["gpu.count"] = measurement.Int(gpuCount)
+	smiData[measurement.KeyGPUCount] = measurement.Int(gpuCount)
 
 	if gpuCount < 1 {
 		slog.Warn("No GPUs found in nvidia-smi output")
@@ -70,7 +70,7 @@ func getSMIReadings(data []byte) (map[string]measurement.Reading, error) {
 		key := func(field string) string {
 			return fmt.Sprintf("%s.%s", prefix, field)
 		}
-		smiData[key("product-name")] = measurement.Str(gpu.ProductName)
+		smiData[key(measurement.KeyGPUModel)] = measurement.Str(gpu.ProductName)
 		smiData[key("product-architecture")] = measurement.Str(gpu.ProductArchitecture)
 		smiData[key("display-mode")] = measurement.Str(gpu.DisplayMode)
 		smiData[key("display-active")] = measurement.Str(gpu.DisplayActive)

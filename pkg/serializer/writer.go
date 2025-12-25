@@ -26,6 +26,8 @@ const (
 	FormatTable Format = "table"
 )
 
+const defaultValueKey = "value"
+
 func (f Format) IsUnknown() bool {
 	switch f {
 	case FormatJSON, FormatYAML, FormatTable:
@@ -202,7 +204,7 @@ func flattenValue(out map[string]any, val reflect.Value, prefix string) {
 		}
 	default:
 		if prefix == "" {
-			prefix = "value"
+			prefix = defaultValueKey
 		}
 		out[prefix] = val.Interface()
 	}

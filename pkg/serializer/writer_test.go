@@ -10,6 +10,8 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
+const testName = "test"
+
 type testConfig struct {
 	Name  string
 	Value int
@@ -122,7 +124,7 @@ func TestWriter_UnsupportedFormat(t *testing.T) {
 		t.Fatalf("Failed to unmarshal as JSON: %v", err)
 	}
 
-	if result.Name != "test" || result.Value != 123 {
+	if result.Name != testName || result.Value != 123 {
 		t.Errorf("Unexpected data: %+v", result)
 	}
 }

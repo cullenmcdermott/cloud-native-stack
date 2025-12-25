@@ -123,7 +123,7 @@ func TestRespondJSON_ComplexData(t *testing.T) {
 	}
 
 	// Verify some fields
-	if result["string"] != "value" {
+	if result["string"] != defaultValueKey {
 		t.Errorf("expected string field to be 'value', got %v", result["string"])
 	}
 

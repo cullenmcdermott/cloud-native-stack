@@ -773,3 +773,242 @@ func TestMeasurement_YAML(t *testing.T) {
 		}
 	}
 }
+
+func TestMeasurement_GetOrCreateSubtype(t *testing.T) {
+	t.Run("get existing subtype", func(t *testing.T) {
+		m := &Measurement{
+			Type: TypeK8s,
+			Subtypes: []Subtype{
+				{Name: "cluster", Data: map[string]Reading{"version": Str("1.28.0")}},
+			},
+		}
+
+		st := m.GetOrCreateSubtype("cluster")
+		if st == nil {
+			t.Fatal("GetOrCreateSubtype() returned nil")
+		}
+		if st.Name != "cluster" {
+			t.Errorf("Name = %v, want cluster", st.Name)
+		}
+		if len(m.Subtypes) != 1 {
+			t.Errorf("Subtypes length = %d, want 1", len(m.Subtypes))
+		}
+	})
+
+	t.Run("create new subtype", func(t *testing.T) {
+		m := &Measurement{
+			Type:     TypeK8s,
+			Subtypes: []Subtype{},
+		}
+
+		st := m.GetOrCreateSubtype("new_subtype")
+		if st == nil {
+			t.Fatal("GetOrCreateSubtype() returned nil")
+		}
+		if st.Name != "new_subtype" {
+			t.Errorf("Name = %v, want new_subtype", st.Name)
+		}
+		if len(m.Subtypes) != 1 {
+			t.Errorf("Subtypes length = %d, want 1", len(m.Subtypes))
+		}
+		if st.Data == nil {
+			t.Error("Data map is nil")
+		}
+	})
+
+	t.Run("modify returned subtype", func(t *testing.T) {
+		m := &Measurement{
+			Type:     TypeK8s,
+			Subtypes: []Subtype{},
+		}
+
+		st := m.GetOrCreateSubtype("test")
+		st.Data["key"] = Str("value")
+
+		// Verify the change is reflected in the measurement
+		retrieved := m.GetSubtype("test")
+		if retrieved == nil {
+			t.Fatal("GetSubtype() returned nil")
+		}
+		val, err := retrieved.GetString("key")
+		if err != nil || val != "value" {
+			t.Errorf("GetString(key) = %v, %v; want value, nil", val, err)
+		}
+	})
+}
+
+func TestMeasurement_Merge(t *testing.T) {
+	t.Run("merge new subtypes", func(t *testing.T) {
+		m1 := &Measurement{
+			Type: TypeK8s,
+			Subtypes: []Subtype{
+				{Name: "cluster", Data: map[string]Reading{"version": Str("1.28.0")}},
+			},
+		}
+
+		m2 := &Measurement{
+			Type: TypeK8s,
+			Subtypes: []Subtype{
+				{Name: "pod", Data: map[string]Reading{"count": Int(100)}},
+			},
+		}
+
+		err := m1.Merge(m2)
+		if err != nil {
+			t.Fatalf("Merge() error = %v", err)
+		}
+
+		if len(m1.Subtypes) != 2 {
+			t.Errorf("Subtypes length = %d, want 2", len(m1.Subtypes))
+		}
+
+		if !m1.HasSubtype("cluster") || !m1.HasSubtype("pod") {
+			t.Error("Expected both cluster and pod subtypes")
+		}
+	})
+
+	t.Run("merge existing subtype with new data", func(t *testing.T) {
+		m1 := &Measurement{
+			Type: TypeK8s,
+			Subtypes: []Subtype{
+				{Name: "cluster", Data: map[string]Reading{
+					"version": Str("1.28.0"),
+					"nodes":   Int(3),
+				}},
+			},
+		}
+
+		m2 := &Measurement{
+			Type: TypeK8s,
+			Subtypes: []Subtype{
+				{Name: "cluster", Data: map[string]Reading{
+					"pods":  Int(100),
+					"nodes": Int(5), // Override
+				}},
+			},
+		}
+
+		err := m1.Merge(m2)
+		if err != nil {
+			t.Fatalf("Merge() error = %v", err)
+		}
+
+		cluster := m1.GetSubtype("cluster")
+		if cluster == nil {
+			t.Fatal("GetSubtype(cluster) returned nil")
+		}
+
+		// Check that version is preserved
+		version, err := cluster.GetString("version")
+		if err != nil || version != "1.28.0" {
+			t.Errorf("version = %v, %v; want 1.28.0, nil", version, err)
+		}
+
+		// Check that nodes was overridden
+		nodes, err := cluster.GetInt64("nodes")
+		if err != nil || nodes != 5 {
+			t.Errorf("nodes = %v, %v; want 5, nil", nodes, err)
+		}
+
+		// Check that pods was added
+		pods, err := cluster.GetInt64("pods")
+		if err != nil || pods != 100 {
+			t.Errorf("pods = %v, %v; want 100, nil", pods, err)
+		}
+	})
+
+	t.Run("different types error", func(t *testing.T) {
+		m1 := &Measurement{Type: TypeK8s, Subtypes: []Subtype{}}
+		m2 := &Measurement{Type: TypeGPU, Subtypes: []Subtype{}}
+
+		err := m1.Merge(m2)
+		if err == nil {
+			t.Error("Merge() expected error for different types")
+		}
+	})
+
+	t.Run("empty measurement", func(t *testing.T) {
+		m1 := &Measurement{Type: TypeK8s, Subtypes: []Subtype{}}
+		m2 := &Measurement{Type: TypeK8s, Subtypes: []Subtype{}}
+
+		err := m1.Merge(m2)
+		if err != nil {
+			t.Fatalf("Merge() error = %v", err)
+		}
+
+		if len(m1.Subtypes) != 0 {
+			t.Errorf("Subtypes length = %d, want 0", len(m1.Subtypes))
+		}
+	})
+}
+
+func TestToReadingWithType(t *testing.T) {
+	tests := []struct {
+		name       string
+		value      any
+		wantValue  any
+		wantLossy  bool
+		wantLossed bool
+	}{
+		{"int", 42, 42, false, true},
+		{"int64", int64(9223372036854775807), int64(9223372036854775807), false, true},
+		{"uint", uint(42), uint(42), false, true},
+		{"uint64", uint64(18446744073709551615), uint64(18446744073709551615), false, true},
+		{"float64", 3.14, 3.14, false, true},
+		{"bool true", true, true, false, true},
+		{"bool false", false, false, false, true},
+		{"string", "hello", "hello", false, true},
+		{"struct", struct{ X int }{X: 42}, "{42}", true, false},
+		{"slice", []int{1, 2, 3}, "[1 2 3]", true, false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, exactType := ToReadingWithType(tt.value)
+			if got == nil {
+				t.Fatal("ToReadingWithType() returned nil")
+			}
+
+			gotValue := got.Any()
+			if tt.wantLossy {
+				// For lossy conversions, just check it's a string
+				if _, ok := gotValue.(string); !ok {
+					t.Errorf("ToReadingWithType(%v) returned %T, want string", tt.value, gotValue)
+				}
+			} else {
+				if gotValue != tt.wantValue {
+					t.Errorf("ToReadingWithType(%v) = %v, want %v", tt.value, gotValue, tt.wantValue)
+				}
+			}
+
+			if exactType != tt.wantLossed {
+				t.Errorf("ToReadingWithType(%v) exactType = %v, want %v", tt.value, exactType, tt.wantLossed)
+			}
+		})
+	}
+}
+
+func TestConstants(t *testing.T) {
+	// Just verify constants are defined and unique
+	constants := []string{
+		KeyVersion, KeyNodes, KeyPods, KeyNamespace, KeyClusterName, KeyReady,
+		KeyGPUDriver, KeyGPUModel, KeyGPUCount, KeyGPUMemory, KeyGPUTemp, KeyGPUPower, KeyGPUUUID,
+		KeyOSName, KeyOSVersion, KeyKernel, KeyArch, KeyHostname,
+		KeyServiceName, KeyServiceState, KeyServiceStatus, KeyEnabled, KeyActive,
+	}
+
+	seen := make(map[string]bool)
+	for _, c := range constants {
+		if c == "" {
+			t.Error("Found empty constant")
+		}
+		if seen[c] {
+			t.Errorf("Duplicate constant: %s", c)
+		}
+		seen[c] = true
+	}
+
+	if len(seen) != len(constants) {
+		t.Errorf("Expected %d unique constants, got %d", len(constants), len(seen))
+	}
+}

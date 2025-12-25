@@ -147,7 +147,7 @@ base:
           IOWeight: Unlimited I/O weight
           LimitNOFILE: Unlimited file descriptors for container connections
           LimitNPROC: Unlimited process count for GPU containers
-  
+
   - type: k8s
     subtypes:
 
@@ -156,7 +156,7 @@ base:
           version: v1.33.5
         context:
           version: Kubernetes version for GPU orchestration
-  
+
       - subtype: image
         data:
           container-toolkit: v1.17.8
@@ -191,7 +191,7 @@ base:
 
   - type: gpu
     subtypes:
-      
+
       - subtype: smi
         data:
           addressing-mode: ATS

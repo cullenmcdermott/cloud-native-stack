@@ -1,5 +1,3 @@
-// Package measurement provides types and utilities for collecting and managing
-// system measurements from various sources (GRUB, Kubernetes, NVIDIA SMI, etc.).
 package measurement
 
 import (
@@ -8,6 +6,40 @@ import (
 	"fmt"
 
 	"gopkg.in/yaml.v3"
+)
+
+// Common measurement keys exported for consistency and type safety.
+const (
+	// Kubernetes measurement keys
+	KeyVersion     = "version"
+	KeyNodes       = "nodes"
+	KeyPods        = "pods"
+	KeyNamespace   = "namespace"
+	KeyClusterName = "cluster_name"
+	KeyReady       = "ready"
+
+	// GPU measurement keys
+	KeyGPUDriver = "driver"
+	KeyGPUModel  = "model"
+	KeyGPUCount  = "count"
+	KeyGPUMemory = "memory"
+	KeyGPUTemp   = "temperature"
+	KeyGPUPower  = "power"
+	KeyGPUUUID   = "uuid"
+
+	// OS measurement keys
+	KeyOSName    = "name"
+	KeyOSVersion = "os_version"
+	KeyKernel    = "kernel"
+	KeyArch      = "architecture"
+	KeyHostname  = "hostname"
+
+	// SystemD measurement keys
+	KeyServiceName   = "service_name"
+	KeyServiceState  = "state"
+	KeyServiceStatus = "status"
+	KeyEnabled       = "enabled"
+	KeyActive        = "active"
 )
 
 // Type represents the type of measurement.
@@ -169,6 +201,30 @@ func ToReading(v any) Reading {
 	}
 }
 
+// ToReadingWithType converts a value to a Reading and returns whether the conversion
+// was lossy (i.e., converted to string via fmt.Sprintf).
+// This allows callers to detect if unexpected types were encountered.
+func ToReadingWithType(v any) (Reading, bool) {
+	switch val := v.(type) {
+	case int:
+		return Int(val), true
+	case int64:
+		return Int64(val), true
+	case uint:
+		return Uint(val), true
+	case uint64:
+		return Uint64(val), true
+	case float64:
+		return Float64(val), true
+	case bool:
+		return Bool(val), true
+	case string:
+		return Str(val), true
+	default:
+		return Str(fmt.Sprintf("%v", val)), false
+	}
+}
+
 // UnmarshalJSON unmarshals a JSON value into the underlying scalar.
 func (s *Scalar[T]) UnmarshalJSON(data []byte) error {
 	return json.Unmarshal(data, &s.V)
@@ -219,6 +275,22 @@ func (m *Measurement) HasSubtype(name string) bool {
 	return m.GetSubtype(name) != nil
 }
 
+// GetOrCreateSubtype retrieves a subtype by name, creating it if it doesn't exist.
+// This simplifies dynamic measurement building by avoiding manual check-and-append logic.
+func (m *Measurement) GetOrCreateSubtype(name string) *Subtype {
+	if st := m.GetSubtype(name); st != nil {
+		return st
+	}
+	// Create new subtype with empty data
+	newSubtype := Subtype{
+		Name: name,
+		Data: make(map[string]Reading),
+	}
+	m.Subtypes = append(m.Subtypes, newSubtype)
+	// Return pointer to the newly added subtype
+	return &m.Subtypes[len(m.Subtypes)-1]
+}
+
 // SubtypeNames returns all subtype names.
 func (m *Measurement) SubtypeNames() []string {
 	names := make([]string, len(m.Subtypes))
@@ -226,6 +298,41 @@ func (m *Measurement) SubtypeNames() []string {
 		names[i] = st.Name
 	}
 	return names
+}
+
+// Merge combines two measurements by adding or updating subtypes from other into m.
+// If a subtype exists in both measurements, the data is merged (other's values take precedence).
+// Returns an error if the measurements have different types.
+func (m *Measurement) Merge(other *Measurement) error {
+	if m.Type != other.Type {
+		return fmt.Errorf("cannot merge measurements of different types: %s and %s", m.Type, other.Type)
+	}
+
+	for _, otherSt := range other.Subtypes {
+		existingSt := m.GetSubtype(otherSt.Name)
+		if existingSt == nil {
+			// Subtype doesn't exist, add it
+			m.Subtypes = append(m.Subtypes, Subtype{
+				Name: otherSt.Name,
+				Data: copyReadings(otherSt.Data),
+			})
+		} else {
+			// Subtype exists, merge data (other wins on conflicts)
+			for key, value := range otherSt.Data {
+				existingSt.Data[key] = value
+			}
+		}
+	}
+	return nil
+}
+
+// copyReadings creates a shallow copy of a readings map.
+func copyReadings(src map[string]Reading) map[string]Reading {
+	dst := make(map[string]Reading, len(src))
+	for k, v := range src {
+		dst[k] = v
+	}
+	return dst
 }
 
 // Validate checks if the subtype is properly formed.
