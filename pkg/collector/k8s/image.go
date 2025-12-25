@@ -18,39 +18,43 @@ func (k *Collector) collectContainerImages(ctx context.Context) (map[string]meas
 		return nil, fmt.Errorf("failed to list pods: %w", err)
 	}
 
-	// Track all locations for each image
-	imageLocations := make(map[string][]string)
-	recordImage := func(imageRef, location string) {
+	// Track unique images (map of image name to version)
+	imageVersions := make(map[string]string)
+	recordImage := func(imageRef string) {
 		if imageRef == "" {
 			return
 		}
 		// Strip registry prefix to get just image:tag
-		imageName := stripRegistryPrefix(imageRef)
-		imageLocations[imageName] = append(imageLocations[imageName], location)
+		imageNameTag := stripRegistryPrefix(imageRef)
+
+		// Split image name and tag
+		name, tag := splitImageNameTag(imageNameTag)
+		if name != "" {
+			imageVersions[name] = tag
+		}
 	}
+
 	for _, pod := range pods.Items {
 		// Check for context cancellation
 		if err := ctx.Err(); err != nil {
 			return nil, err
 		}
 
-		locationPrefix := fmt.Sprintf("%s/%s", pod.Namespace, pod.Name)
-
 		for _, container := range pod.Spec.Containers {
-			recordImage(container.Image, fmt.Sprintf("%s:%s", locationPrefix, container.Name))
+			recordImage(container.Image)
 		}
 		for _, container := range pod.Spec.InitContainers {
-			recordImage(container.Image, fmt.Sprintf("%s:init-%s", locationPrefix, container.Name))
+			recordImage(container.Image)
 		}
 		for _, container := range pod.Spec.EphemeralContainers {
-			recordImage(container.Image, fmt.Sprintf("%s:ephemeral-%s", locationPrefix, container.Name))
+			recordImage(container.Image)
 		}
 	}
 
 	// Convert to final result format
 	images := make(map[string]measurement.Reading)
-	for imageRef, locations := range imageLocations {
-		images[imageRef] = measurement.Str(strings.Join(locations, ", "))
+	for name, tag := range imageVersions {
+		images[name] = measurement.Str(tag)
 	}
 
 	slog.Debug("collected container images", slog.Int("count", len(images)))
@@ -70,4 +74,19 @@ func stripRegistryPrefix(imageRef string) string {
 		return imageRef
 	}
 	return imageRef[lastSlash+1:]
+}
+
+// splitImageNameTag splits an image reference into name and tag.
+// Examples:
+//   - "nginx:1.21" -> ("nginx", "1.21")
+//   - "argocd:v2.14.3" -> ("argocd", "v2.14.3")
+//   - "nginx" -> ("nginx", "latest")
+func splitImageNameTag(imageRef string) (name, tag string) {
+	// Split on the last colon to separate image name from tag
+	colonIdx := strings.LastIndex(imageRef, ":")
+	if colonIdx == -1 {
+		// No tag specified, use "latest" as default
+		return imageRef, "latest"
+	}
+	return imageRef[:colonIdx], imageRef[colonIdx+1:]
 }

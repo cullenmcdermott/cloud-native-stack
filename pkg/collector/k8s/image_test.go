@@ -72,13 +72,13 @@ func TestImageCollector_Collect(t *testing.T) {
 
 	data := imageSubtype.Data
 	if assert.Len(t, data, 2) {
-		reading, ok := data["image:tag"]
+		reading, ok := data["image"]
 		if assert.True(t, ok) {
-			assert.Equal(t, "ns/pod-a:c1", reading.Any())
+			assert.Equal(t, "tag", reading.Any())
 		}
-		initReading, ok := data["init:latest"]
+		initReading, ok := data["init"]
 		if assert.True(t, ok) {
-			assert.Equal(t, "ns/pod-a:init-init", initReading.Any())
+			assert.Equal(t, "latest", initReading.Any())
 		}
 	}
 }
@@ -132,11 +132,9 @@ func TestImageCollector_MultipleLocations(t *testing.T) {
 	}
 
 	data := imageSubtype.Data
-	reading, ok := data["nginx:1.21"]
+	reading, ok := data["nginx"]
 	if assert.True(t, ok) {
-		locations := reading.Any().(string)
-		// Should contain both locations
-		assert.Contains(t, locations, "ns1/pod-1:web")
-		assert.Contains(t, locations, "ns2/pod-2:app")
+		// Should have just the tag, regardless of how many pods use it
+		assert.Equal(t, "1.21", reading.Any())
 	}
 }

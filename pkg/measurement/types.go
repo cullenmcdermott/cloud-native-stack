@@ -15,13 +15,13 @@ const (
 	KeyNodes       = "nodes"
 	KeyPods        = "pods"
 	KeyNamespace   = "namespace"
-	KeyClusterName = "cluster_name"
+	KeyClusterName = "cluster-name"
 	KeyReady       = "ready"
 
 	// GPU measurement keys
 	KeyGPUDriver = "driver"
 	KeyGPUModel  = "model"
-	KeyGPUCount  = "count"
+	KeyGPUCount  = "gpu-count"
 	KeyGPUMemory = "memory"
 	KeyGPUTemp   = "temperature"
 	KeyGPUPower  = "power"
@@ -29,13 +29,13 @@ const (
 
 	// OS measurement keys
 	KeyOSName    = "name"
-	KeyOSVersion = "os_version"
+	KeyOSVersion = "os-version"
 	KeyKernel    = "kernel"
 	KeyArch      = "architecture"
 	KeyHostname  = "hostname"
 
 	// SystemD measurement keys
-	KeyServiceName   = "service_name"
+	KeyServiceName   = "service-name"
 	KeyServiceState  = "state"
 	KeyServiceStatus = "status"
 	KeyEnabled       = "enabled"
