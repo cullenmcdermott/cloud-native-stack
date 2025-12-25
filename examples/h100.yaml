@@ -1,152 +1,26 @@
 kind: Snapshot
 apiVersion: snapshot.dgxc.io/v1
 metadata:
-  snapshot-timestamp: "2025-12-22T21:28:11Z"
-  snapshot-version: 0.5.6
-  source-node: ip-10-0-233-106.ec2.internal
+  measurement-timestamp: "2025-12-25T19:58:25Z"
+  snapshot-version: 0.6.6
+  source-node: ip-10-0-158-18.ec2.internal
 measurements:
-  - type: Grub
-    subtypes:
-      - data:
-          BOOT_IMAGE: /boot/vmlinuz-6.8.0-1024-aws
-          apparmor: "1"
-          audit: "1"
-          audit_backlog_limit: "8192"
-          hugepages: "5128"
-          hugepagesz: 2M
-          nokaslr: ""
-          panic: "-1"
-          ro: ""
-          security: apparmor
-  - type: KMod
-    subtypes:
-      - data:
-          aesni_intel: true
-          autofs4: true
-          binfmt_misc: true
-          cec: true
-          cls_bpf: true
-          crc32_pclmul: true
-          crct10dif_pclmul: true
-          cryptd: true
-          crypto_simd: true
-          drm_display_helper: true
-          drm_exec: true
-          drm_gpuvm: true
-          drm_ttm_helper: true
-          ecc: true
-          efa: true
-          efi_pstore: true
-          ena: true
-          fid: true
-          fld: true
-          gdrdrv: true
-          ghash_clmulni_intel: true
-          gpu_sched: true
-          i2c_algo_bit: true
-          i2c_piix4: true
-          ib_cm: true
-          ib_core: true
-          ib_iser: true
-          ib_uverbs: true
-          input_leds: true
-          intel_rapl_common: true
-          intel_rapl_msr: true
-          ip_tables: true
-          ipmi_devintf: true
-          ipmi_msghandler: true
-          ipt_REJECT: true
-          iw_cm: true
-          ksocklnd: true
-          libcfs: true
-          libcrc32c: true
-          libiscsi: true
-          lmv: true
-          lnet: true
-          lov: true
-          lustre: true
-          mac_hid: true
-          mdc: true
-          mgc: true
-          mxm_wmi: true
-          nf_conntrack: true
-          nf_conntrack_netlink: true
-          nf_defrag_ipv4: true
-          nf_defrag_ipv6: true
-          nf_nat: true
-          nf_reject_ipv4: true
-          nf_tables: true
-          nfnetlink: true
-          nft_chain_nat: true
-          nft_compat: true
-          nls_iso8859_1: true
-          nvidia: true
-          nvidia_modeset: true
-          nvidia_uvm: true
-          obdclass: true
-          osc: true
-          overlay: true
-          parport: true
-          parport_pc: true
-          polyval_clmulni: true
-          polyval_generic: true
-          ppdev: true
-          psmouse: true
-          ptlrpc: true
-          raid0: true
-          rc_core: true
-          rdma_cm: true
-          rdma_ucm: true
-          rpcrdma: true
-          sch_fq_codel: true
-          sch_ingress: true
-          scsi_transport_iscsi: true
-          serio_raw: true
-          sha1_ssse3: true
-          sha256_ssse3: true
-          sunrpc: true
-          tls: true
-          ttm: true
-          veth: true
-          video: true
-          wmi: true
-          x_tables: true
-          xfs: true
-          xt_MASQUERADE: true
-          xt_addrtype: true
-          xt_comment: true
-          xt_connmark: true
-          xt_conntrack: true
-          xt_mark: true
-          xt_nat: true
-          xt_state: true
-          xt_statistic: true
-          xt_tcpudp: true
-  - type: K8s
-    subtypes:
-      - data:
-          buildDate: "2025-11-11T03:22:24Z"
-          gitCommit: 629b5a3ce75616d69ae37a1cf0aa9f0e5be0f42f
-          gitTreeState: clean
-          goVersion: go1.24.9
-          platform: linux/amd64
-          version: v1.30.14-eks-3025e55
   - type: SystemD
     subtypes:
       - subtype: containerd.service
         data:
-          ActiveEnterTimestamp: 1754471154886077
-          ActiveEnterTimestampMonotonic: 285566431
-          ActiveExitTimestamp: 1754471149240571
-          ActiveExitTimestampMonotonic: 279920926
+          ActiveEnterTimestamp: 1754471112332254
+          ActiveEnterTimestampMonotonic: 241206164
+          ActiveExitTimestamp: 1754471106585808
+          ActiveExitTimestampMonotonic: 235459719
           ActiveState: active
-          After: '[local-fs.target system.slice dbus.service network.target sysinit.target basic.target systemd-journald.socket]'
+          After: '[network.target local-fs.target systemd-journald.socket sysinit.target basic.target system.slice dbus.service]'
           AllowIsolate: false
           AmbientCapabilities: 0
           AppArmorProfile: '[false ]'
           AssertResult: true
-          AssertTimestamp: 1754471154411297
-          AssertTimestampMonotonic: 285091651
+          AssertTimestamp: 1754471111800658
+          AssertTimestampMonotonic: 240674568
           Before: '[multi-user.target shutdown.target]'
           BindPaths: '[]'
           BindReadOnlyPaths: '[]'
@@ -166,7 +40,7 @@ measurements:
           CPUSchedulingPriority: "0"
           CPUSchedulingResetOnFork: false
           CPUShares: 18446744073709551615
-          CPUUsageNSec: 1793971098687000
+          CPUUsageNSec: 1924129795107000
           CPUWeight: 18446744073709551615
           CacheDirectory: '[]'
           CacheDirectoryMode: "493"
@@ -180,8 +54,8 @@ measurements:
           CleanResult: success
           CollectMode: inactive
           ConditionResult: true
-          ConditionTimestamp: 1754471154411295
-          ConditionTimestampMonotonic: 285091649
+          ConditionTimestamp: 1754471111800657
+          ConditionTimestampMonotonic: 240674567
           Conditions: '[]'
           ConfigurationDirectory: '[]'
           ConfigurationDirectoryMode: "493"
@@ -212,19 +86,19 @@ measurements:
           ExecMainCode: "0"
           ExecMainExitTimestamp: 0
           ExecMainExitTimestampMonotonic: 0
-          ExecMainPID: "38736"
-          ExecMainStartTimestamp: 1754471154428072
-          ExecMainStartTimestampMonotonic: 285108426
+          ExecMainPID: "38444"
+          ExecMainStartTimestamp: 1754471111884861
+          ExecMainStartTimestampMonotonic: 240758771
           ExecMainStatus: "0"
           ExecPaths: '[]'
           ExecReload: '[]'
           ExecReloadEx: '[]'
-          ExecStart: '[[/usr/bin/containerd [/usr/bin/containerd] false 1754471154428038 285108393 0 0 38736 0 0]]'
-          ExecStartEx: '[[/usr/bin/containerd [/usr/bin/containerd] [] 1754471154428038 285108393 0 0 38736 0 0]]'
+          ExecStart: '[[/usr/bin/containerd [/usr/bin/containerd] false 1754471111884832 240758742 0 0 38444 0 0]]'
+          ExecStartEx: '[[/usr/bin/containerd [/usr/bin/containerd] [] 1754471111884832 240758742 0 0 38444 0 0]]'
           ExecStartPost: '[]'
           ExecStartPostEx: '[]'
-          ExecStartPre: '[[/sbin/modprobe [/sbin/modprobe overlay] true 1754471154420725 285101079 1754471154424323 285104678 38734 1 0] [/bin/ln [/bin/ln -sf /run/containerd/containerd.sock /run/dockershim.sock] false 1754471154425006 285105361 1754471154426994 285107349 38735 1 0]]'
-          ExecStartPreEx: '[[/sbin/modprobe [/sbin/modprobe overlay] [ignore-failure] 1754471154420725 285101079 1754471154424323 285104678 38734 1 0] [/bin/ln [/bin/ln -sf /run/containerd/containerd.sock /run/dockershim.sock] [] 1754471154425006 285105361 1754471154426994 285107349 38735 1 0]]'
+          ExecStartPre: '[[/sbin/modprobe [/sbin/modprobe overlay] true 1754471111877170 240751080 1754471111880535 240754445 38442 1 0] [/bin/ln [/bin/ln -sf /run/containerd/containerd.sock /run/dockershim.sock] false 1754471111881217 240755127 1754471111883810 240757721 38443 1 0]]'
+          ExecStartPreEx: '[[/sbin/modprobe [/sbin/modprobe overlay] [ignore-failure] 1754471111877170 240751080 1754471111880535 240754445 38442 1 0] [/bin/ln [/bin/ln -sf /run/containerd/containerd.sock /run/dockershim.sock] [] 1754471111881217 240755127 1754471111883810 240757721 38443 1 0]]'
           ExecStop: '[]'
           ExecStopEx: '[]'
           ExecStopPost: '[]'
@@ -267,11 +141,11 @@ measurements:
           IgnoreOnIsolate: false
           IgnoreSIGPIPE: true
           InaccessiblePaths: '[]'
-          InactiveEnterTimestamp: 1754471154410717
-          InactiveEnterTimestampMonotonic: 285091071
-          InactiveExitTimestamp: 1754471154420939
-          InactiveExitTimestampMonotonic: 285101293
-          InvocationID: '[42 167 153 218 31 117 64 130 157 67 129 125 139 135 70 103]'
+          InactiveEnterTimestamp: 1754471111800262
+          InactiveEnterTimestampMonotonic: 240674172
+          InactiveExitTimestamp: 1754471111877329
+          InactiveExitTimestampMonotonic: 240751239
+          InvocationID: '[93 102 166 93 28 60 73 169 171 216 227 54 29 179 75 192]'
           Job: '[0 /]'
           JobRunningTimeoutUSec: 18446744073709551615
           JobTimeoutAction: none
@@ -323,7 +197,7 @@ measurements:
           LogRateLimitIntervalUSec: 0
           LogsDirectory: '[]'
           LogsDirectoryMode: "493"
-          MainPID: "38736"
+          MainPID: "38444"
           ManagedOOMMemoryPressure: auto
           ManagedOOMMemoryPressureLimit: "0"
           ManagedOOMPreference: none
@@ -331,7 +205,7 @@ measurements:
           Markers: '[]'
           MemoryAccounting: true
           MemoryAvailable: 18446744073709551615
-          MemoryCurrent: 252755759104
+          MemoryCurrent: 468919472128
           MemoryDenyWriteExecute: false
           MemoryHigh: 18446744073709551615
           MemoryLimit: 18446744073709551615
@@ -397,7 +271,7 @@ measurements:
           RemainAfterExit: false
           RemoveIPC: false
           RequiredBy: '[]'
-          Requires: '[sysinit.target system.slice]'
+          Requires: '[system.slice sysinit.target]'
           RequiresMountsFor: '[]'
           Requisite: '[]'
           RequisiteOf: '[]'
@@ -449,8 +323,8 @@ measurements:
           StartupCPUShares: 18446744073709551615
           StartupCPUWeight: 18446744073709551615
           StartupIOWeight: 18446744073709551615
-          StateChangeTimestamp: 1754471154886077
-          StateChangeTimestampMonotonic: 285566431
+          StateChangeTimestamp: 1754471112332254
+          StateChangeTimestampMonotonic: 241206164
           StateDirectory: '[]'
           StateDirectoryMode: "493"
           StatusErrno: "0"
@@ -476,7 +350,7 @@ measurements:
           TTYVHangup: false
           TTYVTDisallocate: false
           TasksAccounting: true
-          TasksCurrent: 540
+          TasksCurrent: 500
           TasksMax: 18446744073709551615
           TemporaryFileSystem: '[]'
           TimeoutAbortUSec: 90000000
@@ -1255,9 +1129,22 @@ measurements:
           WatchdogTimestampMonotonic: 0
           WatchdogUSec: 18446744073709551615
           WorkingDirectory: ""
-  - type: Sysctl
+  - type: OS
     subtypes:
-      - data:
+      - subtype: grub
+        data:
+          BOOT_IMAGE: /boot/vmlinuz-6.8.0-1024-aws
+          apparmor: "1"
+          audit: "1"
+          audit_backlog_limit: "8192"
+          hugepages: "5128"
+          hugepagesz: 2M
+          nokaslr: ""
+          panic: "-1"
+          ro: ""
+          security: apparmor
+      - subtype: sysctl
+        data:
           /proc/sys/abi/vsyscall32: "1"
           /proc/sys/debug/exception-trace: "1"
           /proc/sys/debug/kprobes-optimization: "1"
@@ -1274,16 +1161,16 @@ measurements:
           /proc/sys/dev/tty/legacy_tiocsti: "0"
           /proc/sys/fs/aio-max-nr: "65536"
           /proc/sys/fs/aio-nr: "0"
-          /proc/sys/fs/dentry-state: "12934895\t12820165\t45\t0\t11066998\t0"
+          /proc/sys/fs/dentry-state: "15053644\t14940123\t45\t0\t12490215\t0"
           /proc/sys/fs/dir-notify-enable: "1"
           /proc/sys/fs/epoll/max_user_watches: "466828132"
           /proc/sys/fs/fanotify/max_queued_events: "16384"
           /proc/sys/fs/fanotify/max_user_groups: "128"
           /proc/sys/fs/fanotify/max_user_marks: "1048576"
           /proc/sys/fs/file-max: "9223372036854775807"
-          /proc/sys/fs/file-nr: "7680\t0\t9223372036854775807"
-          /proc/sys/fs/inode-nr: "1852946\t437"
-          /proc/sys/fs/inode-state: "1852946\t437\t0\t0\t0\t0\t0"
+          /proc/sys/fs/file-nr: "5376\t0\t9223372036854775807"
+          /proc/sys/fs/inode-nr: "2510183\t437"
+          /proc/sys/fs/inode-state: "2510183\t437\t0\t0\t0\t0\t0"
           /proc/sys/fs/inotify/max_queued_events: "16384"
           /proc/sys/fs/inotify/max_user_instances: "65535"
           /proc/sys/fs/inotify/max_user_watches: "524288"
@@ -1311,7 +1198,7 @@ measurements:
           /proc/sys/fs/quota/free_dquots: "0"
           /proc/sys/fs/quota/lookups: "0"
           /proc/sys/fs/quota/reads: "0"
-          /proc/sys/fs/quota/syncs: "8"
+          /proc/sys/fs/quota/syncs: "56"
           /proc/sys/fs/quota/writes: "0"
           /proc/sys/fs/suid_dumpable: "0"
           /proc/sys/fs/verity/require_signatures: "0"
@@ -1357,7 +1244,7 @@ measurements:
           /proc/sys/kernel/ftrace_enabled: "1"
           /proc/sys/kernel/hardlockup_all_cpu_backtrace: "0"
           /proc/sys/kernel/hardlockup_panic: "0"
-          /proc/sys/kernel/hostname: ip-10-0-233-106
+          /proc/sys/kernel/hostname: ip-10-0-158-18
           /proc/sys/kernel/hotplug: ""
           /proc/sys/kernel/hung_task_all_cpu_backtrace: "0"
           /proc/sys/kernel/hung_task_check_count: "4194304"
@@ -1389,7 +1276,7 @@ measurements:
           /proc/sys/kernel/msgmni: "32000"
           /proc/sys/kernel/ngroups_max: "65536"
           /proc/sys/kernel/nmi_watchdog: "0"
-          /proc/sys/kernel/ns_last_pid: "1633559"
+          /proc/sys/kernel/ns_last_pid: "3825736"
           /proc/sys/kernel/numa_balancing: "1"
           /proc/sys/kernel/numa_balancing_promote_rate_limit_MBps: "65536"
           /proc/sys/kernel/oops_all_cpu_backtrace: "0"
@@ -1422,11 +1309,11 @@ measurements:
           /proc/sys/kernel/pty/max: "4096"
           /proc/sys/kernel/pty/nr: "0"
           /proc/sys/kernel/pty/reserve: "1024"
-          /proc/sys/kernel/random/boot_id: a63a57a1-f0cc-488c-bd25-21d05b681177
+          /proc/sys/kernel/random/boot_id: 03801c80-c3e1-48c4-96cd-9fa910693caf
           /proc/sys/kernel/random/entropy_avail: "256"
           /proc/sys/kernel/random/poolsize: "256"
           /proc/sys/kernel/random/urandom_min_reseed_secs: "60"
-          /proc/sys/kernel/random/uuid: 57c96a2f-5a21-400c-adab-b2de9b0be703
+          /proc/sys/kernel/random/uuid: 5c37efd2-71a3-4760-a660-669cbdf64439
           /proc/sys/kernel/random/write_wakeup_threshold: "256"
           /proc/sys/kernel/randomize_va_space: "2"
           /proc/sys/kernel/real-root-dev: "0"
@@ -1569,9 +1456,118 @@ measurements:
           /proc/sys/vm/watermark_boost_factor: "15000"
           /proc/sys/vm/watermark_scale_factor: "10"
           /proc/sys/vm/zone_reclaim_mode: "0"
-  - type: Image
+      - subtype: kmod
+        data:
+          aesni_intel: true
+          autofs4: true
+          binfmt_misc: true
+          cec: true
+          cls_bpf: true
+          crc32_pclmul: true
+          crct10dif_pclmul: true
+          cryptd: true
+          crypto_simd: true
+          drm_display_helper: true
+          drm_exec: true
+          drm_gpuvm: true
+          drm_ttm_helper: true
+          ecc: true
+          efa: true
+          efi_pstore: true
+          ena: true
+          fid: true
+          fld: true
+          gdrdrv: true
+          ghash_clmulni_intel: true
+          gpu_sched: true
+          i2c_algo_bit: true
+          i2c_piix4: true
+          ib_cm: true
+          ib_core: true
+          ib_iser: true
+          ib_uverbs: true
+          input_leds: true
+          intel_rapl_common: true
+          intel_rapl_msr: true
+          ip_tables: true
+          ipmi_devintf: true
+          ipmi_msghandler: true
+          ipt_REJECT: true
+          iw_cm: true
+          ksocklnd: true
+          libcfs: true
+          libcrc32c: true
+          libiscsi: true
+          lmv: true
+          lnet: true
+          lov: true
+          lustre: true
+          mac_hid: true
+          mdc: true
+          mgc: true
+          mxm_wmi: true
+          nf_conntrack: true
+          nf_conntrack_netlink: true
+          nf_defrag_ipv4: true
+          nf_defrag_ipv6: true
+          nf_nat: true
+          nf_reject_ipv4: true
+          nf_tables: true
+          nfnetlink: true
+          nft_chain_nat: true
+          nft_compat: true
+          nls_iso8859_1: true
+          nvidia: true
+          nvidia_modeset: true
+          nvidia_uvm: true
+          obdclass: true
+          osc: true
+          overlay: true
+          parport: true
+          parport_pc: true
+          polyval_clmulni: true
+          polyval_generic: true
+          ppdev: true
+          psmouse: true
+          ptlrpc: true
+          raid0: true
+          rc_core: true
+          rdma_cm: true
+          rdma_ucm: true
+          rpcrdma: true
+          sch_fq_codel: true
+          sch_ingress: true
+          scsi_transport_iscsi: true
+          serio_raw: true
+          sha1_ssse3: true
+          sha256_ssse3: true
+          sunrpc: true
+          tls: true
+          ttm: true
+          veth: true
+          video: true
+          wmi: true
+          x_tables: true
+          xfs: true
+          xt_MASQUERADE: true
+          xt_addrtype: true
+          xt_comment: true
+          xt_connmark: true
+          xt_conntrack: true
+          xt_mark: true
+          xt_nat: true
+          xt_state: true
+          xt_statistic: true
+          xt_tcpudp: true
+  - type: K8s
     subtypes:
-      - data:
+      - subtype: server
+        data:
+          goVersion: go1.24.9
+          platform: linux/amd64
+          version: v1.30.14-eks-3025e55
+      - subtype: image
+        data:
           accessrule-controller: 2.23.10000814-57f88ab
           admission-controller: 2.23.10000814-57f88ab
           agent: 2.23.10000814-57f88ab
@@ -1598,19 +1594,20 @@ measurements:
           cluster-sync: 2.23.10000814-57f88ab
           configmap-reload: v0.12.0
           container-toolkit: v1.17.5-ubuntu20.04
+          controller: v1.12.1
           coredns: v1.11.4-eksbuild.2
           csi-secrets-store-driver: v1.4.5
           dcgm: 4.1.1-2-ubuntu22.04
           dcgm-exporter: 4.1.1-4.0.4-ubuntu22.04
           dgxc-admission-controller: 1.865.0
           driver: 570.133.20-ubuntu22.04
-          eidos: v0.5.6
+          eidos: latest
           engine-admission: v3.36.8
           engine-operator: v3.36.8
           envoy-for-knative-kourier: v1.15.0-2
           external-attacher: v4.6.1-eks-1-30-10
-          external-provisioner: v5.0.1-eks-1-30-10
-          external-resizer: v1.11.1-eks-1-30-10
+          external-provisioner: v4.0.0-eks-1-29-5
+          external-resizer: v1.10.0-eks-1-29-5
           external-workload-integrator: 2.23.10000814-57f88ab
           gdrdrv: v2.5-ubuntu22.04
           go-operator: 2.23.10000814-57f88ab
@@ -1632,18 +1629,19 @@ measurements:
           kube-proxy: v1.30.6-minimal-eksbuild.3
           kube-rbac-proxy: v0.15.0
           kube-state-metrics: v2.12.0
+          kube-webhook-certgen: v1.5.2
           kubernetes-operator: 0.3.2
           kyverno: v1.14.3-nv.2
           kyvernopre: v1.14.3-nv.2
           las-fluentd: 1.16.1-09497efe
-          livenessprobe: v2.13.0-eks-1-30-10
+          livenessprobe: v2.14.0
           lws: 0.7.0
           metrics-exporter: 2.23.10000814-57f88ab
           mpi-operator: 0.6-fix-ratelimit
-          nats: 2.10.21-alpine
-          nats-box: 0.14.5
-          nats-server-config-reloader: 0.16.0
-          node-driver-registrar: v2.11.0-eks-1-30-10
+          nats: 2.11.6-alpine
+          nats-box: 0.18.0
+          nats-server-config-reloader: 0.18.2
+          node-driver-registrar: v2.10.0-eks-1-29-7
           node-exporter: v1.8.1
           node-feature-discovery: v0.17.2
           nodepool-controller: 2.23.10000814-57f88ab
@@ -1670,6 +1668,7 @@ measurements:
           sig-storage-livenessprobe: v2.13.1
           skyhook-operator: v0.7.5
           status-updater: 2.23.10000814-57f88ab
+          teleport-ent-distroless: 18.5.1
           teleport-kube-agent-updater: 17.0.1
           training-operator: v1-5c0e763
           vace: 1.74.0
@@ -1678,16 +1677,184 @@ measurements:
           workload-exporter: 2.23.10000814-57f88ab
           workload-overseer: 2.23.10000814-57f88ab
           yet-another-cloudwatch-exporter: v0.60.0
+      - subtype: policy
+        data:
+          admission: "true"
+          background: "true"
+          ccManager.defaultMode: "off"
+          ccManager.enabled: "false"
+          ccManager.image: k8s-cc-manager
+          ccManager.imagePullPolicy: IfNotPresent
+          ccManager.repository: nvcr.io/nvidia/cloud-native
+          ccManager.version: v0.1.1
+          cdi.default: "false"
+          cdi.enabled: "false"
+          daemonsets.labels.app.kubernetes.io/managed-by: gpu-operator
+          daemonsets.labels.helm.sh/chart: gpu-operator-v25.3.0
+          daemonsets.priorityClassName: system-node-critical
+          daemonsets.rollingUpdate.maxUnavailable: "1"
+          daemonsets.tolerations: '[{"effect":"NoSchedule","operator":"Exists"},{"effect":"NoExecute","operator":"Exists"}]'
+          daemonsets.updateStrategy: RollingUpdate
+          dcgm.enabled: "true"
+          dcgm.image: dcgm
+          dcgm.imagePullPolicy: IfNotPresent
+          dcgm.repository: nvcr.io/nvidia/cloud-native
+          dcgm.version: 4.1.1-2-ubuntu22.04
+          dcgmExporter.config.name: dcgm-exporter
+          dcgmExporter.enabled: "true"
+          dcgmExporter.env: '[{"name":"DCGM_EXPORTER_LISTEN","value":":9400"},{"name":"DCGM_EXPORTER_KUBERNETES","value":"true"},{"name":"DCGM_EXPORTER_COLLECTORS","value":"/etc/dcgm-exporter/dcp-metrics-included.csv"}]'
+          dcgmExporter.image: dcgm-exporter
+          dcgmExporter.imagePullPolicy: IfNotPresent
+          dcgmExporter.repository: nvcr.io/nvidia/k8s
+          dcgmExporter.serviceMonitor.enabled: "true"
+          dcgmExporter.serviceMonitor.honorLabels: "false"
+          dcgmExporter.serviceMonitor.interval: 60s
+          dcgmExporter.version: 4.1.1-4.0.4-ubuntu22.04
+          devicePlugin.enabled: "true"
+          devicePlugin.env: '[{"name":"DP_DISABLE_HEALTHCHECKS","value":"109"},{"name":"DEVICE_LIST_STRATEGY","value":"volume-mounts"}]'
+          devicePlugin.image: k8s-device-plugin
+          devicePlugin.imagePullPolicy: IfNotPresent
+          devicePlugin.repository: nvcr.io/nvidia
+          devicePlugin.version: v0.17.1
+          driver.certConfig.name: ""
+          driver.enabled: "true"
+          driver.image: driver
+          driver.imagePullPolicy: IfNotPresent
+          driver.kernelModuleConfig.name: ""
+          driver.kernelModuleType: auto
+          driver.licensingConfig.configMapName: ""
+          driver.licensingConfig.nlsEnabled: "true"
+          driver.manager.env: '[{"name":"ENABLE_GPU_POD_EVICTION","value":"true"},{"name":"ENABLE_AUTO_DRAIN","value":"false"},{"name":"DRAIN_USE_FORCE","value":"false"},{"name":"DRAIN_POD_SELECTOR_LABEL","value":""},{"name":"DRAIN_TIMEOUT_SECONDS","value":"0s"},{"name":"DRAIN_DELETE_EMPTYDIR_DATA","value":"false"}]'
+          driver.manager.image: k8s-driver-manager
+          driver.manager.imagePullPolicy: IfNotPresent
+          driver.manager.repository: nvcr.io/nvidia/cloud-native
+          driver.manager.version: v0.8.0
+          driver.rdma.enabled: "true"
+          driver.rdma.useHostMofed: "false"
+          driver.repoConfig.configMapName: ""
+          driver.repository: nvcr.io/nvidia
+          driver.startupProbe.failureThreshold: "120"
+          driver.startupProbe.initialDelaySeconds: "60"
+          driver.startupProbe.periodSeconds: "10"
+          driver.startupProbe.timeoutSeconds: "60"
+          driver.upgradePolicy.autoUpgrade: "true"
+          driver.upgradePolicy.drain.deleteEmptyDir: "false"
+          driver.upgradePolicy.drain.enable: "false"
+          driver.upgradePolicy.drain.force: "false"
+          driver.upgradePolicy.drain.timeoutSeconds: "300"
+          driver.upgradePolicy.maxParallelUpgrades: "1"
+          driver.upgradePolicy.maxUnavailable: 25%
+          driver.upgradePolicy.podDeletion.deleteEmptyDir: "false"
+          driver.upgradePolicy.podDeletion.force: "false"
+          driver.upgradePolicy.podDeletion.timeoutSeconds: "300"
+          driver.upgradePolicy.waitForCompletion.timeoutSeconds: "0"
+          driver.useNvidiaDriverCRD: "false"
+          driver.usePrecompiled: "false"
+          driver.version: 570.133.20
+          driver.virtualTopology.config: ""
+          emitWarning: "false"
+          gdrcopy.enabled: "true"
+          gdrcopy.image: gdrdrv
+          gdrcopy.imagePullPolicy: IfNotPresent
+          gdrcopy.repository: nvcr.io/nvidia/cloud-native
+          gdrcopy.version: v2.5
+          generateExisting: "true"
+          gfd.enabled: "true"
+          gfd.env: '[{"name":"GFD_SLEEP_INTERVAL","value":"60s"},{"name":"GFD_FAIL_ON_INIT_ERROR","value":"true"}]'
+          gfd.image: k8s-device-plugin
+          gfd.imagePullPolicy: IfNotPresent
+          gfd.repository: nvcr.io/nvidia
+          gfd.version: v0.17.1
+          hostPaths.driverInstallDir: /run/nvidia/driver
+          hostPaths.rootFS: /
+          kataManager.config.artifactsDir: /opt/nvidia-gpu-operator/artifacts/runtimeclasses
+          kataManager.config.runtimeClasses: '[{"artifacts":{"pullSecret":"","url":"nvcr.io/nvidia/cloud-native/kata-gpu-artifacts:ubuntu22.04-535.54.03"},"name":"kata-nvidia-gpu","nodeSelector":{}},{"artifacts":{"pullSecret":"","url":"nvcr.io/nvidia/cloud-native/kata-gpu-artifacts:ubuntu22.04-535.86.10-snp"},"name":"kata-nvidia-gpu-snp","nodeSelector":{"nvidia.com/cc.capable":"true"}}]'
+          kataManager.enabled: "false"
+          kataManager.image: k8s-kata-manager
+          kataManager.imagePullPolicy: IfNotPresent
+          kataManager.repository: nvcr.io/nvidia/cloud-native
+          kataManager.version: v0.2.3
+          mig.strategy: single
+          migManager.config.default: all-disabled
+          migManager.config.name: default-mig-parted-config
+          migManager.enabled: "true"
+          migManager.env: '[{"name":"WITH_REBOOT","value":"false"}]'
+          migManager.gpuClientsConfig.name: ""
+          migManager.image: k8s-mig-manager
+          migManager.imagePullPolicy: IfNotPresent
+          migManager.repository: nvcr.io/nvidia/cloud-native
+          migManager.version: v0.12.1-ubuntu20.04
+          mutateExistingOnPolicyUpdate: "true"
+          nodeStatusExporter.enabled: "false"
+          nodeStatusExporter.image: gpu-operator-validator
+          nodeStatusExporter.imagePullPolicy: IfNotPresent
+          nodeStatusExporter.repository: nvcr.io/nvidia/cloud-native
+          nodeStatusExporter.version: v25.3.0
+          operator.defaultRuntime: docker
+          operator.initContainer.image: cuda
+          operator.initContainer.imagePullPolicy: IfNotPresent
+          operator.initContainer.repository: nvcr.io/nvidia
+          operator.initContainer.version: 12.8.1-base-ubi9
+          operator.runtimeClass: nvidia
+          psa.enabled: "false"
+          rules: '[{"match":{"resources":{"kinds":["Pod"],"namespaceSelector":{"matchExpressions":[{"key":"kubernetes.io/metadata.name","operator":"NotIn","values":["anthos-identity-service","argocd","cert-manager","cluster-secrets","csi-azurelustre-driver","default","dgxc-admission-controller","dgxc-controller","dgxc-janitor-system","dgxc-logging","dgxc-storage","entitlement-lockdown","external-secrets","gke-managed-filestorecsi","gmp-public","gmp-system","gpu-operator","heimdall","ingress-nginx","knative-serving","kourier-system","kube-node-lease","kube-public","kube-system","kubeflow","kyverno","labeler","monitoring","mpi-operator","namespace-labeler","network-operator","network-policies","ngcc-csi-lvm","node-feature-discovery","node-problem-detector","nvdiag","observability","prometheus","runai","scheduler-plugins","shoreline","skyhook","vault","nvsentinel","nvdiag","nvcf-container-cache","nvdp","nv-storage"]}]}}},"name":"sysctls","skipBackgroundRequests":true,"validate":{"allowExistingViolations":true,"message":"Setting additional sysctls above the allowed type is disallowed. The field spec.securityContext.sysctls must not use any other names than ''kernel.shm_rmid_forced'', ''net.ipv4.ip_local_port_range'',  net.ipv4.ip_unprivileged_port_start, ''net.ipv4.tcp_syncookies'' and  ''net.ipv4.ping_group_range''.","pattern":{"spec":{"=(securityContext)":{"=(sysctls)":[{"name":"kernel.shm_rmid_forced | net.ipv4.ip_local_port_range | net.ipv4.ip_unprivileged_port_start | net.ipv4.tcp_syncookies | net.ipv4.ping_group_range","value":"?*"}]}}}}}]'
+          sandboxDevicePlugin.enabled: "true"
+          sandboxDevicePlugin.image: kubevirt-gpu-device-plugin
+          sandboxDevicePlugin.imagePullPolicy: IfNotPresent
+          sandboxDevicePlugin.repository: nvcr.io/nvidia
+          sandboxDevicePlugin.version: v1.3.1
+          sandboxWorkloads.defaultWorkload: container
+          sandboxWorkloads.enabled: "false"
+          toolkit.enabled: "true"
+          toolkit.env: '[{"name":"ACCEPT_NVIDIA_VISIBLE_DEVICES_ENVVAR_WHEN_UNPRIVILEGED","value":"false"},{"name":"ACCEPT_NVIDIA_VISIBLE_DEVICES_AS_VOLUME_MOUNTS","value":"true"}]'
+          toolkit.image: container-toolkit
+          toolkit.imagePullPolicy: IfNotPresent
+          toolkit.installDir: /usr/local/nvidia
+          toolkit.repository: nvcr.io/nvidia/k8s
+          toolkit.version: v1.17.5-ubuntu20.04
+          validationFailureAction: Enforce
+          validator.image: gpu-operator-validator
+          validator.imagePullPolicy: IfNotPresent
+          validator.plugin.env: '[{"name":"WITH_WORKLOAD","value":"false"}]'
+          validator.repository: nvcr.io/nvidia/cloud-native
+          validator.version: v25.3.0
+          vfioManager.driverManager.env: '[{"name":"ENABLE_GPU_POD_EVICTION","value":"false"},{"name":"ENABLE_AUTO_DRAIN","value":"false"}]'
+          vfioManager.driverManager.image: k8s-driver-manager
+          vfioManager.driverManager.imagePullPolicy: IfNotPresent
+          vfioManager.driverManager.repository: nvcr.io/nvidia/cloud-native
+          vfioManager.driverManager.version: v0.8.0
+          vfioManager.enabled: "true"
+          vfioManager.image: cuda
+          vfioManager.imagePullPolicy: IfNotPresent
+          vfioManager.repository: nvcr.io/nvidia
+          vfioManager.version: 12.8.1-base-ubi9
+          vgpuDeviceManager.config.default: default
+          vgpuDeviceManager.config.name: ""
+          vgpuDeviceManager.enabled: "true"
+          vgpuDeviceManager.image: vgpu-device-manager
+          vgpuDeviceManager.imagePullPolicy: IfNotPresent
+          vgpuDeviceManager.repository: nvcr.io/nvidia/cloud-native
+          vgpuDeviceManager.version: v0.3.0
+          vgpuManager.driverManager.env: '[{"name":"ENABLE_GPU_POD_EVICTION","value":"false"},{"name":"ENABLE_AUTO_DRAIN","value":"false"}]'
+          vgpuManager.driverManager.image: k8s-driver-manager
+          vgpuManager.driverManager.imagePullPolicy: IfNotPresent
+          vgpuManager.driverManager.repository: nvcr.io/nvidia/cloud-native
+          vgpuManager.driverManager.version: v0.8.0
+          vgpuManager.enabled: "false"
+          vgpuManager.image: vgpu-manager
+          vgpuManager.imagePullPolicy: IfNotPresent
   - type: GPU
     subtypes:
-      - data:
-          addressing-mode: HMM
+      - subtype: smi
+        data:
           cuda-version: "12.8"
-          display-active: Disabled
-          display-mode: Enabled
-          driver-version: 570.133.20
-          gpu-product-name: NVIDIA H100 80GB HBM3
-          gsp-firmware-version: 570.133.20
-          persistence-mode: Disabled
-          product-architecture: Hopper
-          vbios-version: 96.00.BC.00.01
+          driver: 570.133.20
+          gpu-count: 8
+          gpu.addressing-mode: HMM
+          gpu.display-active: Disabled
+          gpu.display-mode: Enabled
+          gpu.gsp-firmware-version: 570.133.20
+          gpu.model: NVIDIA H100 80GB HBM3
+          gpu.persistence-mode: Disabled
+          gpu.product-architecture: Hopper
+          gpu.vbios-version: 96.00.BC.00.01

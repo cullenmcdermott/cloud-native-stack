@@ -1,8 +1,8 @@
 kind: Snapshot
 apiVersion: snapshot.dgxc.io/v1
 metadata:
-  measurement-timestamp: "2025-12-25T19:10:19Z"
-  snapshot-version: 0.6.4
+  measurement-timestamp: "2025-12-25T19:53:45Z"
+  snapshot-version: 0.6.6
   source-node: ip-10-0-160-248.ec2.internal
 measurements:
   - type: SystemD
@@ -40,7 +40,7 @@ measurements:
           CPUSchedulingPriority: "0"
           CPUSchedulingResetOnFork: false
           CPUShares: 18446744073709551615
-          CPUUsageNSec: 596010578922000
+          CPUUsageNSec: 596907278989000
           CPUWeight: 18446744073709551615
           CacheDirectory: '[]'
           CacheDirectoryMode: "493"
@@ -205,7 +205,7 @@ measurements:
           Markers: '[]'
           MemoryAccounting: true
           MemoryAvailable: 18446744073709551615
-          MemoryCurrent: 96997269504
+          MemoryCurrent: 97113718784
           MemoryDenyWriteExecute: false
           MemoryHigh: 18446744073709551615
           MemoryLimit: 18446744073709551615
@@ -1160,16 +1160,16 @@ measurements:
           /proc/sys/dev/tty/legacy_tiocsti: "0"
           /proc/sys/fs/aio-max-nr: "65536"
           /proc/sys/fs/aio-nr: "0"
-          /proc/sys/fs/dentry-state: "1842485\t1741856\t45\t0\t755134\t0"
+          /proc/sys/fs/dentry-state: "1843418\t1742773\t45\t0\t756010\t0"
           /proc/sys/fs/dir-notify-enable: "1"
           /proc/sys/fs/epoll/max_user_watches: "216410223"
           /proc/sys/fs/fanotify/max_queued_events: "16384"
           /proc/sys/fs/fanotify/max_user_groups: "128"
           /proc/sys/fs/fanotify/max_user_marks: "1048576"
           /proc/sys/fs/file-max: "9223372036854775807"
-          /proc/sys/fs/file-nr: "4032\t0\t9223372036854775807"
-          /proc/sys/fs/inode-nr: "1082311\t435"
-          /proc/sys/fs/inode-state: "1082311\t435\t0\t0\t0\t0\t0"
+          /proc/sys/fs/file-nr: "2016\t0\t9223372036854775807"
+          /proc/sys/fs/inode-nr: "1082368\t435"
+          /proc/sys/fs/inode-state: "1082368\t435\t0\t0\t0\t0\t0"
           /proc/sys/fs/inotify/max_queued_events: "16384"
           /proc/sys/fs/inotify/max_user_instances: "65535"
           /proc/sys/fs/inotify/max_user_watches: "524288"
@@ -1271,7 +1271,7 @@ measurements:
           /proc/sys/kernel/msgmni: "32000"
           /proc/sys/kernel/ngroups_max: "65536"
           /proc/sys/kernel/nmi_watchdog: "0"
-          /proc/sys/kernel/ns_last_pid: "3180474"
+          /proc/sys/kernel/ns_last_pid: "3198815"
           /proc/sys/kernel/numa_balancing: "0"
           /proc/sys/kernel/numa_balancing_promote_rate_limit_MBps: "65536"
           /proc/sys/kernel/oops_all_cpu_backtrace: "0"
@@ -1307,7 +1307,7 @@ measurements:
           /proc/sys/kernel/random/entropy_avail: "256"
           /proc/sys/kernel/random/poolsize: "256"
           /proc/sys/kernel/random/urandom_min_reseed_secs: "60"
-          /proc/sys/kernel/random/uuid: 45075f8b-5914-4c7a-9373-35f02fa5a6ad
+          /proc/sys/kernel/random/uuid: 10782f89-be71-4658-a149-75327b062696
           /proc/sys/kernel/random/write_wakeup_threshold: "256"
           /proc/sys/kernel/randomize_va_space: "2"
           /proc/sys/kernel/real-root-dev: "0"
@@ -1612,7 +1612,158 @@ measurements:
           vace: 1.79.0
           yet-another-cloudwatch-exporter: v0.60.0
       - subtype: policy
-        data: {}
+        data:
+          ccManager.defaultMode: "off"
+          ccManager.enabled: "false"
+          ccManager.image: k8s-cc-manager
+          ccManager.imagePullPolicy: IfNotPresent
+          ccManager.repository: nvcr.io/nvidia/cloud-native
+          ccManager.version: v0.1.1
+          cdi.default: "false"
+          cdi.enabled: "true"
+          daemonsets.labels.app.kubernetes.io/managed-by: gpu-operator
+          daemonsets.labels.helm.sh/chart: gpu-operator-v25.3.3
+          daemonsets.priorityClassName: system-node-critical
+          daemonsets.rollingUpdate.maxUnavailable: "1"
+          daemonsets.tolerations: '[{"effect":"NoSchedule","operator":"Exists"},{"effect":"NoExecute","operator":"Exists"}]'
+          daemonsets.updateStrategy: RollingUpdate
+          dcgm.enabled: "true"
+          dcgm.image: dcgm
+          dcgm.imagePullPolicy: IfNotPresent
+          dcgm.repository: nvcr.io/nvidia/cloud-native
+          dcgm.version: 4.3.1-1-ubuntu22.04
+          dcgmExporter.config.name: dcgm-exporter
+          dcgmExporter.enabled: "true"
+          dcgmExporter.image: dcgm-exporter
+          dcgmExporter.imagePullPolicy: IfNotPresent
+          dcgmExporter.repository: nvcr.io/nvidia/k8s
+          dcgmExporter.service.internalTrafficPolicy: Cluster
+          dcgmExporter.serviceMonitor.enabled: "true"
+          dcgmExporter.serviceMonitor.honorLabels: "false"
+          dcgmExporter.serviceMonitor.interval: 60s
+          dcgmExporter.version: 4.3.1-4.4.0-ubuntu22.04
+          devicePlugin.enabled: "true"
+          devicePlugin.env: '[{"name":"DP_DISABLE_HEALTHCHECKS","value":"109"},{"name":"DEVICE_LIST_STRATEGY","value":"volume-mounts"}]'
+          devicePlugin.image: k8s-device-plugin
+          devicePlugin.imagePullPolicy: IfNotPresent
+          devicePlugin.repository: nvcr.io/nvidia
+          devicePlugin.version: v0.17.4
+          driver.certConfig.name: ""
+          driver.enabled: "true"
+          driver.image: driver
+          driver.imagePullPolicy: IfNotPresent
+          driver.kernelModuleConfig.name: kernel-module-params
+          driver.kernelModuleType: auto
+          driver.licensingConfig.configMapName: ""
+          driver.licensingConfig.nlsEnabled: "true"
+          driver.manager.image: k8s-driver-manager
+          driver.manager.imagePullPolicy: IfNotPresent
+          driver.manager.repository: nvcr.io/nvidia/cloud-native
+          driver.manager.version: v0.8.1
+          driver.rdma.enabled: "true"
+          driver.rdma.useHostMofed: "false"
+          driver.repoConfig.configMapName: ""
+          driver.repository: nvcr.io/nvidia
+          driver.startupProbe.failureThreshold: "120"
+          driver.startupProbe.initialDelaySeconds: "60"
+          driver.startupProbe.periodSeconds: "10"
+          driver.startupProbe.timeoutSeconds: "60"
+          driver.upgradePolicy.autoUpgrade: "true"
+          driver.upgradePolicy.drain.deleteEmptyDir: "false"
+          driver.upgradePolicy.drain.enable: "false"
+          driver.upgradePolicy.drain.force: "false"
+          driver.upgradePolicy.drain.timeoutSeconds: "300"
+          driver.upgradePolicy.maxParallelUpgrades: "5"
+          driver.upgradePolicy.maxUnavailable: 25%
+          driver.upgradePolicy.podDeletion.deleteEmptyDir: "false"
+          driver.upgradePolicy.podDeletion.force: "false"
+          driver.upgradePolicy.podDeletion.timeoutSeconds: "300"
+          driver.upgradePolicy.waitForCompletion.timeoutSeconds: "0"
+          driver.useNvidiaDriverCRD: "false"
+          driver.usePrecompiled: "false"
+          driver.version: 580.82.07
+          driver.virtualTopology.config: ""
+          gdrcopy.enabled: "true"
+          gdrcopy.image: gdrdrv
+          gdrcopy.imagePullPolicy: IfNotPresent
+          gdrcopy.repository: nvcr.io/nvidia/cloud-native
+          gdrcopy.version: v2.5.1
+          gfd.enabled: "true"
+          gfd.image: k8s-device-plugin
+          gfd.imagePullPolicy: IfNotPresent
+          gfd.repository: nvcr.io/nvidia
+          gfd.version: v0.17.4
+          hostPaths.driverInstallDir: /run/nvidia/driver
+          hostPaths.rootFS: /
+          kataManager.config.artifactsDir: /opt/nvidia-gpu-operator/artifacts/runtimeclasses
+          kataManager.config.runtimeClasses: '[{"artifacts":{"pullSecret":"","url":"nvcr.io/nvidia/cloud-native/kata-gpu-artifacts:ubuntu22.04-535.54.03"},"name":"kata-nvidia-gpu","nodeSelector":{}},{"artifacts":{"pullSecret":"","url":"nvcr.io/nvidia/cloud-native/kata-gpu-artifacts:ubuntu22.04-535.86.10-snp"},"name":"kata-nvidia-gpu-snp","nodeSelector":{"nvidia.com/cc.capable":"true"}}]'
+          kataManager.enabled: "false"
+          kataManager.image: k8s-kata-manager
+          kataManager.imagePullPolicy: IfNotPresent
+          kataManager.repository: nvcr.io/nvidia/cloud-native
+          kataManager.version: v0.2.3
+          mig.strategy: single
+          migManager.config.default: all-disabled
+          migManager.config.name: default-mig-parted-config
+          migManager.enabled: "true"
+          migManager.gpuClientsConfig.name: ""
+          migManager.image: k8s-mig-manager
+          migManager.imagePullPolicy: IfNotPresent
+          migManager.repository: nvcr.io/nvidia/cloud-native
+          migManager.version: v0.12.3-ubuntu20.04
+          nodeStatusExporter.enabled: "false"
+          nodeStatusExporter.image: gpu-operator-validator
+          nodeStatusExporter.imagePullPolicy: IfNotPresent
+          nodeStatusExporter.repository: nvcr.io/nvidia/cloud-native
+          nodeStatusExporter.version: v25.3.3
+          operator.defaultRuntime: docker
+          operator.initContainer.image: cuda
+          operator.initContainer.imagePullPolicy: IfNotPresent
+          operator.initContainer.repository: nvcr.io/nvidia
+          operator.initContainer.version: 13.0.0-base-ubi9
+          operator.runtimeClass: nvidia
+          psa.enabled: "false"
+          sandboxDevicePlugin.enabled: "true"
+          sandboxDevicePlugin.image: kubevirt-gpu-device-plugin
+          sandboxDevicePlugin.imagePullPolicy: IfNotPresent
+          sandboxDevicePlugin.repository: nvcr.io/nvidia
+          sandboxDevicePlugin.version: v1.4.0
+          sandboxWorkloads.defaultWorkload: container
+          sandboxWorkloads.enabled: "false"
+          toolkit.enabled: "true"
+          toolkit.env: '[{"name":"ACCEPT_NVIDIA_VISIBLE_DEVICES_ENVVAR_WHEN_UNPRIVILEGED","value":"false"},{"name":"ACCEPT_NVIDIA_VISIBLE_DEVICES_AS_VOLUME_MOUNTS","value":"true"}]'
+          toolkit.image: container-toolkit
+          toolkit.imagePullPolicy: IfNotPresent
+          toolkit.installDir: /usr/local/nvidia
+          toolkit.repository: nvcr.io/nvidia/k8s
+          toolkit.version: v1.17.8-ubuntu20.04
+          validator.image: gpu-operator-validator
+          validator.imagePullPolicy: IfNotPresent
+          validator.repository: nvcr.io/nvidia/cloud-native
+          validator.version: v25.3.3
+          vfioManager.driverManager.image: k8s-driver-manager
+          vfioManager.driverManager.imagePullPolicy: IfNotPresent
+          vfioManager.driverManager.repository: nvcr.io/nvidia/cloud-native
+          vfioManager.driverManager.version: v0.8.1
+          vfioManager.enabled: "true"
+          vfioManager.image: cuda
+          vfioManager.imagePullPolicy: IfNotPresent
+          vfioManager.repository: nvcr.io/nvidia
+          vfioManager.version: 13.0.0-base-ubi9
+          vgpuDeviceManager.config.default: default
+          vgpuDeviceManager.config.name: ""
+          vgpuDeviceManager.enabled: "true"
+          vgpuDeviceManager.image: vgpu-device-manager
+          vgpuDeviceManager.imagePullPolicy: IfNotPresent
+          vgpuDeviceManager.repository: nvcr.io/nvidia/cloud-native
+          vgpuDeviceManager.version: v0.4.0
+          vgpuManager.driverManager.image: k8s-driver-manager
+          vgpuManager.driverManager.imagePullPolicy: IfNotPresent
+          vgpuManager.driverManager.repository: nvcr.io/nvidia/cloud-native
+          vgpuManager.driverManager.version: v0.8.1
+          vgpuManager.enabled: "false"
+          vgpuManager.image: vgpu-manager
+          vgpuManager.imagePullPolicy: IfNotPresent
   - type: GPU
     subtypes:
       - subtype: smi
