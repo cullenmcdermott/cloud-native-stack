@@ -28,8 +28,13 @@ func (k *Collector) collectClusterPolicies(ctx context.Context) (map[string]meas
 	discoveryClient := k.ClientSet.Discovery()
 	apiResourceLists, err := discoveryClient.ServerPreferredResources()
 	if err != nil {
-		slog.Debug("failed to discover API resources", slog.String("error", err.Error()))
-		return make(map[string]measurement.Reading), nil
+		// ServerPreferredResources can return a partial result with an error
+		// We should continue if we got some resources
+		slog.Debug("error discovering API resources (continuing with partial results)", slog.String("error", err.Error()))
+		if len(apiResourceLists) == 0 {
+			slog.Warn("no API resources discovered", slog.String("error", err.Error()))
+			return make(map[string]measurement.Reading), nil
+		}
 	}
 
 	policyData := make(map[string]measurement.Reading)

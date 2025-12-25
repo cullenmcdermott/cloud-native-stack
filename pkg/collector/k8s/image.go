@@ -81,7 +81,14 @@ func stripRegistryPrefix(imageRef string) string {
 //   - "nginx:1.21" -> ("nginx", "1.21")
 //   - "argocd:v2.14.3" -> ("argocd", "v2.14.3")
 //   - "nginx" -> ("nginx", "latest")
+//   - "image:v1.0@sha256:abc123..." -> ("image", "v1.0")
 func splitImageNameTag(imageRef string) (name, tag string) {
+	// First, strip any digest (@sha256:...)
+	atIdx := strings.Index(imageRef, "@")
+	if atIdx != -1 {
+		imageRef = imageRef[:atIdx]
+	}
+
 	// Split on the last colon to separate image name from tag
 	colonIdx := strings.LastIndex(imageRef, ":")
 	if colonIdx == -1 {

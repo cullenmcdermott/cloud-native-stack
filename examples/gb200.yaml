@@ -1,131 +1,27 @@
 kind: Snapshot
 apiVersion: snapshot.dgxc.io/v1
 metadata:
-  snapshot-timestamp: "2025-12-22T21:23:21Z"
-  snapshot-version: 0.5.6
-  source-node: ip-10-0-205-119.ec2.internal
+  measurement-timestamp: "2025-12-25T18:49:48Z"
+  snapshot-version: 0.6.3
+  source-node: ip-10-0-160-248.ec2.internal
 measurements:
-  - type: KMod
-    subtypes:
-      - data:
-          aes_ce_blk: true
-          aes_ce_cipher: true
-          autofs4: true
-          binfmt_misc: true
-          cec: true
-          cls_bpf: true
-          crct10dif_ce: true
-          drm_display_helper: true
-          drm_exec: true
-          drm_gpuvm: true
-          drm_ttm_helper: true
-          ecc: true
-          efa: true
-          efi_pstore: true
-          ena: true
-          gdrdrv: true
-          ghash_ce: true
-          gpu_sched: true
-          i2c_algo_bit: true
-          ib_cm: true
-          ib_core: true
-          ib_iser: true
-          ib_uverbs: true
-          ip_tables: true
-          ipmi_devintf: true
-          ipmi_msghandler: true
-          ipt_REJECT: true
-          iw_cm: true
-          libcrc32c: true
-          libiscsi: true
-          nf_conntrack: true
-          nf_conntrack_netlink: true
-          nf_defrag_ipv4: true
-          nf_defrag_ipv6: true
-          nf_nat: true
-          nf_reject_ipv4: true
-          nf_tables: true
-          nfnetlink: true
-          nfnetlink_acct: true
-          nft_chain_nat: true
-          nft_compat: true
-          nls_iso8859_1: true
-          nvidia: true
-          nvidia_modeset: true
-          nvidia_uvm: true
-          overlay: true
-          polyval_ce: true
-          polyval_generic: true
-          qemu_fw_cfg: true
-          raid0: true
-          rc_core: true
-          rdma_cm: true
-          rdma_ucm: true
-          rpcrdma: true
-          sch_fq_codel: true
-          sch_ingress: true
-          scsi_transport_iscsi: true
-          sha1_ce: true
-          sha2_ce: true
-          sha3_ce: true
-          sha256_arm64: true
-          sm3: true
-          sm3_ce: true
-          sm4: true
-          sm4_ce: true
-          sm4_ce_ccm: true
-          sm4_ce_cipher: true
-          sm4_ce_gcm: true
-          sunrpc: true
-          tls: true
-          ttm: true
-          veth: true
-          video: true
-          x_tables: true
-          xfs: true
-          xt_MASQUERADE: true
-          xt_addrtype: true
-          xt_comment: true
-          xt_connmark: true
-          xt_conntrack: true
-          xt_mark: true
-          xt_nat: true
-          xt_nfacct: true
-          xt_state: true
-          xt_statistic: true
-          xt_tcpudp: true
-  - type: Grub
-    subtypes:
-      - data:
-          BOOT_IMAGE: /boot/vmlinuz-6.8.0-1028-aws
-          apparmor: "1"
-          audit: "1"
-          audit_backlog_limit: "8192"
-          hugepages: "5128"
-          hugepagesz: 2M
-          init_on_alloc: "0"
-          nokaslr: ""
-          numa_balancing: disable
-          panic: "-1"
-          ro: ""
-          security: apparmor
   - type: SystemD
     subtypes:
       - subtype: containerd.service
         data:
-          ActiveEnterTimestamp: 1764980989043294
-          ActiveEnterTimestampMonotonic: 174204480
-          ActiveExitTimestamp: 1764980983536548
-          ActiveExitTimestampMonotonic: 168697734
+          ActiveEnterTimestamp: 1764981219416498
+          ActiveEnterTimestampMonotonic: 272571222
+          ActiveExitTimestamp: 1764981213856862
+          ActiveExitTimestampMonotonic: 267011586
           ActiveState: active
-          After: '[basic.target systemd-journald.socket sysinit.target system.slice dbus.service local-fs.target network.target]'
+          After: '[dbus.service systemd-journald.socket network.target basic.target system.slice local-fs.target sysinit.target]'
           AllowIsolate: false
           AmbientCapabilities: 0
           AppArmorProfile: '[false ]'
           AssertResult: true
-          AssertTimestamp: 1764980988573500
-          AssertTimestampMonotonic: 173734686
-          Before: '[multi-user.target shutdown.target]'
+          AssertTimestamp: 1764981218948853
+          AssertTimestampMonotonic: 272103577
+          Before: '[shutdown.target multi-user.target]'
           BindPaths: '[]'
           BindReadOnlyPaths: '[]'
           BindsTo: '[]'
@@ -144,7 +40,7 @@ measurements:
           CPUSchedulingPriority: "0"
           CPUSchedulingResetOnFork: false
           CPUShares: 18446744073709551615
-          CPUUsageNSec: 486910362141000
+          CPUUsageNSec: 595584096343000
           CPUWeight: 18446744073709551615
           CacheDirectory: '[]'
           CacheDirectoryMode: "493"
@@ -158,8 +54,8 @@ measurements:
           CleanResult: success
           CollectMode: inactive
           ConditionResult: true
-          ConditionTimestamp: 1764980988573498
-          ConditionTimestampMonotonic: 173734684
+          ConditionTimestamp: 1764981218948851
+          ConditionTimestampMonotonic: 272103575
           Conditions: '[]'
           ConfigurationDirectory: '[]'
           ConfigurationDirectoryMode: "493"
@@ -190,19 +86,19 @@ measurements:
           ExecMainCode: "0"
           ExecMainExitTimestamp: 0
           ExecMainExitTimestampMonotonic: 0
-          ExecMainPID: "28515"
-          ExecMainStartTimestamp: 1764980988589870
-          ExecMainStartTimestampMonotonic: 173751056
+          ExecMainPID: "28986"
+          ExecMainStartTimestamp: 1764981218966344
+          ExecMainStartTimestampMonotonic: 272121068
           ExecMainStatus: "0"
           ExecPaths: '[]'
           ExecReload: '[]'
           ExecReloadEx: '[]'
-          ExecStart: '[[/usr/bin/containerd [/usr/bin/containerd] false 1764980988589832 173751019 0 0 28515 0 0]]'
-          ExecStartEx: '[[/usr/bin/containerd [/usr/bin/containerd] [] 1764980988589832 173751019 0 0 28515 0 0]]'
+          ExecStart: '[[/usr/bin/containerd [/usr/bin/containerd] false 1764981218966320 272121044 0 0 28986 0 0]]'
+          ExecStartEx: '[[/usr/bin/containerd [/usr/bin/containerd] [] 1764981218966320 272121044 0 0 28986 0 0]]'
           ExecStartPost: '[]'
           ExecStartPostEx: '[]'
-          ExecStartPre: '[[/sbin/modprobe [/sbin/modprobe overlay] true 1764980988582860 173744047 1764980988586380 173747567 28513 1 0] [/bin/ln [/bin/ln -sf /run/containerd/containerd.sock /run/dockershim.sock] false 1764980988587188 173748375 1764980988589191 173750377 28514 1 0]]'
-          ExecStartPreEx: '[[/sbin/modprobe [/sbin/modprobe overlay] [ignore-failure] 1764980988582860 173744047 1764980988586380 173747567 28513 1 0] [/bin/ln [/bin/ln -sf /run/containerd/containerd.sock /run/dockershim.sock] [] 1764980988587188 173748375 1764980988589191 173750377 28514 1 0]]'
+          ExecStartPre: '[[/sbin/modprobe [/sbin/modprobe overlay] true 1764981218961337 272116061 1764981218963381 272118105 28984 1 0] [/bin/ln [/bin/ln -sf /run/containerd/containerd.sock /run/dockershim.sock] false 1764981218963920 272118644 1764981218965644 272120368 28985 1 0]]'
+          ExecStartPreEx: '[[/sbin/modprobe [/sbin/modprobe overlay] [ignore-failure] 1764981218961337 272116061 1764981218963381 272118105 28984 1 0] [/bin/ln [/bin/ln -sf /run/containerd/containerd.sock /run/dockershim.sock] [] 1764981218963920 272118644 1764981218965644 272120368 28985 1 0]]'
           ExecStop: '[]'
           ExecStopEx: '[]'
           ExecStopPost: '[]'
@@ -245,11 +141,11 @@ measurements:
           IgnoreOnIsolate: false
           IgnoreSIGPIPE: true
           InaccessiblePaths: '[]'
-          InactiveEnterTimestamp: 1764980988573146
-          InactiveEnterTimestampMonotonic: 173734333
-          InactiveExitTimestamp: 1764980988583142
-          InactiveExitTimestampMonotonic: 173744329
-          InvocationID: '[133 207 89 4 238 139 68 213 139 148 12 4 221 53 68 193]'
+          InactiveEnterTimestamp: 1764981218948558
+          InactiveEnterTimestampMonotonic: 272103282
+          InactiveExitTimestamp: 1764981218961618
+          InactiveExitTimestampMonotonic: 272116343
+          InvocationID: '[28 208 98 29 41 80 71 221 130 129 78 171 151 114 143 11]'
           Job: '[0 /]'
           JobRunningTimeoutUSec: 18446744073709551615
           JobTimeoutAction: none
@@ -301,7 +197,7 @@ measurements:
           LogRateLimitIntervalUSec: 0
           LogsDirectory: '[]'
           LogsDirectoryMode: "493"
-          MainPID: "28515"
+          MainPID: "28986"
           ManagedOOMMemoryPressure: auto
           ManagedOOMMemoryPressureLimit: "0"
           ManagedOOMPreference: none
@@ -309,7 +205,7 @@ measurements:
           Markers: '[]'
           MemoryAccounting: true
           MemoryAvailable: 18446744073709551615
-          MemoryCurrent: 91281424384
+          MemoryCurrent: 96930914304
           MemoryDenyWriteExecute: false
           MemoryHigh: 18446744073709551615
           MemoryLimit: 18446744073709551615
@@ -375,7 +271,7 @@ measurements:
           RemainAfterExit: false
           RemoveIPC: false
           RequiredBy: '[]'
-          Requires: '[system.slice sysinit.target]'
+          Requires: '[sysinit.target system.slice]'
           RequiresMountsFor: '[]'
           Requisite: '[]'
           RequisiteOf: '[]'
@@ -427,8 +323,8 @@ measurements:
           StartupCPUShares: 18446744073709551615
           StartupCPUWeight: 18446744073709551615
           StartupIOWeight: 18446744073709551615
-          StateChangeTimestamp: 1764980989043294
-          StateChangeTimestampMonotonic: 174204480
+          StateChangeTimestamp: 1764981219416498
+          StateChangeTimestampMonotonic: 272571222
           StateDirectory: '[]'
           StateDirectoryMode: "493"
           StatusErrno: "0"
@@ -454,7 +350,7 @@ measurements:
           TTYVHangup: false
           TTYVTDisallocate: false
           TasksAccounting: true
-          TasksCurrent: 477
+          TasksCurrent: 475
           TasksMax: 18446744073709551615
           TemporaryFileSystem: '[]'
           TimeoutAbortUSec: 90000000
@@ -1233,9 +1129,24 @@ measurements:
           WatchdogTimestampMonotonic: 0
           WatchdogUSec: 18446744073709551615
           WorkingDirectory: ""
-  - type: Sysctl
+  - type: OS
     subtypes:
-      - data:
+      - subtype: grub
+        data:
+          BOOT_IMAGE: /boot/vmlinuz-6.8.0-1028-aws
+          apparmor: "1"
+          audit: "1"
+          audit_backlog_limit: "8192"
+          hugepages: "5128"
+          hugepagesz: 2M
+          init_on_alloc: "0"
+          nokaslr: ""
+          numa_balancing: disable
+          panic: "-1"
+          ro: ""
+          security: apparmor
+      - subtype: sysctl
+        data:
           /proc/sys/abi/cp15_barrier: "1"
           /proc/sys/abi/setend: "1"
           /proc/sys/abi/sve_default_vector_length: "16"
@@ -1249,16 +1160,16 @@ measurements:
           /proc/sys/dev/tty/legacy_tiocsti: "0"
           /proc/sys/fs/aio-max-nr: "65536"
           /proc/sys/fs/aio-nr: "0"
-          /proc/sys/fs/dentry-state: "1620045\t1519363\t45\t0\t658883\t0"
+          /proc/sys/fs/dentry-state: "1842204\t1741539\t45\t0\t754722\t0"
           /proc/sys/fs/dir-notify-enable: "1"
           /proc/sys/fs/epoll/max_user_watches: "216410223"
           /proc/sys/fs/fanotify/max_queued_events: "16384"
           /proc/sys/fs/fanotify/max_user_groups: "128"
           /proc/sys/fs/fanotify/max_user_marks: "1048576"
           /proc/sys/fs/file-max: "9223372036854775807"
-          /proc/sys/fs/file-nr: "3456\t0\t9223372036854775807"
-          /proc/sys/fs/inode-nr: "958048\t435"
-          /proc/sys/fs/inode-state: "958048\t435\t0\t0\t0\t0\t0"
+          /proc/sys/fs/file-nr: "5184\t0\t9223372036854775807"
+          /proc/sys/fs/inode-nr: "1082442\t435"
+          /proc/sys/fs/inode-state: "1082442\t435\t0\t0\t0\t0\t0"
           /proc/sys/fs/inotify/max_queued_events: "16384"
           /proc/sys/fs/inotify/max_user_instances: "65535"
           /proc/sys/fs/inotify/max_user_watches: "524288"
@@ -1329,7 +1240,7 @@ measurements:
           /proc/sys/kernel/ftrace_enabled: "1"
           /proc/sys/kernel/hardlockup_all_cpu_backtrace: "0"
           /proc/sys/kernel/hardlockup_panic: "0"
-          /proc/sys/kernel/hostname: ip-10-0-205-119
+          /proc/sys/kernel/hostname: ip-10-0-160-248
           /proc/sys/kernel/hotplug: ""
           /proc/sys/kernel/hung_task_all_cpu_backtrace: "0"
           /proc/sys/kernel/hung_task_check_count: "4194304"
@@ -1360,7 +1271,7 @@ measurements:
           /proc/sys/kernel/msgmni: "32000"
           /proc/sys/kernel/ngroups_max: "65536"
           /proc/sys/kernel/nmi_watchdog: "0"
-          /proc/sys/kernel/ns_last_pid: "1444768"
+          /proc/sys/kernel/ns_last_pid: "3172026"
           /proc/sys/kernel/numa_balancing: "0"
           /proc/sys/kernel/numa_balancing_promote_rate_limit_MBps: "65536"
           /proc/sys/kernel/oops_all_cpu_backtrace: "0"
@@ -1392,11 +1303,11 @@ measurements:
           /proc/sys/kernel/pty/max: "4096"
           /proc/sys/kernel/pty/nr: "0"
           /proc/sys/kernel/pty/reserve: "1024"
-          /proc/sys/kernel/random/boot_id: b54b54f2-7db1-41a1-9647-d0bca9522fd2
+          /proc/sys/kernel/random/boot_id: feb26614-cb2e-43bd-8108-f139198765af
           /proc/sys/kernel/random/entropy_avail: "256"
           /proc/sys/kernel/random/poolsize: "256"
           /proc/sys/kernel/random/urandom_min_reseed_secs: "60"
-          /proc/sys/kernel/random/uuid: 8f99e259-cb05-44a4-be67-2821392351df
+          /proc/sys/kernel/random/uuid: f5533ba7-cf9e-4149-9665-468b4ff3b867
           /proc/sys/kernel/random/write_wakeup_threshold: "256"
           /proc/sys/kernel/randomize_va_space: "2"
           /proc/sys/kernel/real-root-dev: "0"
@@ -1536,18 +1447,103 @@ measurements:
           /proc/sys/vm/watermark_boost_factor: "15000"
           /proc/sys/vm/watermark_scale_factor: "10"
           /proc/sys/vm/zone_reclaim_mode: "0"
+      - subtype: kmod
+        data:
+          aes_ce_blk: true
+          aes_ce_cipher: true
+          autofs4: true
+          binfmt_misc: true
+          cec: true
+          cls_bpf: true
+          crct10dif_ce: true
+          drm_display_helper: true
+          drm_exec: true
+          drm_gpuvm: true
+          drm_ttm_helper: true
+          ecc: true
+          efa: true
+          efi_pstore: true
+          ena: true
+          gdrdrv: true
+          ghash_ce: true
+          gpu_sched: true
+          i2c_algo_bit: true
+          ib_cm: true
+          ib_core: true
+          ib_iser: true
+          ib_uverbs: true
+          ip_tables: true
+          ipmi_devintf: true
+          ipmi_msghandler: true
+          ipt_REJECT: true
+          iw_cm: true
+          libcrc32c: true
+          libiscsi: true
+          nf_conntrack: true
+          nf_conntrack_netlink: true
+          nf_defrag_ipv4: true
+          nf_defrag_ipv6: true
+          nf_nat: true
+          nf_reject_ipv4: true
+          nf_tables: true
+          nfnetlink: true
+          nfnetlink_acct: true
+          nft_chain_nat: true
+          nft_compat: true
+          nls_iso8859_1: true
+          nvidia: true
+          nvidia_modeset: true
+          nvidia_uvm: true
+          overlay: true
+          polyval_ce: true
+          polyval_generic: true
+          qemu_fw_cfg: true
+          raid0: true
+          rc_core: true
+          rdma_cm: true
+          rdma_ucm: true
+          rpcrdma: true
+          sch_fq_codel: true
+          sch_ingress: true
+          scsi_transport_iscsi: true
+          sha1_ce: true
+          sha2_ce: true
+          sha3_ce: true
+          sha256_arm64: true
+          sm3: true
+          sm3_ce: true
+          sm4: true
+          sm4_ce: true
+          sm4_ce_ccm: true
+          sm4_ce_cipher: true
+          sm4_ce_gcm: true
+          sunrpc: true
+          tls: true
+          ttm: true
+          veth: true
+          video: true
+          x_tables: true
+          xfs: true
+          xt_MASQUERADE: true
+          xt_addrtype: true
+          xt_comment: true
+          xt_connmark: true
+          xt_conntrack: true
+          xt_mark: true
+          xt_nat: true
+          xt_nfacct: true
+          xt_state: true
+          xt_statistic: true
+          xt_tcpudp: true
   - type: K8s
     subtypes:
-      - data:
-          buildDate: "2025-11-11T03:21:21Z"
-          gitCommit: 48e78a69c609bdd68c6d0f05c3afd1ba054f7970
-          gitTreeState: clean
+      - subtype: server
+        data:
           goVersion: go1.24.6
           platform: linux/amd64
           version: v1.33.5-eks-3025e55
-  - type: Image
-    subtypes:
-      - data:
+      - subtype: image
+        data:
           amazon-k8s-cni: v1.20.1-eksbuild.1
           amazon-k8s-cni-init: v1.20.1-eksbuild.1
           argocd: v2.14.3
@@ -1570,10 +1566,10 @@ measurements:
           dcgm-exporter: 4.3.1-4.4.0-ubuntu22.04
           dgxc-janitor: 1.17.3
           driver: 580.82.07-ubuntu22.04
-          eidos: v0.5.6
+          eidos: latest
           external-attacher: v4.6.1-eks-1-30-10
-          external-provisioner: v5.0.1-eks-1-30-10
-          external-resizer: v1.11.1-eks-1-30-10
+          external-provisioner: v4.0.0-eks-1-29-5
+          external-resizer: v1.10.0-eks-1-29-5
           gdrdrv: v2.5.1-ubuntu22.04
           gpu-operator: v25.3.3
           gpu-operator-validator: v25.3.3
@@ -1587,14 +1583,15 @@ measurements:
           kube-rbac-proxy: v0.15.0
           kube-state-metrics: v2.12.0
           las-fluentd: 1.16.1-09497efe
-          livenessprobe: v2.13.0-eks-1-30-10
+          livenessprobe: v2.14.0
           metrics-server: v0.8.0-eksbuild.2
           mongodb_exporter: 0.41.2-debian-12-r1
           mongosh: latest
           mpi-operator: 0.6-pr700
-          node-driver-registrar: v2.11.0-eks-1-30-10
+          node-driver-registrar: v2.10.0-eks-1-29-7
           node-exporter: v1.8.1-multiarch
           node-feature-discovery: v0.17.3
+          node-role-controller:v0.5.0@sha256: 345638126a65cff794a59c620badcd02cdbc100d45f7745b4b42e32a803ff645
           nvidia-xid-analyzer-sidecar: v1
           nvsentinel-fault-quarantine-module: 1.167.1
           nvsentinel-fault-remediation-module: 1.167.1
@@ -1614,16 +1611,20 @@ measurements:
           training-operator: v1-3f15cb8
           vace: 1.79.0
           yet-another-cloudwatch-exporter: v0.60.0
+      - subtype: policy
+        data: {}
   - type: GPU
     subtypes:
-      - data:
-          addressing-mode: ATS
+      - subtype: smi
+        data:
           cuda-version: "13.1"
-          display-active: Disabled
-          display-mode: Requested functionality has been deprecated
-          driver-version: 580.82.07
-          gpu-product-name: NVIDIA GB200
-          gsp-firmware-version: 580.82.07
-          persistence-mode: Disabled
-          product-architecture: Blackwell
-          vbios-version: 97.00.B9.00.69
+          driver: 580.82.07
+          gpu-count: 4
+          gpu.addressing-mode: ATS
+          gpu.display-active: Disabled
+          gpu.display-mode: Requested functionality has been deprecated
+          gpu.gsp-firmware-version: 580.82.07
+          gpu.model: NVIDIA GB200
+          gpu.persistence-mode: Disabled
+          gpu.product-architecture: Blackwell
+          gpu.vbios-version: 97.00.B9.00.69

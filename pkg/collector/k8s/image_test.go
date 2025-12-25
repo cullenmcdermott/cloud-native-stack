@@ -15,6 +15,10 @@ import (
 	"k8s.io/client-go/rest"
 )
 
+const (
+	imageSubtypeName = "image"
+)
+
 // Helper function to create a test collector with fake client
 func createTestCollector(objects ...corev1.Pod) *Collector {
 	runtimeObjects := make([]runtime.Object, len(objects))
@@ -61,7 +65,7 @@ func TestImageCollector_Collect(t *testing.T) {
 	// Find the image subtype
 	var imageSubtype *measurement.Subtype
 	for i := range m.Subtypes {
-		if m.Subtypes[i].Name == "image" {
+		if m.Subtypes[i].Name == imageSubtypeName {
 			imageSubtype = &m.Subtypes[i]
 			break
 		}
@@ -72,7 +76,7 @@ func TestImageCollector_Collect(t *testing.T) {
 
 	data := imageSubtype.Data
 	if assert.Len(t, data, 2) {
-		reading, ok := data["image"]
+		reading, ok := data[imageSubtypeName]
 		if assert.True(t, ok) {
 			assert.Equal(t, "tag", reading.Any())
 		}
@@ -122,7 +126,7 @@ func TestImageCollector_MultipleLocations(t *testing.T) {
 	// Find the image subtype
 	var imageSubtype *measurement.Subtype
 	for i := range m.Subtypes {
-		if m.Subtypes[i].Name == "image" {
+		if m.Subtypes[i].Name == imageSubtypeName {
 			imageSubtype = &m.Subtypes[i]
 			break
 		}
@@ -136,5 +140,41 @@ func TestImageCollector_MultipleLocations(t *testing.T) {
 	if assert.True(t, ok) {
 		// Should have just the tag, regardless of how many pods use it
 		assert.Equal(t, "1.21", reading.Any())
+	}
+}
+
+func TestImageCollector_WithDigest(t *testing.T) {
+	ctx := context.Background()
+	pod := corev1.Pod{
+		ObjectMeta: metav1.ObjectMeta{Name: "pod-a", Namespace: "ns"},
+		Spec: corev1.PodSpec{
+			Containers: []corev1.Container{
+				{Name: "c1", Image: "registry.k8s.io/node-role-controller:v0.5.0@sha256:345638126a65cff794a59c620badcd02cdbc100d45f7745b4b42e32a803ff645"},
+			},
+		},
+	}
+	collector := createTestCollector(pod)
+
+	m, err := collector.Collect(ctx)
+	assert.NoError(t, err)
+	assert.NotNil(t, m)
+
+	// Find the image subtype
+	var imageSubtype *measurement.Subtype
+	for i := range m.Subtypes {
+		if m.Subtypes[i].Name == imageSubtypeName {
+			imageSubtype = &m.Subtypes[i]
+			break
+		}
+	}
+	if !assert.NotNil(t, imageSubtype) {
+		return
+	}
+
+	data := imageSubtype.Data
+	// Should strip both registry and digest, keeping only name and tag
+	reading, ok := data["node-role-controller"]
+	if assert.True(t, ok) {
+		assert.Equal(t, "v0.5.0", reading.Any())
 	}
 }
