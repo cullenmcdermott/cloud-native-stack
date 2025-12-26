@@ -4,27 +4,32 @@ import (
 	"context"
 	"fmt"
 	"io/fs"
-	"os"
 	"path/filepath"
 	"strings"
 
+	"github.com/NVIDIA/cloud-native-stack/pkg/collector/file"
 	"github.com/NVIDIA/cloud-native-stack/pkg/measurement"
 )
 
 var (
-	// Keys to filter out from systemd properties for privacy/security or noise reduction
+	// Keys to filter out from sysctl properties for privacy/security or noise reduction
 	filterOutSysctlKeys = []string{
 		"/proc/sys/dev/cdrom/*",
 	}
+
+	sysctlRoot      = "/proc/sys"
+	sysctlNetPrefix = "/proc/sys/net"
 )
 
 // collectSysctl gathers sysctl configurations from /proc/sys, excluding /proc/sys/net
 // and returns them as a subtype with file paths as keys and their contents as values.
 func (c *Collector) collectSysctl(ctx context.Context) (*measurement.Subtype, error) {
-	root := "/proc/sys"
 	params := make(map[string]measurement.Reading)
 
-	err := filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
+	// Create parser for reading file contents
+	parser := file.NewParser()
+
+	err := filepath.WalkDir(sysctlRoot, func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return fmt.Errorf("failed to walk directory %s: %w", path, err)
 		}
@@ -44,55 +49,34 @@ func (c *Collector) collectSysctl(ctx context.Context) (*measurement.Subtype, er
 		}
 
 		// Ensure path is under root (defense in depth)
-		if !strings.HasPrefix(path, root) {
+		if !strings.HasPrefix(path, sysctlRoot) {
 			return fmt.Errorf("path traversal detected: %s", path)
 		}
 
-		if strings.HasPrefix(path, "/proc/sys/net") {
+		// Exclude network parameters
+		if strings.HasPrefix(path, sysctlNetPrefix) {
 			return nil
 		}
 
-		c, err := os.ReadFile(path)
+		// Read file content using parser
+		lines, err := parser.GetLines(path)
 		if err != nil {
 			// Skip files we can't read (some proc files are write-only or restricted)
 			return nil
 		}
 
-		content := strings.TrimSpace(string(c))
-
-		// Check if content has multiple lines with space-separated values
-		lines := strings.Split(content, "\n")
+		// Handle multi-line files with space-separated key-value pairs
 		if len(lines) > 1 {
-			// Try to parse as key-value pairs
-			allParsed := true
-			for _, line := range lines {
-				line = strings.TrimSpace(line)
-				if line == "" {
-					continue
-				}
-
-				// Check if line has space-separated key and value
-				parts := strings.Fields(line)
-				if len(parts) >= 2 {
-					// Create new entry with extended path
-					key := parts[0]
-					value := strings.Join(parts[1:], " ")
-					extendedPath := path + "/" + key
-					params[extendedPath] = measurement.Str(value)
-				} else {
-					// Not a key-value pair format
-					allParsed = false
-					break
-				}
-			}
-
-			// If all lines were parsed, skip the original entry
+			allParsed := c.parseMultiLineKeyValue(path, lines, params)
 			if allParsed {
+				// All lines were successfully parsed as key-value pairs
 				return nil
 			}
 		}
 
-		// Store original content if not multi-line key-value format
+		// Store single-line or non-key-value content as-is
+		// Join lines back if it's multi-line but not key-value format
+		content := strings.Join(lines, "\n")
 		params[path] = measurement.Str(content)
 
 		return nil
@@ -107,4 +91,32 @@ func (c *Collector) collectSysctl(ctx context.Context) (*measurement.Subtype, er
 	}
 
 	return res, nil
+}
+
+// parseMultiLineKeyValue attempts to parse lines as space-separated key-value pairs.
+// Returns true if all non-empty lines were successfully parsed as key-value pairs.
+func (c *Collector) parseMultiLineKeyValue(path string, lines []string, params map[string]measurement.Reading) bool {
+	allParsed := true
+
+	for _, line := range lines {
+		if line == "" {
+			continue
+		}
+
+		// Check if line has space-separated key and value
+		parts := strings.Fields(line)
+		if len(parts) >= 2 {
+			// Create new entry with extended path: /proc/sys/path/key
+			key := parts[0]
+			value := strings.Join(parts[1:], " ")
+			extendedPath := path + "/" + key
+			params[extendedPath] = measurement.Str(value)
+		} else {
+			// Not a key-value pair format
+			allParsed = false
+			break
+		}
+	}
+
+	return allParsed
 }

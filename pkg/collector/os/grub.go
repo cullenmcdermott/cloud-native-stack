@@ -3,14 +3,16 @@ package os
 import (
 	"context"
 	"fmt"
-	"os"
-	"strings"
-	"unicode/utf8"
 
+	"github.com/NVIDIA/cloud-native-stack/pkg/collector/file"
 	"github.com/NVIDIA/cloud-native-stack/pkg/measurement"
 )
 
 var (
+	filePathGrub    = "/proc/cmdline"
+	fileLineDelGrub = " "
+	fileKVDelGrub   = "="
+
 	// Keys to filter out from GRUB config for privacy/security
 	filterOutGrubKeys = []string{
 		"root",
@@ -25,43 +27,20 @@ func (c *Collector) collectGRUB(ctx context.Context) (*measurement.Subtype, erro
 		return nil, err
 	}
 
-	root := "/proc/cmdline"
-	cmdline, err := os.ReadFile(root)
+	parser := file.NewParser(
+		file.WithDelimiter(fileLineDelGrub),
+		file.WithKVDelimiter(fileKVDelGrub),
+	)
+
+	params, err := parser.GetMap(filePathGrub)
 	if err != nil {
-		return nil, fmt.Errorf("failed to read grub config: %w", err)
+		return nil, fmt.Errorf("failed to read GRUB params from %s: %w", filePathGrub, err)
 	}
 
-	// Validate UTF-8
-	if !utf8.Valid(cmdline) {
-		return nil, fmt.Errorf("grub config contains invalid UTF-8")
-	}
-
-	// Limit size (1MB max)
-	const maxSize = 1 << 20
-	if len(cmdline) > maxSize {
-		return nil, fmt.Errorf("grub config exceeds maximum size of %d bytes", maxSize)
-	}
-
-	params := strings.Split(string(cmdline), " ")
 	props := make(map[string]measurement.Reading, 0)
 
-	for _, param := range params {
-		p := strings.TrimSpace(param)
-		if p == "" {
-			continue
-		}
-
-		key, val := "", ""
-		// Split on first '=' only to handle values like "root=PARTUUID=xyz"
-		s := strings.SplitN(p, "=", 2)
-		if len(s) == 1 {
-			key = s[0]
-		} else {
-			key = s[0]
-			val = s[1]
-		}
-
-		props[key] = measurement.Str(val)
+	for k, v := range params {
+		props[k] = measurement.Str(v)
 	}
 
 	res := &measurement.Subtype{

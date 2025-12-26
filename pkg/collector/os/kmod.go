@@ -3,10 +3,14 @@ package os
 import (
 	"context"
 	"fmt"
-	"os"
 	"strings"
 
+	"github.com/NVIDIA/cloud-native-stack/pkg/collector/file"
 	"github.com/NVIDIA/cloud-native-stack/pkg/measurement"
+)
+
+var (
+	filePathKMod = "/proc/modules"
 )
 
 // collectKMod retrieves the list of loaded kernel modules from /proc/modules
@@ -17,23 +21,17 @@ func (c *Collector) collectKMod(ctx context.Context) (*measurement.Subtype, erro
 		return nil, err
 	}
 
-	root := "/proc/modules"
+	parser := file.NewParser()
 
-	content, err := os.ReadFile(root)
+	lines, err := parser.GetLines(filePathKMod)
 	if err != nil {
-		return nil, fmt.Errorf("failed to read kernel modules: %w", err)
+		return nil, fmt.Errorf("failed to read kernel modules from %s: %w", filePathKMod, err)
 	}
 
 	readings := make(map[string]measurement.Reading)
-	lines := strings.Split(string(content), "\n")
 
 	for _, line := range lines {
-		line = strings.TrimSpace(line)
-		if line == "" {
-			continue
-		}
-
-		// Module name is the first field
+		// Module name is the first field (space-separated)
 		fields := strings.Fields(line)
 		if len(fields) > 0 {
 			readings[fields[0]] = measurement.Bool(true)

@@ -9,6 +9,8 @@ import (
 	"github.com/NVIDIA/cloud-native-stack/pkg/measurement"
 )
 
+const grubSubtypeName = "grub"
+
 func TestGrubCollector_Collect_ContextCancellation(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.TODO())
 	cancel() // Cancel immediately
@@ -66,7 +68,7 @@ func TestGrubCollector_Integration(t *testing.T) {
 	// Find the grub subtype
 	var grubSubtype *measurement.Subtype
 	for i := range m.Subtypes {
-		if m.Subtypes[i].Name == "grub" {
+		if m.Subtypes[i].Name == grubSubtypeName {
 			grubSubtype = &m.Subtypes[i]
 			break
 		}
@@ -116,7 +118,7 @@ func TestGrubCollector_ValidatesParsing(t *testing.T) {
 	// Find grub subtype
 	var grubSubtype *measurement.Subtype
 	for i := range m.Subtypes {
-		if m.Subtypes[i].Name == "grub" {
+		if m.Subtypes[i].Name == grubSubtypeName {
 			grubSubtype = &m.Subtypes[i]
 			break
 		}
@@ -150,4 +152,165 @@ func TestGrubCollector_ValidatesParsing(t *testing.T) {
 	}
 
 	t.Logf("Has key-only params: %v, Has key=value params: %v", hasKeyOnly, hasKeyValue)
+}
+
+func TestGrubCollector_ParsesKeyOnlyParameters(t *testing.T) {
+	tests := []struct {
+		name           string
+		cmdlineContent string
+		expectedKeys   map[string]string // key -> expected value ("" for key-only)
+		filteredKeys   []string          // keys that should be filtered out
+	}{
+		{
+			name:           "mixed key-only and key-value",
+			cmdlineContent: "BOOT_IMAGE=/boot/vmlinuz ro quiet splash root=/dev/sda1 panic=-1",
+			expectedKeys: map[string]string{
+				"BOOT_IMAGE": "/boot/vmlinuz",
+				"ro":         "",
+				"quiet":      "",
+				"splash":     "",
+				"panic":      "-1",
+			},
+			filteredKeys: []string{"root"},
+		},
+		{
+			name:           "all key-only parameters",
+			cmdlineContent: "ro quiet nokaslr",
+			expectedKeys: map[string]string{
+				"ro":      "",
+				"quiet":   "",
+				"nokaslr": "",
+			},
+			filteredKeys: []string{},
+		},
+		{
+			name:           "all key-value parameters",
+			cmdlineContent: "hugepages=5128 hugepagesz=2M panic=-1",
+			expectedKeys: map[string]string{
+				"hugepages":  "5128",
+				"hugepagesz": "2M",
+				"panic":      "-1",
+			},
+			filteredKeys: []string{},
+		},
+		{
+			name:           "grub parameters with security settings",
+			cmdlineContent: "BOOT_IMAGE=/boot/vmlinuz-6.8.0 apparmor=1 security=apparmor audit=1 audit_backlog_limit=8192 ro",
+			expectedKeys: map[string]string{
+				"BOOT_IMAGE":          "/boot/vmlinuz-6.8.0",
+				"apparmor":            "1",
+				"security":            "apparmor",
+				"audit":               "1",
+				"audit_backlog_limit": "8192",
+				"ro":                  "",
+			},
+			filteredKeys: []string{},
+		},
+		{
+			name:           "root parameter is filtered",
+			cmdlineContent: "ro root=/dev/sda1 quiet root=UUID=1234-5678",
+			expectedKeys: map[string]string{
+				"ro":    "",
+				"quiet": "",
+			},
+			filteredKeys: []string{"root"},
+		},
+		{
+			name:           "gb200 style parameters",
+			cmdlineContent: "BOOT_IMAGE=/boot/vmlinuz-6.8.0-1028-aws apparmor=1 audit=1 audit_backlog_limit=8192 hugepages=5128 hugepagesz=2M init_on_alloc=0 nokaslr numa_balancing=disable panic=-1 ro security=apparmor",
+			expectedKeys: map[string]string{
+				"BOOT_IMAGE":          "/boot/vmlinuz-6.8.0-1028-aws",
+				"apparmor":            "1",
+				"audit":               "1",
+				"audit_backlog_limit": "8192",
+				"hugepages":           "5128",
+				"hugepagesz":          "2M",
+				"init_on_alloc":       "0",
+				"nokaslr":             "",
+				"numa_balancing":      "disable",
+				"panic":               "-1",
+				"ro":                  "",
+				"security":            "apparmor",
+			},
+			filteredKeys: []string{},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Create temporary file with test cmdline content
+			tmpfile, err := os.CreateTemp("", "cmdline-*.txt")
+			if err != nil {
+				t.Fatalf("Failed to create temp file: %v", err)
+			}
+			defer os.Remove(tmpfile.Name())
+
+			if _, writeErr := tmpfile.WriteString(tt.cmdlineContent); writeErr != nil {
+				t.Fatalf("Failed to write temp file: %v", writeErr)
+			}
+			tmpfile.Close()
+
+			// Temporarily override the file path variable
+			originalPath := filePathGrub
+			defer func() { filePathGrub = originalPath }()
+			filePathGrub = tmpfile.Name()
+
+			// Run the collector
+			ctx := context.TODO()
+			collector := &Collector{}
+			subtype, err := collector.collectGRUB(ctx)
+			if err != nil {
+				t.Fatalf("collectGRUB() failed: %v", err)
+			}
+
+			if subtype == nil {
+				t.Fatal("Expected non-nil subtype")
+			}
+
+			if subtype.Name != "grub" {
+				t.Errorf("Expected subtype name 'grub', got %q", subtype.Name)
+			}
+
+			props := subtype.Data
+
+			// Verify expected keys are present with correct values
+			for key, expectedValue := range tt.expectedKeys {
+				reading, exists := props[key]
+				if !exists {
+					t.Errorf("Expected key %q not found in results", key)
+					continue
+				}
+
+				actualValue := reading.String()
+				if actualValue != expectedValue {
+					t.Errorf("Key %q: expected value %q, got %q", key, expectedValue, actualValue)
+				}
+
+				// Log key-only vs key-value for visibility
+				if expectedValue == "" {
+					t.Logf("✓ Key-only parameter: %s", key)
+				} else {
+					t.Logf("✓ Key-value parameter: %s=%s", key, expectedValue)
+				}
+			}
+
+			// Verify filtered keys are NOT present
+			for _, filteredKey := range tt.filteredKeys {
+				if _, exists := props[filteredKey]; exists {
+					t.Errorf("Filtered key %q should not be present in results", filteredKey)
+				} else {
+					t.Logf("✓ Filtered out: %s", filteredKey)
+				}
+			}
+
+			// Verify no unexpected keys
+			for key := range props {
+				if _, expected := tt.expectedKeys[key]; !expected {
+					t.Errorf("Unexpected key %q found in results", key)
+				}
+			}
+
+			t.Logf("Total parameters parsed: %d", len(props))
+		})
+	}
 }

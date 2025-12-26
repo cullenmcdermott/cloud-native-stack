@@ -357,6 +357,286 @@ func BenchmarkReleaseCollector_Collect(b *testing.B) {
 	}
 }
 
+func TestReleaseCollector_ParsesOSRelease(t *testing.T) {
+	tests := []struct {
+		name           string
+		releaseContent string
+		expectedFields map[string]string
+	}{
+		{
+			name: "ubuntu 22.04 with quotes",
+			releaseContent: `NAME="Ubuntu"
+ID=ubuntu
+ID_LIKE=debian
+PRETTY_NAME="Ubuntu 22.04.4 LTS"
+VERSION_ID="22.04"
+VERSION="22.04.4 LTS (Jammy Jellyfish)"
+VERSION_CODENAME=jammy
+HOME_URL="https://www.ubuntu.com/"
+SUPPORT_URL="https://help.ubuntu.com/"
+BUG_REPORT_URL="https://bugs.launchpad.net/ubuntu/"`,
+			expectedFields: map[string]string{
+				"NAME":             "Ubuntu",
+				"ID":               "ubuntu",
+				"ID_LIKE":          "debian",
+				"PRETTY_NAME":      "Ubuntu 22.04.4 LTS",
+				"VERSION_ID":       "22.04",
+				"VERSION":          "22.04.4 LTS (Jammy Jellyfish)",
+				"VERSION_CODENAME": "jammy",
+				"HOME_URL":         "https://www.ubuntu.com/",
+				"SUPPORT_URL":      "https://help.ubuntu.com/",
+				"BUG_REPORT_URL":   "https://bugs.launchpad.net/ubuntu/",
+			},
+		},
+		{
+			name: "ubuntu 24.04",
+			releaseContent: `PRETTY_NAME="Ubuntu 24.04.2 LTS"
+NAME="Ubuntu"
+VERSION_ID="24.04"
+VERSION="24.04.2 LTS (Noble Numbat)"
+VERSION_CODENAME=noble
+ID=ubuntu
+ID_LIKE=debian
+HOME_URL="https://www.ubuntu.com/"
+SUPPORT_URL="https://help.ubuntu.com/"
+BUG_REPORT_URL="https://bugs.launchpad.net/ubuntu/"`,
+			expectedFields: map[string]string{
+				"PRETTY_NAME":      "Ubuntu 24.04.2 LTS",
+				"NAME":             "Ubuntu",
+				"VERSION_ID":       "24.04",
+				"VERSION":          "24.04.2 LTS (Noble Numbat)",
+				"VERSION_CODENAME": "noble",
+				"ID":               "ubuntu",
+				"ID_LIKE":          "debian",
+				"HOME_URL":         "https://www.ubuntu.com/",
+				"SUPPORT_URL":      "https://help.ubuntu.com/",
+				"BUG_REPORT_URL":   "https://bugs.launchpad.net/ubuntu/",
+			},
+		},
+		{
+			name: "rhel with single quotes",
+			releaseContent: `NAME='Red Hat Enterprise Linux'
+VERSION='8.7 (Ootpa)'
+ID='rhel'
+ID_LIKE='fedora'
+VERSION_ID='8.7'
+PLATFORM_ID='platform:el8'
+PRETTY_NAME='Red Hat Enterprise Linux 8.7 (Ootpa)'
+ANSI_COLOR='0;31'`,
+			expectedFields: map[string]string{
+				"NAME":        "Red Hat Enterprise Linux",
+				"VERSION":     "8.7 (Ootpa)",
+				"ID":          "rhel",
+				"ID_LIKE":     "fedora",
+				"VERSION_ID":  "8.7",
+				"PLATFORM_ID": "platform:el8",
+				"PRETTY_NAME": "Red Hat Enterprise Linux 8.7 (Ootpa)",
+				"ANSI_COLOR":  "0;31",
+			},
+		},
+		{
+			name: "mixed quotes and unquoted",
+			releaseContent: `NAME="Test OS"
+ID=testos
+VERSION_ID=1.0
+PRETTY_NAME='Test OS 1.0'
+HOME_URL=https://test.com`,
+			expectedFields: map[string]string{
+				"NAME":        "Test OS",
+				"ID":          "testos",
+				"VERSION_ID":  "1.0",
+				"PRETTY_NAME": "Test OS 1.0",
+				"HOME_URL":    "https://test.com",
+			},
+		},
+		{
+			name: "with comments and empty lines",
+			releaseContent: `# This is a comment
+NAME="Ubuntu"
+ID=ubuntu
+
+# Another comment
+VERSION_ID="22.04"
+
+PRETTY_NAME="Ubuntu 22.04 LTS"`,
+			expectedFields: map[string]string{
+				"NAME":        "Ubuntu",
+				"ID":          "ubuntu",
+				"VERSION_ID":  "22.04",
+				"PRETTY_NAME": "Ubuntu 22.04 LTS",
+			},
+		},
+		{
+			name: "values with special characters",
+			releaseContent: `NAME="Test-OS_2024"
+VERSION="1.0 (Code-Name)"
+BUILD_ID="20241226-123456"
+LOGO="test-logo"
+CPE_NAME="cpe:/o:test:testos:1.0"`,
+			expectedFields: map[string]string{
+				"NAME":     "Test-OS_2024",
+				"VERSION":  "1.0 (Code-Name)",
+				"BUILD_ID": "20241226-123456",
+				"LOGO":     "test-logo",
+				"CPE_NAME": "cpe:/o:test:testos:1.0",
+			},
+		},
+		{
+			name: "minimal release file",
+			releaseContent: `NAME="Minimal"
+ID=minimal
+VERSION_ID="1"`,
+			expectedFields: map[string]string{
+				"NAME":       "Minimal",
+				"ID":         "minimal",
+				"VERSION_ID": "1",
+			},
+		},
+		{
+			name:           "empty file",
+			releaseContent: "",
+			expectedFields: map[string]string{},
+		},
+		{
+			name: "with malformed lines (no equals)",
+			releaseContent: `NAME="Ubuntu"
+MALFORMED LINE WITHOUT EQUALS
+ID=ubuntu
+VERSION_ID="22.04"`,
+			expectedFields: map[string]string{
+				"NAME":       "Ubuntu",
+				"ID":         "ubuntu",
+				"VERSION_ID": "22.04",
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Create temporary file with test release content
+			tmpfile, err := os.CreateTemp("", "os-release-*.txt")
+			if err != nil {
+				t.Fatalf("Failed to create temp file: %v", err)
+			}
+			defer os.Remove(tmpfile.Name())
+
+			if _, writeErr := tmpfile.WriteString(tt.releaseContent); writeErr != nil {
+				t.Fatalf("Failed to write temp file: %v", writeErr)
+			}
+			tmpfile.Close()
+
+			// Temporarily override the file path variables
+			originalPrimary := filePathReleasePrimary
+			originalFallback := filePathReleaseFallback
+			defer func() {
+				filePathReleasePrimary = originalPrimary
+				filePathReleaseFallback = originalFallback
+			}()
+			filePathReleasePrimary = tmpfile.Name()
+			filePathReleaseFallback = tmpfile.Name()
+
+			// Run the collector
+			ctx := context.TODO()
+			collector := &Collector{}
+			subtype, err := collector.collectRelease(ctx)
+			if err != nil {
+				t.Fatalf("collectRelease() failed: %v", err)
+			}
+
+			if subtype == nil {
+				t.Fatal("Expected non-nil subtype")
+			}
+
+			if subtype.Name != "release" {
+				t.Errorf("Expected subtype name 'release', got %q", subtype.Name)
+			}
+
+			data := subtype.Data
+
+			// Verify expected fields are present with correct values
+			for key, expectedValue := range tt.expectedFields {
+				reading, exists := data[key]
+				if !exists {
+					t.Errorf("Expected field %q not found in results", key)
+					continue
+				}
+
+				actualValue := reading.String()
+				if actualValue != expectedValue {
+					t.Errorf("Field %q: expected value %q, got %q", key, expectedValue, actualValue)
+				}
+
+				t.Logf("✓ Field: %s=%s", key, actualValue)
+			}
+
+			// Verify no unexpected fields (except comment lines which are skipped)
+			if len(data) != len(tt.expectedFields) {
+				t.Errorf("Expected %d fields, got %d", len(tt.expectedFields), len(data))
+				for fieldName := range data {
+					if _, expected := tt.expectedFields[fieldName]; !expected {
+						t.Errorf("Unexpected field %q found in results", fieldName)
+					}
+				}
+			}
+
+			t.Logf("Total fields parsed: %d", len(data))
+		})
+	}
+}
+
+func TestReleaseCollector_FallbackPath(t *testing.T) {
+	// Test that the collector falls back to /usr/lib/os-release
+	// when /etc/os-release doesn't exist
+
+	// Create temporary fallback file
+	tmpDir := t.TempDir()
+	fallbackFile := filepath.Join(tmpDir, "os-release-fallback")
+	primaryFile := filepath.Join(tmpDir, "os-release-primary")
+
+	fallbackContent := `NAME="Fallback OS"
+ID=fallback
+VERSION_ID="1.0"`
+
+	if err := os.WriteFile(fallbackFile, []byte(fallbackContent), 0644); err != nil {
+		t.Fatalf("Failed to create fallback file: %v", err)
+	}
+
+	// Temporarily override the file path variables
+	originalPrimary := filePathReleasePrimary
+	originalFallback := filePathReleaseFallback
+	defer func() {
+		filePathReleasePrimary = originalPrimary
+		filePathReleaseFallback = originalFallback
+	}()
+	filePathReleasePrimary = primaryFile // This file doesn't exist
+	filePathReleaseFallback = fallbackFile
+
+	// Run the collector
+	ctx := context.TODO()
+	collector := &Collector{}
+	subtype, err := collector.collectRelease(ctx)
+	if err != nil {
+		t.Fatalf("collectRelease() failed: %v", err)
+	}
+
+	if subtype == nil {
+		t.Fatal("Expected non-nil subtype")
+	}
+
+	data := subtype.Data
+
+	// Verify fallback file was used
+	if name, exists := data["NAME"]; !exists || name.String() != "Fallback OS" {
+		t.Errorf("Expected fallback file to be used with NAME='Fallback OS', got %v", name)
+	}
+
+	if id, exists := data["ID"]; !exists || id.String() != "fallback" {
+		t.Errorf("Expected fallback file to be used with ID='fallback', got %v", id)
+	}
+
+	t.Logf("✓ Fallback path used successfully")
+}
+
 // ExampleCollector_collectRelease demonstrates how the release collector works
 func ExampleCollector_collectRelease() {
 	ctx := context.TODO()
