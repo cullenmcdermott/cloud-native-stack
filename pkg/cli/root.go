@@ -9,10 +9,12 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
+	"strings"
 
 	"github.com/urfave/cli/v3"
 
 	"github.com/NVIDIA/cloud-native-stack/pkg/logging"
+	"github.com/NVIDIA/cloud-native-stack/pkg/serializer"
 )
 
 const (
@@ -25,6 +27,19 @@ var (
 	version = versionDefault
 	commit  = "unknown"
 	date    = "unknown"
+
+	outputFlag = &cli.StringFlag{
+		Name:    "output",
+		Aliases: []string{"o"},
+		Usage:   "output file path (default: stdout)",
+	}
+
+	formatFlag = &cli.StringFlag{
+		Name:    "format",
+		Aliases: []string{"t"},
+		Value:   string(serializer.FormatYAML),
+		Usage:   fmt.Sprintf("output format (%s)", strings.Join(serializer.SupportedFormats(), ", ")),
+	}
 )
 
 // Execute starts the CLI application.

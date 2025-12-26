@@ -37,6 +37,16 @@ func (f Format) IsUnknown() bool {
 	}
 }
 
+// SupportedFormats returns a list of all supported output formats
+// for serialization.
+func SupportedFormats() []string {
+	return []string{
+		string(FormatJSON),
+		string(FormatYAML),
+		string(FormatTable),
+	}
+}
+
 // Writer handles serialization of configuration data to various formats.
 // Close must be called to release file handles when using NewFileWriterOrStdout.
 type Writer struct {

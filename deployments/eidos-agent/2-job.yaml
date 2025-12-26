@@ -52,8 +52,9 @@ spec:
           args:
             - |
               set -e
-              /ko-app/eidos snapshot --debug --format yaml --output /tmp/snapshot.yaml
+              /ko-app/eidos --debug snapshot -t yaml -o /tmp/snapshot.yaml
               cat /tmp/snapshot.yaml
+              /ko-app/eidos --debug recommend -t yaml -f /tmp/snapshot.yaml -i training -o /tmp/recommend.yaml
           resources:
             requests:
               cpu: "1"

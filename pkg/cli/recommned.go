@@ -44,16 +44,8 @@ The recommendation can be output in JSON, YAML, or table format.`,
 				Usage:    fmt.Sprintf("intended use case for the recommendations (%s)", recipe.SupportedIntentTypes()),
 				Required: true,
 			},
-			&cli.StringFlag{
-				Name:    "output",
-				Aliases: []string{"o"},
-				Usage:   "output file path (default: stdout)",
-			},
-			&cli.StringFlag{
-				Name:  "format",
-				Value: "json",
-				Usage: "output format (json, yaml, table)",
-			},
+			outputFlag,
+			formatFlag,
 		},
 		Action: func(ctx context.Context, cmd *cli.Command) error {
 			// Parse output format
