@@ -4,12 +4,28 @@
 
 | System | Source | Node | Snapshot Version |
 |--------|--------|------|------------------|
-| H100   | AWS EKS | `ip-10-0-158-18.ec2.internal` | v0.6.8 |
-| GB200  | AWS EKS | `ip-10-0-160-248.ec2.internal` | v0.6.6 |
+| H100   | AWS EKS | `ip-10-0-158-18.ec2.internal` | v0.7.0 |
+| GB200  | AWS EKS | `ip-10-0-160-248.ec2.internal` | v0.7.0 |
 
-Both snapshots use `snapshot.dgxc.io/v1` API version.
+Both snapshots use `snapshot.dgxc.io/v1` API version with v0.7.0 format.
 
 > Meaningful config and capability diffs only. Ignores order, timestamps, and other expected runtime noise.
+
+## Snapshot Structure (v0.7.0)
+
+Both systems use the enhanced v0.7.0 snapshot format with four measurement types:
+
+1. **SystemD Services** – Configuration of containerd, docker, kubelet, and system services
+2. **OS Configuration** – 4 subtypes (new `release` subtype in v0.7.0):
+   - `grub` – Boot parameters and kernel arguments
+   - `sysctl` – Kernel parameters from `/proc/sys`
+   - `kmod` – Loaded kernel modules  
+   - `release` – OS identification from `/etc/os-release` (**new in v0.7.0**)
+3. **Kubernetes** – 3 subtypes:
+   - `server` – Server version with vendor-specific format support (e.g., `v1.33.5-eks-3025e55`)
+   - `image` – All deployed container images with versions
+   - `policy` – Complete GPU Operator ClusterPolicy configuration (100+ settings)
+4. **GPU** – Hardware details and driver information
 
 ⸻
 
@@ -110,7 +126,25 @@ Both snapshots use `snapshot.dgxc.io/v1` API version.
 
 ⸻
 
-## 4. GPU Operator ClusterPolicy Configuration
+## 4. OS Release Information (New in v0.7.0)
+
+Both systems report identical OS release information via the new `release` subtype:
+
+```yaml
+release:
+  ID: ubuntu
+  VERSION_ID: "24.04"
+  PRETTY_NAME: Ubuntu 24.04.3 LTS
+  VERSION_CODENAME: noble
+  NAME: Ubuntu
+  VERSION: 24.04.3 LTS (Noble Numbat)
+```
+
+**Classification:** Identical OS base for both systems.
+
+⸻
+
+## 5. GPU Operator ClusterPolicy Configuration
 
 ### Key Policy Differences
 
@@ -143,14 +177,18 @@ Both snapshots use `snapshot.dgxc.io/v1` API version.
 
 ## 5. Kernel & Boot Configuration
 
-### Kernel Version
+### Kernel Version (with Vendor Extras)
 
-| System | Kernel Version |
-|--------|----------------|
-| H100 | 6.8.0-1024-aws |
-| GB200 | 6.8.0-1028-aws |
+Both systems use AWS-optimized Ubuntu kernels with vendor-specific patch levels:
 
-**Classification:** GB200 uses slightly newer kernel patch level.
+| System | Kernel Version | Extras |
+|--------|----------------|--------|
+| H100 | 6.8.0 | -1024-aws |
+| GB200 | 6.8.0 | -1028-aws |
+
+**Classification:** GB200 uses slightly newer kernel patch level. The version parser in v0.7.0 now correctly handles vendor extras like `-1028-aws`.
+
+**Note:** The new `Extras` field in the version parser preserves vendor-specific suffixes while maintaining semver comparison compatibility.
 
 ### Boot Flags – Key Differences
 
@@ -183,26 +221,33 @@ Both snapshots use `snapshot.dgxc.io/v1` API version.
 
 ## 7. Key Functional Differences Summary
 
-### 1. GPU Generation Gap
+### 1. Snapshot Format (v0.7.0)
+Both systems use the enhanced v0.7.0 snapshot format with:
+- **4 OS subtypes** (new `release` subtype captures `/etc/os-release` data)
+- **3 K8s subtypes** (`server`, `image`, and comprehensive `policy` with 100+ GPU operator settings)
+- **Version parsing** that handles vendor-specific extras (e.g., `v1.33.5-eks-3025e55`)
+
+### 2. GPU Generation Gap
 - **H100:** Hopper architecture (compute capability 9.0), HMM addressing
 - **GB200:** Blackwell architecture (next-gen), ATS addressing
 - **Impact:** GB200 has architectural advances in memory coherence and compute capabilities
 
-### 2. Workload Orchestration
+### 3. Workload Orchestration
 - **H100:** Run:ai-centric with advanced scheduling, pod groups, queue management
 - **GB200:** ArgoCD GitOps-focused, DRA support, enhanced monitoring
 - **Impact:** Different operational models - H100 for complex multi-tenant scheduling, GB200 for GitOps and modern resource management
 
-### 3. Kubernetes Version Skew
-- **H100:** v1.30 (stable, Run:ai validated)
-- **GB200:** v1.33 (latest, DRA support)
+### 4. Kubernetes Version Skew (Vendor Format Support)
+- **H100:** v1.30.14-eks-3025e55 (stable, Run:ai validated)
+- **GB200:** v1.33.5-eks-3025e55 (latest, DRA support)
 - **Impact:** GB200 can leverage newer K8s features like DRA for GPU resource allocation
+- **Note:** v0.7.0 version parser correctly handles EKS vendor suffixes
 
-### 4. GPU Stack Versions
+### 5. GPU Stack Versions
 - GB200 runs newer versions across driver, DCGM, operators
 - **Impact:** Access to latest bug fixes, features, and performance improvements
 
-### 5. Observability Stack
+### 6. Observability Stack
 - **H100:** Alloy + Prometheus + Run:ai metrics
 - **GB200:** Prometheus + Enhanced NVSentinel (fault detection/remediation)
 - **Impact:** Different monitoring philosophies - H100 more observability-focused, GB200 more fault-prevention focused
@@ -222,3 +267,37 @@ Both snapshots use `snapshot.dgxc.io/v1` API version.
 5. **Policy Harmonization:** The ClusterPolicy configurations are largely compatible; consider using a common baseline with architecture-specific overrides
 
 6. **Monitoring Strategy:** Evaluate whether to standardize on one observability stack vs maintaining architecture-specific tooling
+7. **Snapshot Format:** Both systems use v0.7.0 format, which includes:
+   - Enhanced OS information with `release` subtype for OS identification
+   - Complete K8s `policy` subtype capturing all GPU operator settings
+   - Version parsing that handles vendor-specific suffixes (kernel: `-1028-aws`, K8s: `-eks-3025e55`)
+   - This enables accurate comparison and configuration management across heterogeneous clusters
+
+⸻
+
+## Appendix: v0.7.0 Snapshot Enhancements
+
+The v0.7.0 snapshot format introduces several key improvements:
+
+### New OS Release Subtype
+Captures comprehensive OS identification:
+```yaml
+release:
+  ID: ubuntu
+  VERSION_ID: "24.04"
+  PRETTY_NAME: Ubuntu 24.04.3 LTS
+  VERSION_CODENAME: noble
+```
+
+### Enhanced Version Parsing
+- Kernel versions: `6.8.0-1028-aws` → Correctly parsed with extras `-1028-aws`
+- K8s versions: `v1.33.5-eks-3025e55` → Correctly parsed with extras `-eks-3025e55`
+- Extras preserved but don't affect version comparison for compatibility matching
+
+### Comprehensive K8s Policy Capture
+The `policy` subtype now captures 100+ GPU operator ClusterPolicy settings, enabling:
+- Detailed configuration comparison between clusters
+- Configuration drift detection
+- Baseline policy enforcement
+
+These enhancements make the v0.7.0 format significantly more useful for production cluster management, troubleshooting, and configuration auditing.

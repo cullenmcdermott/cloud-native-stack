@@ -40,12 +40,19 @@ eidos snapshot --format table
 ```
 
 The snapshot includes:
-- CPU and GPU hardware details
-- GRUB boot parameters
-- Kubernetes cluster configuration
-- Loaded kernel modules
-- Sysctl kernel parameters
-- SystemD service configurations
+- **SystemD Services** – Configuration of containerd, docker, kubelet, and other system services
+- **OS Configuration** – 4 subtypes of system settings:
+  - `grub` – Boot parameters and kernel arguments
+  - `sysctl` – Kernel parameters from `/proc/sys`
+  - `kmod` – Loaded kernel modules
+  - `release` – OS identification from `/etc/os-release` (ID, VERSION_ID, PRETTY_NAME, etc.)
+- **Kubernetes** – Cluster configuration including:
+  - Server version (supports vendor-specific formats like `v1.33.5-eks-3025e55`)
+  - Deployed container images
+  - GPU Operator ClusterPolicy settings
+- **GPU** – Hardware details and driver information
+
+The snapshot format is v0.7.0 and outputs in JSON, YAML, or table format.
 
 #### Generate Configuration Recipe
 
@@ -71,14 +78,38 @@ eidos recipe \
 **Available flags:**
 - `--os` – Operating system (ubuntu, cos, etc.)
 - `--osv` – OS version (e.g., 24.04)
-- `--kernel` – Kernel version
+- `--kernel` – Kernel version (supports vendor suffixes like `6.8.0-1028-aws`)
 - `--service` – Kubernetes service (eks, gke, aks, self-managed)
-- `--k8s` – Kubernetes version
+- `--k8s` – Kubernetes version (supports vendor formats like `v1.33.5-eks-3025e55`)
 - `--gpu` – GPU type (h100, gb200, etc.)
 - `--intent` – Workload intent (training, inference)
 - `--context` – Include metadata in response
 - `--format` – Output format (json, yaml, table)
 - `--output` – Save to file (default: stdout)
+
+#### Generate Recommendations from Snapshot
+
+Analyze a captured snapshot and generate configuration recommendations:
+
+```shell
+# Generate recommendations for training workloads
+eidos recommend --snapshot system.yaml --intent training
+
+# Output recommendations to file in YAML format
+eidos recommend \
+  --snapshot system.yaml \
+  --intent inference \
+  --format yaml \
+  --output recommendations.yaml
+```
+
+**Available flags:**
+- `--snapshot`, `-f` – Path to snapshot file (required)
+- `--intent`, `-i` – Workload intent: `training`, `inference`, or `any` (required)
+- `--output`, `-o` – Output file path (default: stdout)
+- `--format` – Output format (json, yaml, table)
+
+The `recommend` command analyzes your system snapshot and provides tailored configuration recommendations based on the specified workload intent.
 
 ### Deploy the Eidos Agent
 

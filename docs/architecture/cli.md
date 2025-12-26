@@ -4,9 +4,10 @@ The `eidos` CLI provides command-line access to Cloud Native Stack configuration
 
 ## Overview
 
-The CLI is built on the [urfave/cli/v3](https://github.com/urfave/cli) framework and provides two main commands:
+The CLI provides three main commands:
 - `snapshot` - Capture system configuration
-- `recipe` - Generate configuration recommendations
+- `recipe` - Generate configuration recommendations based on environment parameters
+- `recommend` - Analyze captured snapshots and provide tailored recommendations
 
 ## Architecture Diagram
 
@@ -18,13 +19,16 @@ flowchart TD
     
     B --> C["snapshot CMD<br/>pkg/cli/snapshot.go"]
     B --> D["recipe CMD<br/>pkg/cli/recipe.go"]
+    B --> E["recommend CMD<br/>pkg/cli/recommned.go"]
     
-    C --> E[Shared Packages]
-    D --> E
+    C --> F[Shared Packages]
+    D --> F
+    E --> F
     
-    E --> E1["Collector Factory"]
-    E --> E2["Recipe Builder"]
-    E --> E3["Serializer<br/>(JSON/YAML/Table)"]
+    F --> F1["Collector Factory"]
+    F --> F2["Recipe Builder"]
+    F --> F3["Recommender Service"]
+    F --> F4["Serializer<br/>(JSON/YAML/Table)"]
 ```
 
 ## Component Details
@@ -218,6 +222,133 @@ eidos recipe \
 # Inference workload on GKE
 eidos recipe --service gke --gpu a100 --intent inference
 ```
+
+### Recommend Command: `pkg/cli/recommned.go`
+
+Analyzes captured system snapshots and generates tailored configuration recommendations based on workload intent.
+
+#### Command Flow
+
+```mermaid
+flowchart TD
+    A[User Invocation] --> B[Parse Flags<br/>snapshot, intent, format, output]
+    B --> C[Load Snapshot from File]
+    C --> D[Create Recommender Service]
+    D --> E[recommender.Recommend]
+    E --> F[Analyze Snapshot]
+    F --> G[Generate Intent-Based Recommendations]
+    G --> H[Serialize Output]
+    H --> I[Write to stdout/file]
+    
+    style E fill:#ffeb3b
+```
+
+#### Detailed Data Flow
+
+```mermaid
+flowchart TD
+    A[Recommend Command] --> B[snapshotter.SnapshotFromFile]
+    
+    B --> B1["Load YAML Snapshot:<br/>• v0.7.0 format<br/>• 4 measurement types<br/>• Parse all subtypes"]
+    
+    B1 --> C[recommender.New]
+    
+    C --> C1["Initialize Recommender:<br/>• Version info<br/>• Recipe store access<br/>• Intent validation"]
+    
+    C1 --> D[recommender.Recommend]
+    
+    D --> D1["Analyze Snapshot:<br/>• OS configuration (4 subtypes)<br/>• K8s cluster state<br/>• GPU setup<br/>• SystemD services"]
+    
+    D1 --> D2["Intent Matching:<br/>• training: optimize for throughput<br/>• inference: optimize for latency<br/>• any: balanced recommendations"]
+    
+    D2 --> D3["Generate Recommendations:<br/>• Configuration changes<br/>• Optimization suggestions<br/>• Best practices"]
+    
+    D3 --> E["Recommendation Structure:<br/>snapshot, intent<br/>recommendations: []<br/>metadata"]
+    
+    E --> F["serializer.NewFileWriterOrStdout<br/>(JSON/YAML/Table)"]
+    
+    style D1 fill:#c8e6c9
+    style D2 fill:#ffccbc
+    style D3 fill:#c5cae9
+```
+
+#### Key Features
+
+**1. Intent-Based Analysis**
+- **training** – Optimizes for high throughput, batch processing, multi-GPU orchestration
+- **inference** – Optimizes for low latency, single-request performance, efficient batching
+- **any** – Provides general-purpose recommendations applicable to both workloads
+
+**2. Snapshot Compatibility**
+- Supports v0.7.0 snapshot format with 4 measurement types:
+  - **OS** (4 subtypes: grub, sysctl, kmod, release)
+  - **K8s** (server, image, policy subtypes)
+  - **SystemD** (service configurations)
+  - **GPU** (hardware and driver details)
+
+**3. Vendor Version Support**
+- Handles kernel versions with extras: `6.8.0-1028-aws`
+- Handles K8s versions with vendor suffixes: `v1.33.5-eks-3025e55`
+- Leverages version parser's Extras field for accurate version matching
+
+#### Usage Examples
+
+```bash
+# Generate recommendations for training workloads
+eidos recommend --snapshot system.yaml --intent training
+
+# Analyze for inference optimization
+eidos recommend \
+  --snapshot cluster-snapshot.yaml \
+  --intent inference \
+  --format yaml \
+  --output recommendations.yaml
+
+# General recommendations with table format
+eidos recommend -f system.yaml -i any --format table
+
+# Abbreviated flags
+eidos recommend -f system.yaml -i training -o recs.json
+```
+
+#### Recommendation Output Structure
+
+```yaml
+snapshot:
+  version: v0.7.0
+  node: ip-10-0-160-248
+  timestamp: "2025-01-15T10:30:00Z"
+intent: training
+recommendations:
+  - category: grub
+    parameter: hugepages
+    currentValue: "5128"
+    recommendedValue: "8192"
+    reason: "Increase hugepages for training workload memory efficiency"
+    priority: high
+  - category: sysctl
+    parameter: net.core.somaxconn
+    currentValue: "128"
+    recommendedValue: "4096"
+    reason: "Higher connection queue for distributed training"
+    priority: medium
+  - category: kubernetes
+    parameter: gpu-operator.mig.strategy
+    currentValue: "single"
+    recommendedValue: "mixed"
+    reason: "Enable MIG for multi-tenant training workloads"
+    priority: low
+metadata:
+  generatedAt: "2025-01-15T10:30:05Z"
+  recommendationVersion: v0.7.0
+```
+
+#### Error Handling
+
+- **Invalid Intent**: Returns error with supported intent types
+- **Missing Snapshot File**: File not found error with path
+- **Invalid Snapshot Format**: Parse error with details
+- **Unknown Output Format**: Error with supported formats list
 
 ## Shared Infrastructure
 

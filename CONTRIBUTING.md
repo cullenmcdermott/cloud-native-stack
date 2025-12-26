@@ -146,8 +146,9 @@ cloud-native-stack/
 #### Collectors
 - **Location**: `pkg/collector/`
 - **Pattern**: Factory-based registration
-- **Types**: CPU, GPU, GRUB, Kernel Modules, Sysctl, SystemD, Kubernetes
+- **Types**: SystemD, OS (grub, sysctl, kmod, release), Kubernetes, GPU
 - **Purpose**: Gather system configuration data
+- **OS Release Collector**: New 4th OS subtype that captures `/etc/os-release` (ID, VERSION_ID, PRETTY_NAME, etc.)
 
 #### Recipe Engine
 - **Location**: `pkg/recipe/`
@@ -211,37 +212,206 @@ Follow these principles:
 
 ### 3. Add a New Collector (Example)
 
-If adding a new system collector:
+If adding a new system collector (like the OS release collector added in v0.7.0):
 
-1. Create the collector in `pkg/collector/`:
+1. Create the collector in `pkg/collector/os/`:
 ```go
-// pkg/collector/network.go
-package collector
+// pkg/collector/os/release.go
+package os
 
-type NetworkCollector struct{}
+import (
+    "bufio"
+    "context"
+    "fmt"
+    "os"
+    "strings"
+)
 
-func (c *NetworkCollector) Name() string {
-    return "network"
-}
-
-func (c *NetworkCollector) Collect(ctx context.Context) (interface{}, error) {
-    // Implementation
+// collectRelease reads and parses /etc/os-release
+func (c *Collector) collectRelease(ctx context.Context) (*measurement.Subtype, error) {
+    data := make(map[string]measurement.Reading)
+    
+    file, err := os.Open("/etc/os-release")
+    if err != nil {
+        return nil, fmt.Errorf("failed to open /etc/os-release: %w", err)
+    }
+    defer file.Close()
+    
+    scanner := bufio.NewScanner(file)
+    for scanner.Scan() {
+        line := scanner.Text()
+        if strings.TrimSpace(line) == "" || strings.HasPrefix(line, "#") {
+            continue
+        }
+        
+        parts := strings.SplitN(line, "=", 2)
+        if len(parts) != 2 {
+            continue
+        }
+        
+        key := parts[0]
+        value := strings.Trim(parts[1], `"`)
+        data[key] = measurement.Reading{Value: value}
+    }
+    
+    if err := scanner.Err(); err != nil {
+        return nil, fmt.Errorf("error reading /etc/os-release: %w", err)
+    }
+    
+    return &measurement.Subtype{
+        Name: "release",
+        Data: data,
+    }, nil
 }
 ```
 
-2. Register in the factory:
+2. Update the main collector to include the new subtype:
 ```go
-// pkg/collector/factory.go
-func init() {
-    register("network", &NetworkCollector{})
+// pkg/collector/os/os.go
+func (c *Collector) Collect(ctx context.Context) ([]*measurement.Measurement, error) {
+    // Collect all OS subtypes in parallel
+    grubSubtype, _ := c.collectGrub(ctx)
+    sysctlSubtype, _ := c.collectSysctl(ctx)
+    kmodSubtype, _ := c.collectKmod(ctx)
+    releaseSubtype, _ := c.collectRelease(ctx) // New subtype
+    
+    return []*measurement.Measurement{{
+        Type: measurement.TypeOS,
+        Subtypes: []*measurement.Subtype{
+            grubSubtype,
+            sysctlSubtype,
+            kmodSubtype,
+            releaseSubtype, // Add to list
+        },
+    }}, nil
 }
 ```
 
-3. Add tests:
+3. Add tests for the new collector:
 ```go
-// pkg/collector/network_test.go
-func TestNetworkCollector(t *testing.T) {
-    // Test implementation
+// pkg/collector/os/release_test.go
+func TestCollectRelease(t *testing.T) {
+    c := NewCollector()
+    ctx := context.Background()
+    
+    subtype, err := c.collectRelease(ctx)
+    if err != nil {
+        t.Fatalf("collectRelease() error = %v", err)
+    }
+    
+    // Verify expected fields exist
+    expectedFields := []string{"ID", "VERSION_ID", "PRETTY_NAME"}
+    for _, field := range expectedFields {
+        if _, exists := subtype.Data[field]; !exists {
+            t.Errorf("expected field %q not found", field)
+        }
+    }
+    
+    // Verify subtype name
+    if subtype.Name != "release" {
+        t.Errorf("expected subtype name 'release', got %q", subtype.Name)
+    }
+}
+```
+
+4. Update integration tests to expect 4 OS subtypes instead of 3:
+```go
+// pkg/collector/os/os_test.go
+func TestOSCollector(t *testing.T) {
+    measurements, err := c.Collect(ctx)
+    if err != nil {
+        t.Fatalf("Collect() error = %v", err)
+    }
+    
+    // Should return 4 subtypes: grub, sysctl, kmod, release
+    if len(measurements[0].Subtypes) != 4 {
+        t.Errorf("expected 4 subtypes, got %d", len(measurements[0].Subtypes))
+    }
+}
+```
+
+### Example: Version Parser with Vendor Extras
+
+When adding version parsing support for vendor-specific formats:
+
+```go
+// pkg/version/version.go
+type Version struct {
+    Major  int
+    Minor  int
+    Patch  int
+    Extras string // New field for vendor suffixes
+}
+
+func ParseVersion(s string) (*Version, error) {
+    // Remove 'v' prefix if present
+    s = strings.TrimPrefix(s, "v")
+    
+    // Find position of extras (after digits, before first dash or plus)
+    extrasPos := -1
+    for i, c := range s {
+        if (c == '-' || c == '+') && i > 0 && isDigit(rune(s[i-1])) {
+            extrasPos = i
+            break
+        }
+    }
+    
+    // Split version from extras
+    versionPart := s
+    extras := ""
+    if extrasPos != -1 {
+        versionPart = s[:extrasPos]
+        extras = s[extrasPos:]
+    }
+    
+    // Parse Major.Minor.Patch
+    parts := strings.Split(versionPart, ".")
+    // ... parse logic ...
+    
+    return &Version{
+        Major:  major,
+        Minor:  minor,
+        Patch:  patch,
+        Extras: extras,
+    }, nil
+}
+
+// String returns the version without extras for clean comparison
+func (v *Version) String() string {
+    return fmt.Sprintf("%d.%d.%d", v.Major, v.Minor, v.Patch)
+}
+```
+
+Tests for version parsing with extras:
+```go
+func TestParseVersionWithExtras(t *testing.T) {
+    tests := []struct {
+        input        string
+        wantMajor    int
+        wantMinor    int
+        wantPatch    int
+        wantExtras   string
+    }{
+        {"6.8.0-1028-aws", 6, 8, 0, "-1028-aws"},
+        {"v1.33.5-eks-3025e55", 1, 33, 5, "-eks-3025e55"},
+        {"v1.28.0-gke.1337000", 1, 28, 0, "-gke.1337000"},
+        {"1.29.2-hotfix.20240322", 1, 29, 2, "-hotfix.20240322"},
+    }
+    
+    for _, tt := range tests {
+        t.Run(tt.input, func(t *testing.T) {
+            v, err := ParseVersion(tt.input)
+            if err != nil {
+                t.Fatalf("ParseVersion(%q) error = %v", tt.input, err)
+            }
+            if v.Major != tt.wantMajor || v.Minor != tt.wantMinor || 
+               v.Patch != tt.wantPatch || v.Extras != tt.wantExtras {
+                t.Errorf("got %d.%d.%d%s, want %d.%d.%d%s",
+                    v.Major, v.Minor, v.Patch, v.Extras,
+                    tt.wantMajor, tt.wantMinor, tt.wantPatch, tt.wantExtras)
+            }
+        })
+    }
 }
 ```
 

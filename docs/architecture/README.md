@@ -14,7 +14,8 @@ Cloud Native Stack provides two complementary interfaces for system configuratio
 ### CLI Tool (`eidos`)
 A command-line interface for direct interaction with system configuration:
 - **Snapshot Command**: Captures comprehensive system configuration
-- **Recipe Command**: Generates optimized configuration recommendations
+- **Recipe Command**: Generates optimized configuration recommendations based on environment parameters
+- **Recommend Command**: Analyzes captured snapshots and generates tailored recommendations based on workload intent
 
 ### API Server (`eidos-api-server`)
 An HTTP REST API for programmatic access to configuration recommendations:
@@ -68,10 +69,12 @@ if err := g.Wait(); err != nil {
 - [Rate Limiting](https://pkg.go.dev/golang.org/x/time/rate)  
 - [Prometheus Best Practices](https://prometheus.io/docs/practices/naming/)
 
-### 6. Semantic Versioning with Precision Control
-**Pattern**: Version struct with Major.Minor.Patch components  
-**Rationale**: Flexible matching (1.2 matches 1.2.x); reject negative components  
-**Trade-off**: Complexity vs matching flexibility  
+### 6. Semantic Versioning with Precision Control and Vendor Extras
+**Pattern**: Version struct with Major.Minor.Patch components and optional Extras field  
+**Rationale**: Flexible matching (1.2 matches 1.2.x); reject negative components; preserve vendor-specific suffixes  
+**Vendor Support**: Handles kernel versions like `6.8.0-1028-aws` and Kubernetes versions like `v1.33.5-eks-3025e55`  
+**Trade-off**: Complexity vs matching flexibility and vendor compatibility  
+**Implementation**: Extras field stores vendor suffixes (e.g., `-1028-aws`, `-eks-3025e55`) without affecting version comparison  
 **Reference**: [Semantic Versioning 2.0.0](https://semver.org/)
 
 ### 7. Immutable Data Structures
@@ -170,6 +173,7 @@ flowchart TD
     PKG["pkg/"] --> COLL
     PKG --> MEAS
     PKG --> REC
+    PKG --> RECM
     PKG --> VER
     PKG --> SER
     PKG --> LOG
@@ -178,7 +182,8 @@ flowchart TD
     COLL["collector/<br/>System data collection<br/>(OS, K8s, GPU, SystemD)"]
     MEAS["measurement/<br/>Data model for<br/>collected metrics"]
     REC["recipe/<br/>Recipe building and<br/>query matching"]
-    VER["version/<br/>Semantic version<br/>parsing & comparison"]
+    RECM["recommender/<br/>Snapshot analysis and<br/>recommendation generation"]
+    VER["version/<br/>Semantic version<br/>parsing & comparison<br/>(with vendor extras)"]
     SER["serializer/<br/>Output formatting<br/>(JSON, YAML, table)"]
     LOG["logging/<br/>Structured logging"]
     SVR["server/<br/>HTTP server<br/>infrastructure (API only)"]
