@@ -81,9 +81,10 @@ make tidy
 make info
 ```
 
-Expected output:
+Example output:
+
 ```
-version:        v0.5.16
+version:        v0.7.6
 commit:         abc123...
 branch:         main
 repo:           cloud-native-stack

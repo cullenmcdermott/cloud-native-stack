@@ -1,16 +1,16 @@
 # Cloud Native Stack
 
-Cloud Native Stack (CNS) provides tooling and comprehensive documentation to help you deploy, validate, and operate optimized AI workloads in your GPU-accelerated Kubernetes clusters. The project includes:
+Cloud Native Stack (CNS) provides tooling and comprehensive documentation to help you deploy, validate, and operate optimized AI workloads in your GPU-accelerated Kubernetes clusters:
 
 - **Documentation** – Installation guides, playbooks, optimizations, and troubleshooting for GPU infrastructure
-- **`eidos` CLI** – Command-line tool for system snapshots and recipe generation
-- **Eidos Agent** – Kubernetes job for automated cluster configuration and optimization
+- **`eidos` CLI** – Command-line tool for system snapshots and CNS recipe generation
+- **Eidos Agent** – Kubernetes job for automated cluster configuration and optimization using NCS recipes
 
 ## Quick Start
 
 ### Install the `eidos` CLI
 
-The `eidos` CLI are built with each release. You can find the latest release [here](https://github.com/mchmarny/cloud-native-stack/releases/latest). Download and install the latest version:
+You can find the latest release [here](https://github.com/mchmarny/cloud-native-stack/releases/latest). You can install the latest version manually from the [releases section of the repo](https://github.com/mchmarny/cloud-native-stack/releases/latest) or using provided script:
 
 ```shell
 curl -sfL https://raw.githubusercontent.com/mchmarny/cloud-native-stack/refs/heads/main/installer | bash -s --
@@ -29,30 +29,39 @@ eidos --version
 Capture a comprehensive snapshot of your system including CPU/GPU settings, kernel parameters, systemd services, and Kubernetes configuration:
 
 ```shell
-# Output to stdout (JSON)
+# Output to stdout (YAML)
 eidos snapshot
 
-# Save to file (YAML format)
-eidos snapshot --output system.yaml --format yaml
-
-# Table format for human readability
-eidos snapshot --format table
+# Save to file (JSON format)
+eidos snapshot --output system.yaml --format json
 ```
 
-The snapshot includes:
-- **SystemD Services** – Configuration of containerd, docker, kubelet, and other system services
-- **OS Configuration** – 4 subtypes of system settings:
-  - `grub` – Boot parameters and kernel arguments
-  - `sysctl` – Kernel parameters from `/proc/sys`
-  - `kmod` – Loaded kernel modules
-  - `release` – OS identification from `/etc/os-release` (ID, VERSION_ID, PRETTY_NAME, etc.)
-- **Kubernetes** – Cluster configuration including:
-  - Server version (supports vendor-specific formats like `v1.33.5-eks-3025e55`)
-  - Deployed container images
-  - GPU Operator ClusterPolicy settings
-- **GPU** – Hardware details and driver information
+> NOTE: Eidos is fully self-contained CLI. Id does not connect to any external resources and never emits any of the captured configuration outside of the cluster. 
 
-The snapshot format is v0.7.0 and outputs in JSON, YAML, or table format.
+**The snapshot includes:**
+
+- **SystemD Services** – Complete service configurations including:
+  - containerd, docker, kubelet service states and settings
+  - Active state, startup configuration, and resource limits
+  - Service dependencies and execution parameters
+
+- **OS Configuration** – 4 subtypes capturing system-level settings:
+  - `grub` – Boot parameters and kernel arguments (hugepages, numa_balancing, security settings)
+  - `sysctl` – All kernel parameters from `/proc/sys` (networking, filesystem, memory tuning)
+  - `kmod` – Loaded kernel modules with their configurations
+  - `release` – OS identification from `/etc/os-release` (ID, VERSION_ID, PRETTY_NAME, VERSION_CODENAME)
+
+- **Kubernetes** – Complete cluster configuration with 3 subtypes:
+  - `server` – Kubernetes version with vendor-specific format support (e.g., `v1.33.5-eks-3025e55`), Go version, platform
+  - `image` – All deployed container images with full registry paths and versions
+  - `policy` – Complete GPU Operator ClusterPolicy configuration (100+ settings including driver, device plugin, MIG, CDI)
+
+- **GPU** – Comprehensive hardware and driver information:
+  - GPU model, architecture, and compute capability
+  - Driver version, CUDA version, and firmware details
+  - GPU-specific settings (MIG mode, persistence mode, addressing mode)
+
+**Snapshot** output formats**: JSON, YAML, table
 
 #### Generate Configuration Recipe
 
@@ -62,7 +71,7 @@ Generate optimized configuration recipes based on your environment:
 # Basic recipe for Ubuntu on EKS with H100 GPUs
 eidos recipe --os ubuntu --service eks --gpu h100
 
-# Full specification with context
+# Full specification with context optimized for training use-case
 eidos recipe \
   --os ubuntu \
   --osv 24.04 \
@@ -113,7 +122,9 @@ The `recommend` command analyzes your system snapshot and provides tailored conf
 
 ### Deploy the Eidos Agent
 
-The Eidos Agent runs as a Kubernetes Job to automatically capture cluster configuration snapshots. This is useful for auditing, troubleshooting, and configuration management.
+Eidos can also be deployed as an agent into your Kubernetes cluster as a Job to automatically capture cluster configuration snapshots. This is useful for auditing, troubleshooting, and configuration management.
+
+> NOTE: Eidos is fully self-contained CLI. Id does not connect to any external resources and never emits any of the captured configuration outside of the cluster. 
 
 #### Prerequisites
 
@@ -153,9 +164,9 @@ tolerations:
     effect: NoSchedule
 ```
 
-**Image Version** – Use a specific version:
+**Image Version** – Use a specific version by replacing `latest` with any of the [CNS release versions](https://github.com/mchmarny/cloud-native-stack/releases):
 ```yaml
-image: ghcr.io/mchmarny/eidos-api-server:v0.5.16
+image: ghcr.io/mchmarny/eidos-api-server:latest
 ```
 
 #### View Agent Output
