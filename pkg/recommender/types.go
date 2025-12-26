@@ -1,20 +1,21 @@
-package snapshotter
+package recommender
 
 import (
 	"context"
 
 	"github.com/NVIDIA/cloud-native-stack/pkg/measurement"
+	"github.com/NVIDIA/cloud-native-stack/pkg/recipe"
+	"github.com/NVIDIA/cloud-native-stack/pkg/snapshotter"
 )
 
-// Snapshotter is the interface that wraps the Run method.
-// Measure starts the snapshotter with the provided context.
-type Snapshotter interface {
-	Measure(ctx context.Context) error
+// Recommender defines the interface for generating recommendations based on snapshots and intent.
+type Recommender interface {
+	Recommend(ctx context.Context, intent recipe.IntentType, snap *snapshotter.Snapshot) (*Recommendation, error)
 }
 
-// Snapshot represents the collected configuration snapshot of a node.
-type Snapshot struct {
-	// Kind is the type of the snapshot object.
+// Recommendation is the structure representing recommendations based on a snapshot.
+type Recommendation struct {
+	// Kind is the type of the recommendation object.
 	Kind string `json:"kind,omitempty" yaml:"kind,omitempty"`
 
 	// APIVersion is the API version of the snapshot object.

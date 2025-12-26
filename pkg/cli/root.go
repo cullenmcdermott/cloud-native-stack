@@ -65,6 +65,7 @@ func Execute() {
 		Commands: []*cli.Command{
 			snapshotCmd(),
 			recipeCmd(),
+			recommendCmd(),
 		},
 		ShellComplete: commandLister,
 	}

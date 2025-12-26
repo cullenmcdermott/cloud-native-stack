@@ -151,6 +151,7 @@ type AllowedScalar interface {
 type Reading interface {
 	isReading()
 	Any() any
+	String() string
 
 	json.Marshaler
 	json.Unmarshaler
@@ -167,6 +168,11 @@ type Scalar[T AllowedScalar] struct {
 func (Scalar[T]) isReading() {}
 
 func (s Scalar[T]) Any() any { return s.V }
+
+// String returns the string representation of the underlying scalar value.
+func (s Scalar[T]) String() string {
+	return fmt.Sprintf("%v", s.V)
+}
 
 // MarshalJSON makes the JSON value be the underlying scalar (not an object wrapper).
 func (s Scalar[T]) MarshalJSON() ([]byte, error) {

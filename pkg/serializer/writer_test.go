@@ -10,7 +10,10 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-const testName = "test"
+const (
+	testName  = "test"
+	test1Name = "test1"
+)
 
 type testConfig struct {
 	Name  string
@@ -22,7 +25,7 @@ func TestWriter_SerializeJSON(t *testing.T) {
 	writer := NewWriter(FormatJSON, &buf)
 
 	data := []testConfig{
-		{Name: "test1", Value: 123},
+		{Name: test1Name, Value: 123},
 		{Name: "test2", Value: 456},
 	}
 
@@ -41,7 +44,7 @@ func TestWriter_SerializeJSON(t *testing.T) {
 		t.Errorf("Expected 2 items, got %d", len(result))
 	}
 
-	if result[0].Name != "test1" || result[0].Value != 123 {
+	if result[0].Name != test1Name || result[0].Value != 123 {
 		t.Errorf("Unexpected data: %+v", result[0])
 	}
 }
@@ -51,7 +54,7 @@ func TestWriter_SerializeYAML(t *testing.T) {
 	writer := NewWriter(FormatYAML, &buf)
 
 	data := []testConfig{
-		{Name: "test1", Value: 123},
+		{Name: test1Name, Value: 123},
 		{Name: "test2", Value: 456},
 	}
 
@@ -70,7 +73,7 @@ func TestWriter_SerializeYAML(t *testing.T) {
 		t.Errorf("Expected 2 items, got %d", len(result))
 	}
 
-	if result[0].Name != "test1" || result[0].Value != 123 {
+	if result[0].Name != test1Name || result[0].Value != 123 {
 		t.Errorf("Unexpected data: %+v", result[0])
 	}
 }
@@ -80,7 +83,7 @@ func TestWriter_SerializeTable(t *testing.T) {
 	writer := NewWriter(FormatTable, &buf)
 
 	data := []interface{}{
-		testConfig{Name: "test1", Value: 123},
+		testConfig{Name: test1Name, Value: 123},
 		testConfig{Name: "test2", Value: 456},
 	}
 
@@ -187,7 +190,7 @@ func TestNewFileWriterOrStdout_Success(t *testing.T) {
 	}
 
 	// Write some data
-	data := testConfig{Name: "test", Value: 123}
+	data := testConfig{Name: testName, Value: 123}
 	err := writer.Serialize(data)
 	if err != nil {
 		t.Fatalf("Serialize failed: %v", err)
@@ -215,7 +218,7 @@ func TestNewFileWriterOrStdout_Success(t *testing.T) {
 		t.Fatalf("Failed to unmarshal file content: %v", err)
 	}
 
-	if result.Name != "test" || result.Value != 123 {
+	if result.Name != testName || result.Value != 123 {
 		t.Errorf("Unexpected data in file: %+v", result)
 	}
 }

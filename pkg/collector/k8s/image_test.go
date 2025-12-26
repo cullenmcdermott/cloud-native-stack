@@ -17,13 +17,25 @@ import (
 
 const (
 	imageSubtypeName = "image"
+	testNodeName     = "test-node"
 )
 
 // Helper function to create a test collector with fake client
 func createTestCollector(objects ...corev1.Pod) *Collector {
-	runtimeObjects := make([]runtime.Object, len(objects))
+	// Create a fake node for provider testing
+	fakeNode := &corev1.Node{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: testNodeName,
+		},
+		Spec: corev1.NodeSpec{
+			ProviderID: "aws:///us-west-2a/i-0123456789abcdef0",
+		},
+	}
+
+	runtimeObjects := make([]runtime.Object, len(objects)+1)
+	runtimeObjects[0] = fakeNode
 	for i := range objects {
-		runtimeObjects[i] = &objects[i]
+		runtimeObjects[i+1] = &objects[i]
 	}
 	fakeClient := fake.NewClientset(runtimeObjects...)
 	// Set a fake server version to avoid nil pointer
@@ -41,6 +53,8 @@ func createTestCollector(objects ...corev1.Pod) *Collector {
 }
 
 func TestImageCollector_Collect(t *testing.T) {
+	t.Setenv("NODE_NAME", testNodeName)
+
 	ctx := context.Background()
 	pod := corev1.Pod{
 		ObjectMeta: metav1.ObjectMeta{Name: "pod-a", Namespace: "ns"},
@@ -59,8 +73,8 @@ func TestImageCollector_Collect(t *testing.T) {
 	assert.NoError(t, err)
 	assert.NotNil(t, m)
 	assert.Equal(t, measurement.TypeK8s, m.Type)
-	// Should have 3 subtypes: server, image, and policy
-	assert.Len(t, m.Subtypes, 3)
+	// Should have 4 subtypes: server, image, policy, and provider
+	assert.Len(t, m.Subtypes, 4)
 
 	// Find the image subtype
 	var imageSubtype *measurement.Subtype
@@ -100,6 +114,8 @@ func TestImageCollector_CollectWithCancelledContext(t *testing.T) {
 }
 
 func TestImageCollector_MultipleLocations(t *testing.T) {
+	t.Setenv("NODE_NAME", testNodeName)
+
 	ctx := context.Background()
 	pod1 := corev1.Pod{
 		ObjectMeta: metav1.ObjectMeta{Name: "pod-1", Namespace: "ns1"},
@@ -144,6 +160,8 @@ func TestImageCollector_MultipleLocations(t *testing.T) {
 }
 
 func TestImageCollector_WithDigest(t *testing.T) {
+	t.Setenv("NODE_NAME", testNodeName)
+
 	ctx := context.Background()
 	pod := corev1.Pod{
 		ObjectMeta: metav1.ObjectMeta{Name: "pod-a", Namespace: "ns"},

@@ -7,6 +7,7 @@ import (
 
 	"github.com/NVIDIA/cloud-native-stack/pkg/measurement"
 	"github.com/stretchr/testify/assert"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/version"
@@ -43,8 +44,18 @@ func createMockClusterPolicy(name, namespace string) *unstructured.Unstructured 
 
 // Helper to create test collector with mocked clients
 func createTestPolicyCollector() *Collector {
+	// Create fake node for provider testing
+	fakeNode := &corev1.Node{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "test-node",
+		},
+		Spec: corev1.NodeSpec{
+			ProviderID: "aws:///us-west-2a/i-0123456789abcdef0",
+		},
+	}
+
 	// Create fake kubernetes client
-	fakeK8sClient := fakeclient.NewClientset()
+	fakeK8sClient := fakeclient.NewClientset(fakeNode)
 	fakeDiscovery := fakeK8sClient.Discovery().(*fakediscovery.FakeDiscovery)
 	fakeDiscovery.FakedServerVersion = &version.Info{
 		GitVersion: "v1.28.0",
@@ -77,6 +88,8 @@ func createTestPolicyCollector() *Collector {
 }
 
 func TestPolicyCollector_Collect(t *testing.T) {
+	t.Setenv("NODE_NAME", "test-node")
+
 	// This test validates the structure when policies are found
 	// Note: The dynamic client discovery is complex to mock fully,
 	// so we're testing the parsing logic and structure

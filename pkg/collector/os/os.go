@@ -36,12 +36,18 @@ func (c *Collector) Collect(ctx context.Context) (*measurement.Measurement, erro
 		return nil, err
 	}
 
+	release, err := c.collectRelease(ctx)
+	if err != nil {
+		return nil, err
+	}
+
 	res := &measurement.Measurement{
 		Type: measurement.TypeOS,
 		Subtypes: []measurement.Subtype{
 			*grub,
 			*sysctl,
 			*kmod,
+			*release,
 		},
 	}
 

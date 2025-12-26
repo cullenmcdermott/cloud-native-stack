@@ -4,31 +4,16 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
-	"os"
 	"sync"
 	"time"
 
 	"github.com/NVIDIA/cloud-native-stack/pkg/collector"
+	"github.com/NVIDIA/cloud-native-stack/pkg/collector/k8s"
 	"github.com/NVIDIA/cloud-native-stack/pkg/measurement"
 	"github.com/NVIDIA/cloud-native-stack/pkg/serializer"
 
 	"golang.org/x/sync/errgroup"
 )
-
-// Snapshot represents the collected configuration snapshot of a node.
-type Snapshot struct {
-	// Kind is the type of the snapshot object.
-	Kind string `json:"kind,omitempty" yaml:"kind,omitempty"`
-
-	// APIVersion is the API version of the snapshot object.
-	APIVersion string `json:"apiVersion,omitempty" yaml:"apiVersion,omitempty"`
-
-	// Metadata contains key-value pairs with metadata about the snapshot.
-	Metadata map[string]string `json:"metadata,omitempty" yaml:"metadata,omitempty"`
-
-	// Measurements contains the collected measurements from various collectors.
-	Measurements []*measurement.Measurement `json:"measurements" yaml:"measurements"`
-}
 
 // NodeSnapshotter is a snapshotter that collects configuration from the current node.
 type NodeSnapshotter struct {
@@ -75,7 +60,7 @@ func (n *NodeSnapshotter) Measure(ctx context.Context) error {
 		defer func() {
 			snapshotCollectorDuration.WithLabelValues("metadata").Observe(time.Since(collectorStart).Seconds())
 		}()
-		nodeName := getNodeName()
+		nodeName := k8s.GetNodeName()
 		mu.Lock()
 		snap.Metadata["snapshot-version"] = n.Version
 		snap.Metadata["source-node"] = nodeName
@@ -185,24 +170,31 @@ func (n *NodeSnapshotter) Measure(ctx context.Context) error {
 	return nil
 }
 
-// getNodeName retrieves the current node name from environment variables.
-// It checks NODE_NAME first (typically set via Downward API), then falls back
-// to KUBERNETES_NODE_NAME, and finally HOSTNAME as a last resort.
-func getNodeName() string {
-	// Preferred: NODE_NAME set via Downward API
-	if nodeName := os.Getenv("NODE_NAME"); nodeName != "" {
-		return nodeName
+// SnapshotFromFile loads a Snapshot from the specified file path.
+func SnapshotFromFile(path string) (*Snapshot, error) {
+	fileFormat := serializer.FormatFromPath(path)
+	slog.Debug("determined snapshot file format",
+		slog.String("path", path),
+		slog.String("format", string(fileFormat)),
+	)
+
+	ser, err := serializer.NewFileReader(fileFormat, path)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create serializer for %q: %w", path, err)
+	}
+	defer ser.Close()
+
+	var snap Snapshot
+	if err := ser.Deserialize(&snap); err != nil {
+		return nil, fmt.Errorf("failed to deserialize snapshot from %q: %w", path, err)
 	}
 
-	// Alternative: KUBERNETES_NODE_NAME
-	if nodeName := os.Getenv("KUBERNETES_NODE_NAME"); nodeName != "" {
-		return nodeName
-	}
+	slog.Debug("successfully loaded snapshot from file",
+		slog.String("path", path),
+		slog.String("kind", snap.Kind),
+		slog.String("apiVersion", snap.APIVersion),
+		slog.Int("measurements", len(snap.Measurements)),
+	)
 
-	// Last resort: HOSTNAME (may be pod name, not node name)
-	if hostname := os.Getenv("HOSTNAME"); hostname != "" {
-		return hostname
-	}
-
-	return ""
+	return &snap, nil
 }

@@ -9,6 +9,8 @@ import (
 )
 
 func TestKubernetesCollector_Collect(t *testing.T) {
+	t.Setenv("NODE_NAME", "test-node")
+
 	ctx := context.Background()
 	collector := createTestCollector()
 
@@ -16,8 +18,8 @@ func TestKubernetesCollector_Collect(t *testing.T) {
 	assert.NoError(t, err)
 	assert.NotNil(t, m)
 	assert.Equal(t, measurement.TypeK8s, m.Type)
-	// Should have 3 subtypes: server, image, and policy
-	assert.Len(t, m.Subtypes, 3)
+	// Should have 4 subtypes: server, image, policy, and provider
+	assert.Len(t, m.Subtypes, 4)
 
 	// Find the server subtype
 	var serverSubtype *measurement.Subtype

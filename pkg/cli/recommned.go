@@ -1,0 +1,93 @@
+/*
+Copyright © 2025 NVIDIA Corporation
+SPDX-License-Identifier: Apache-2.0
+*/
+package cli
+
+import (
+	"context"
+	"fmt"
+
+	"github.com/urfave/cli/v3"
+
+	"github.com/NVIDIA/cloud-native-stack/pkg/recipe"
+	"github.com/NVIDIA/cloud-native-stack/pkg/recommender"
+	"github.com/NVIDIA/cloud-native-stack/pkg/serializer"
+	"github.com/NVIDIA/cloud-native-stack/pkg/snapshotter"
+)
+
+func recommendCmd() *cli.Command {
+	return &cli.Command{
+		Name:                  "recommend",
+		Aliases:               []string{"rec"},
+		EnableShellCompletion: true,
+		Usage:                 "Generate system configuration recommendations based on snapshot",
+		Description: `Generate system configuration recommendations based on snapshot including:
+  - CPU and GPU settings
+  - GRUB boot parameters
+  - Kubernetes cluster configuration
+  - Loaded kernel modules
+  - Sysctl kernel parameters
+  - SystemD service configurations
+
+The recommendation can be output in JSON, YAML, or table format.`,
+		Flags: []cli.Flag{
+			&cli.StringFlag{
+				Name:     "snapshot",
+				Aliases:  []string{"snap"},
+				Required: true,
+				Usage:    "snapshot file path",
+			},
+			&cli.StringFlag{
+				Name:     "intent",
+				Value:    recipe.IntentAny.String(),
+				Usage:    fmt.Sprintf("intended use case for the recommendations (%s)", recipe.SupportedIntentTypes()),
+				Required: true,
+			},
+			&cli.StringFlag{
+				Name:  "output",
+				Usage: "output file path (default: stdout)",
+			},
+			&cli.StringFlag{
+				Name:  "format",
+				Value: "json",
+				Usage: "output format (json, yaml, table)",
+			},
+		},
+		Action: func(ctx context.Context, cmd *cli.Command) error {
+			// Parse output format
+			outFormat := serializer.Format(cmd.String("format"))
+			if outFormat.IsUnknown() {
+				return fmt.Errorf("unknown output format: %q", outFormat)
+			}
+
+			// Parse intent
+			intentStr := cmd.String("intent")
+			intent := recipe.IntentType(intentStr)
+			if !intent.IsValid() {
+				return fmt.Errorf("invalid intent type: %q", intentStr)
+			}
+
+			// Load snapshot
+			snapFilePath := cmd.String("snapshot")
+			snap, err := snapshotter.SnapshotFromFile(snapFilePath)
+			if err != nil {
+				return fmt.Errorf("failed to load snapshot from %q: %w", snapFilePath, err)
+			}
+
+			// Create recommender service
+			service := recommender.New(
+				recommender.WithVersion(version),
+			)
+
+			rec, err := service.Recommend(ctx, intent, snap)
+			if err != nil {
+				return fmt.Errorf("failed to generate recommendations: %w", err)
+			}
+
+			ser := serializer.NewFileWriterOrStdout(outFormat, cmd.String("output"))
+
+			return ser.Serialize(rec)
+		},
+	}
+}
