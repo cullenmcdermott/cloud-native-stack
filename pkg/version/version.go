@@ -25,6 +25,9 @@ type Version struct {
 
 	// Precision indicates how many components are significant (1, 2, or 3)
 	Precision int `json:"precision,omitempty" yaml:"precision,omitempty"`
+
+	// Extras stores additional version metadata like "-1028-aws" or "-eks-3025e55"
+	Extras string `json:"extras,omitempty" yaml:"extras,omitempty"`
 }
 
 // NewVersion creates a Version with all three components and precision 3.
@@ -62,14 +65,34 @@ func ParseVersion(s string) (Version, error) {
 	s = strings.TrimPrefix(s, "v")
 	var v Version
 
+	// First, extract extras if they exist (anything after a dash or plus that comes AFTER digits)
+	// This handles cases like "1.28.0-gke.1337000" where the extras contain dots
+	// But we need to be careful not to treat "-1" (negative) as having extras
+	mainPart := s
+	for i, ch := range s {
+		if (ch == '-' || ch == '+') && i > 0 {
+			// Check if the character before is a digit (not a dot)
+			prevCh := s[i-1]
+			if prevCh >= '0' && prevCh <= '9' {
+				mainPart = s[:i]
+				v.Extras = s[i:]
+				break
+			}
+		}
+	}
+
 	// Split by dots
-	parts := strings.Split(s, ".")
+	parts := strings.Split(mainPart, ".")
 	if len(parts) > 3 {
 		return Version{}, ErrTooManyComponents
 	}
 
 	// Parse each component
 	for i, part := range parts {
+		// Parse the numeric component
+		if part == "" {
+			return Version{}, fmt.Errorf("%w: empty component", ErrNonNumeric)
+		}
 		num, err := strconv.Atoi(part)
 		if err != nil {
 			return Version{}, fmt.Errorf("%w: %q", ErrNonNumeric, part)

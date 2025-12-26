@@ -19,7 +19,6 @@ import (
 func recipeCmd() *cli.Command {
 	return &cli.Command{
 		Name:                  "recipe",
-		Aliases:               []string{"rec"},
 		EnableShellCompletion: true,
 		Usage:                 "Generate configuration recipe for a given environment",
 		Description: `Generate configuration recipe based on specified environment parameters including:

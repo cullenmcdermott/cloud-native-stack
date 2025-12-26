@@ -98,6 +98,54 @@ func TestParseVersion(t *testing.T) {
 			expectedError: true,
 		},
 		{
+			name:  "kernel version with extras",
+			input: "6.8.0-1028-aws",
+			expected: Version{
+				Major:     6,
+				Minor:     8,
+				Patch:     0,
+				Precision: 3,
+				Extras:    "-1028-aws",
+			},
+			expectedError: false,
+		},
+		{
+			name:  "eks version with extras",
+			input: "v1.33.5-eks-3025e55",
+			expected: Version{
+				Major:     1,
+				Minor:     33,
+				Patch:     5,
+				Precision: 3,
+				Extras:    "-eks-3025e55",
+			},
+			expectedError: false,
+		},
+		{
+			name:  "gke version with extras",
+			input: "v1.28.0-gke.1337000",
+			expected: Version{
+				Major:     1,
+				Minor:     28,
+				Patch:     0,
+				Precision: 3,
+				Extras:    "-gke.1337000",
+			},
+			expectedError: false,
+		},
+		{
+			name:  "aks version with extras",
+			input: "1.29.2-hotfix.20240322",
+			expected: Version{
+				Major:     1,
+				Minor:     29,
+				Patch:     2,
+				Precision: 3,
+				Extras:    "-hotfix.20240322",
+			},
+			expectedError: false,
+		},
+		{
 			name:          "invalid - non-numeric",
 			input:         "v1.2.a",
 			expected:      Version{},
@@ -135,6 +183,9 @@ func TestParseVersion(t *testing.T) {
 			}
 			if result.Precision != tt.expected.Precision {
 				t.Errorf("Precision: got %d, want %d", result.Precision, tt.expected.Precision)
+			}
+			if result.Extras != tt.expected.Extras {
+				t.Errorf("Extras: got %q, want %q", result.Extras, tt.expected.Extras)
 			}
 		})
 	}
@@ -185,6 +236,28 @@ func TestVersionString(t *testing.T) {
 				Precision: 2,
 			},
 			expected: "0.1",
+		},
+		{
+			name: "version with extras - should not include in String()",
+			version: Version{
+				Major:     6,
+				Minor:     8,
+				Patch:     0,
+				Precision: 3,
+				Extras:    "-1028-aws",
+			},
+			expected: "6.8.0",
+		},
+		{
+			name: "eks version with extras - should not include in String()",
+			version: Version{
+				Major:     1,
+				Minor:     33,
+				Patch:     5,
+				Precision: 3,
+				Extras:    "-eks-3025e55",
+			},
+			expected: "1.33.5",
 		},
 	}
 

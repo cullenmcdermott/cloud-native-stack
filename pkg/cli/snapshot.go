@@ -18,7 +18,6 @@ import (
 func snapshotCmd() *cli.Command {
 	return &cli.Command{
 		Name:                  "snapshot",
-		Aliases:               []string{"snap"},
 		EnableShellCompletion: true,
 		Usage:                 "Capture system configuration snapshot",
 		Description: `Capture a comprehensive snapshot of system configuration including:

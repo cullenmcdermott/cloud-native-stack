@@ -13,24 +13,24 @@ import (
 	"github.com/NVIDIA/cloud-native-stack/pkg/version"
 )
 
-// ConfigurationRecommender is a recommender that suggests configuration changes.
+// ConfigRecommender is a recommender that suggests configuration changes.
 // Implements the Recommender interface.
-type ConfigurationRecommender struct {
+type ConfigRecommender struct {
 	Version string
 }
 
-// Option is a functional option for configuring the ConfigurationRecommender
-type Option func(*ConfigurationRecommender)
+// Option is a functional option for configuring the ConfigRecommender
+type Option func(*ConfigRecommender)
 
 func WithVersion(version string) Option {
-	return func(r *ConfigurationRecommender) {
+	return func(r *ConfigRecommender) {
 		r.Version = version
 	}
 }
 
-// New creates a new ConfigurationRecommender with the provided options.
-func New(opts ...Option) *ConfigurationRecommender {
-	s := &ConfigurationRecommender{}
+// New creates a new ConfigRecommender with the provided options.
+func New(opts ...Option) *ConfigRecommender {
+	s := &ConfigRecommender{}
 
 	// Apply options
 	for _, opt := range opts {
@@ -41,7 +41,7 @@ func New(opts ...Option) *ConfigurationRecommender {
 }
 
 // Recommend generates configuration recommendations based on the provided snapshot.
-func (r *ConfigurationRecommender) Recommend(ctx context.Context, intent recipe.IntentType, snap *snapshotter.Snapshot) (*Recommendation, error) {
+func (r *ConfigRecommender) Recommend(ctx context.Context, intent recipe.IntentType, snap *snapshotter.Snapshot) (*recipe.Recipe, error) {
 	if snap == nil {
 		return nil, fmt.Errorf("snapshot cannot be nil")
 	}
@@ -81,12 +81,21 @@ func (r *ConfigurationRecommender) Recommend(ctx context.Context, intent recipe.
 		"include_context", query.IncludeContext,
 	)
 
-	// TODO: Implement actual recommendation logic
+	// Build recipe based on extracted query
+	build := recipe.NewBuilder(
+		recipe.WithVersion(r.Version),
+	)
 
+	// Check for context cancellation before building
+	rec, err := build.Build(ctx, query)
+	if err != nil {
+		return nil, fmt.Errorf("error building recipe: %w", err)
+	}
+
+	// Track successful recommendation generation
 	recommendGenerateTotal.WithLabelValues("success").Inc()
 
-	// Placeholder implementation
-	return nil, fmt.Errorf("configuration recommendations not implemented yet")
+	return rec, nil
 }
 
 // QueryFromSnapshot extracts a recipe.Query from the provided snapshot.

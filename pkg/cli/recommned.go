@@ -19,7 +19,6 @@ import (
 func recommendCmd() *cli.Command {
 	return &cli.Command{
 		Name:                  "recommend",
-		Aliases:               []string{"rec"},
 		EnableShellCompletion: true,
 		Usage:                 "Generate system configuration recommendations based on snapshot",
 		Description: `Generate system configuration recommendations based on snapshot including:
@@ -34,19 +33,21 @@ The recommendation can be output in JSON, YAML, or table format.`,
 		Flags: []cli.Flag{
 			&cli.StringFlag{
 				Name:     "snapshot",
-				Aliases:  []string{"snap"},
+				Aliases:  []string{"f"},
 				Required: true,
 				Usage:    "snapshot file path",
 			},
 			&cli.StringFlag{
 				Name:     "intent",
+				Aliases:  []string{"i"},
 				Value:    recipe.IntentAny.String(),
 				Usage:    fmt.Sprintf("intended use case for the recommendations (%s)", recipe.SupportedIntentTypes()),
 				Required: true,
 			},
 			&cli.StringFlag{
-				Name:  "output",
-				Usage: "output file path (default: stdout)",
+				Name:    "output",
+				Aliases: []string{"o"},
+				Usage:   "output file path (default: stdout)",
 			},
 			&cli.StringFlag{
 				Name:  "format",
