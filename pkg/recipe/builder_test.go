@@ -54,7 +54,7 @@ overlays:
 `))
 
 	query := &Query{Os: OSUbuntu, Service: ServiceEKS}
-	rec, err := BuildRecipe(context.TODO(), query)
+	rec, err := NewBuilder().BuildFromQuery(context.TODO(), query)
 	if err != nil {
 		t.Fatalf("buildRecommendation() error = %v", err)
 	}
@@ -101,7 +101,7 @@ overlays:
 `))
 
 	query := &Query{Os: OSUbuntu, Service: ServiceEKS}
-	rec, err := BuildRecipe(context.TODO(), query)
+	rec, err := NewBuilder().BuildFromQuery(context.TODO(), query)
 	if err != nil {
 		t.Fatalf("buildRecommendation() error = %v", err)
 	}
@@ -277,7 +277,7 @@ overlays:
 
 	t.Run("with context enabled", func(t *testing.T) {
 		query := &Query{Os: OSUbuntu, IncludeContext: true}
-		rec, err := BuildRecipe(context.TODO(), query)
+		rec, err := NewBuilder().BuildFromQuery(context.TODO(), query)
 		if err != nil {
 			t.Fatalf("BuildRecipe() error = %v", err)
 		}
@@ -341,7 +341,7 @@ overlays:
 
 	t.Run("without context (default)", func(t *testing.T) {
 		query := &Query{Os: OSUbuntu, IncludeContext: false}
-		rec, err := BuildRecipe(context.TODO(), query)
+		rec, err := NewBuilder().BuildFromQuery(context.TODO(), query)
 		if err != nil {
 			t.Fatalf("BuildRecipe() error = %v", err)
 		}

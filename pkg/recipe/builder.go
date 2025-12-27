@@ -18,8 +18,6 @@ var (
 	storeOnce   sync.Once
 	cachedStore *Store
 	storeErr    error
-
-	defaultBuilder = &Builder{}
 )
 
 // Option is a functional option for configuring Builder instances.
@@ -49,13 +47,6 @@ func NewBuilder(opts ...Option) *Builder {
 // and generates tailored configuration recipes.
 type Builder struct {
 	Version string
-}
-
-// BuildRecipe creates a Recipe based on the provided query using a shared default Builder.
-// This is a convenience function for simple use cases.
-// For custom configuration or control over Builder settings, create a Builder instance directly.
-func BuildRecipe(ctx context.Context, q *Query) (*Recipe, error) {
-	return defaultBuilder.BuildFromQuery(ctx, q)
 }
 
 // Build creates a Recipe payload for the provided query.
