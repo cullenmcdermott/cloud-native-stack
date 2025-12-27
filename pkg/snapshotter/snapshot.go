@@ -9,6 +9,7 @@ import (
 
 	"github.com/NVIDIA/cloud-native-stack/pkg/collector"
 	"github.com/NVIDIA/cloud-native-stack/pkg/collector/k8s"
+	"github.com/NVIDIA/cloud-native-stack/pkg/recipe/header"
 	"github.com/NVIDIA/cloud-native-stack/pkg/serializer"
 
 	"golang.org/x/sync/errgroup"
@@ -60,8 +61,7 @@ func (n *NodeSnapshotter) Measure(ctx context.Context) error {
 		}()
 		nodeName := k8s.GetNodeName()
 		mu.Lock()
-		snap.Set("Snapshot")
-		snap.Metadata["snapshot-version"] = n.Version
+		snap.Init(header.KindSnapshot, n.Version)
 		snap.Metadata["source-node"] = nodeName
 		mu.Unlock()
 		slog.Debug("obtained node metadata", slog.String("name", nodeName), slog.String("version", n.Version))
@@ -202,7 +202,7 @@ func SnapshotFromFile(path string) (*Snapshot, error) {
 
 	slog.Debug("successfully loaded snapshot from file",
 		slog.String("path", path),
-		slog.String("kind", snap.Kind),
+		slog.Any("kind", snap.Kind),
 		slog.String("apiVersion", snap.APIVersion),
 		slog.Int("measurements", len(snap.Measurements)),
 	)

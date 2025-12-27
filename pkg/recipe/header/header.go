@@ -6,10 +6,34 @@ import (
 	"time"
 )
 
+const (
+	KindRecommendation = "Recommendation"
+	KindSnapshot       = "Snapshot"
+	KindRecipe         = "Recipe"
+)
+
 var (
 	ApiVersionDomain = "dgxc.io"
 	ApiVersionV1     = "v1"
 )
+
+// Kind represents the type of CNS resource.
+type Kind string
+
+// String returns the string representation of the Kind.
+func (k Kind) String() string {
+	return string(k)
+}
+
+// IsValid checks if the Kind is one of the recognized kinds.
+func (k *Kind) IsValid() bool {
+	switch *k {
+	case KindRecommendation, KindSnapshot, KindRecipe:
+		return true
+	default:
+		return false
+	}
+}
 
 // Option is a functional option for configuring Header instances.
 type Option func(*Header)
@@ -27,7 +51,7 @@ func WithMetadata(key, value string) Option {
 
 // WithKind returns an Option that sets the Kind field of the Header.
 // Kind represents the type of the resource (e.g., "Snapshot", "Recipe").
-func WithKind(kind string) Option {
+func WithKind(kind Kind) Option {
 	return func(h *Header) {
 		h.Kind = kind
 	}
@@ -42,7 +66,7 @@ func WithAPIVersion(version string) Option {
 }
 
 // SetKind updates the Kind field of the Header.
-func (h *Header) SetKind(kind string) {
+func (h *Header) SetKind(kind Kind) {
 	h.Kind = kind
 }
 
@@ -65,7 +89,7 @@ func New(opts ...Option) *Header {
 // It follows Kubernetes-style resource conventions with Kind, APIVersion, and Metadata fields.
 type Header struct {
 	// Kind is the type of the snapshot object.
-	Kind string `json:"kind,omitempty" yaml:"kind,omitempty"`
+	Kind Kind `json:"kind,omitempty" yaml:"kind,omitempty"`
 
 	// APIVersion is the API version of the snapshot object.
 	APIVersion string `json:"apiVersion,omitempty" yaml:"apiVersion,omitempty"`
@@ -74,13 +98,15 @@ type Header struct {
 	Metadata map[string]string `json:"metadata,omitempty" yaml:"metadata,omitempty"`
 }
 
-// Set initializes the Header fields with the provided kind.
-// It automatically constructs the APIVersion using the format "<kind>.dgxc.io/v1"
-// and adds a recommendation-timestamp to the Metadata.
-func (h *Header) Set(kind string) {
+// Init initializes the Header with the specified kind and version.
+// It sets the Kind, APIVersion, and populates Metadata with timestamp and version.
+func (h *Header) Init(kind Kind, version string) {
 	h.Kind = kind
-	kindStr := strings.ToLower(kind)
+	kindStr := strings.ToLower(string(kind))
 	h.APIVersion = fmt.Sprintf("%s.%s/%s", kindStr, ApiVersionDomain, ApiVersionV1)
 	h.Metadata = make(map[string]string)
 	h.Metadata[fmt.Sprintf("%s-timestamp", kindStr)] = time.Now().UTC().Format(time.RFC3339)
+	if version != "" {
+		h.Metadata[fmt.Sprintf("%s-version", kindStr)] = version
+	}
 }

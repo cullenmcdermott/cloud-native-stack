@@ -9,6 +9,7 @@ import (
 
 	"github.com/NVIDIA/cloud-native-stack/pkg/measurement"
 	"github.com/NVIDIA/cloud-native-stack/pkg/recipe"
+	"github.com/NVIDIA/cloud-native-stack/pkg/recipe/header"
 	"github.com/NVIDIA/cloud-native-stack/pkg/recipe/version"
 	"github.com/NVIDIA/cloud-native-stack/pkg/snapshotter"
 )
@@ -98,9 +99,7 @@ func (r *ConfigRecommender) Recommend(ctx context.Context, intent recipe.IntentT
 		return nil, fmt.Errorf("error building recipe: %w", err)
 	}
 
-	// Set recommendation version header
-	rec.Set("Recommendation")
-	rec.Metadata["recommender-version"] = r.Version
+	rec.Init(header.KindRecommendation, r.Version)
 
 	// Track successful recommendation generation
 	recommendGenerateTotal.WithLabelValues("success").Inc()

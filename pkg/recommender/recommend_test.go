@@ -126,9 +126,9 @@ func TestConfigRecommender_Recommend(t *testing.T) {
 				return
 			}
 
-			if got.Metadata["recommender-version"] != "v1.0.0" {
-				t.Errorf("Recommend() recommender-version = %v, want v1.0.0",
-					got.Metadata["recommender-version"])
+			if got.Metadata["recommendation-version"] != "v1.0.0" {
+				t.Errorf("Recommend() recommendation-version = %v, want v1.0.0",
+					got.Metadata["recommendation-version"])
 			}
 		})
 	}

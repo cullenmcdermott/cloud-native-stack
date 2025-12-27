@@ -5,6 +5,7 @@ import (
 	"log/slog"
 	"net/http"
 
+	"github.com/NVIDIA/cloud-native-stack/pkg/recipe/header"
 	"github.com/NVIDIA/cloud-native-stack/pkg/recipe/version"
 	"github.com/NVIDIA/cloud-native-stack/pkg/serializer"
 	"github.com/NVIDIA/cloud-native-stack/pkg/server"
@@ -61,6 +62,8 @@ func (b *Builder) HandleRecipes(w http.ResponseWriter, r *http.Request) {
 			})
 		return
 	}
+
+	resp.Init(header.KindRecommendation, b.Version)
 
 	if resp.Request.IsEmpty() {
 		slog.Debug("stripping empty request from recipe response")
