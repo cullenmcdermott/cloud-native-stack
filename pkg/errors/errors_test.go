@@ -9,6 +9,7 @@ func TestNew(t *testing.T) {
 	err := New(ErrCodeNotFound, "resource not found")
 	if err == nil {
 		t.Fatal("expected error, got nil")
+		return // Help linter understand this path doesn't continue
 	}
 	if err.Code != ErrCodeNotFound {
 		t.Errorf("expected code %s, got %s", ErrCodeNotFound, err.Code)
