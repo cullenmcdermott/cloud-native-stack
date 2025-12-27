@@ -14,12 +14,13 @@ Cloud Native Stack provides two complementary interfaces for system configuratio
 ### CLI Tool (`eidos`)
 A command-line interface for direct interaction with system configuration:
 - **Snapshot Command**: Captures comprehensive system configuration
-- **Recipe Command**: Generates optimized configuration recommendations based on environment parameters
-- **Recommend Command**: Analyzes captured snapshots and generates tailored recommendations based on workload intent
+- **Recipe Command**: Generates optimized configuration recipes from environment parameters or snapshots
+  - **Query Mode**: Direct recipe generation from system parameters (OS, GPU, K8s, etc.)
+  - **Snapshot Mode**: Analyzes captured snapshots and generates tailored recipes based on workload intent
 
 ### API Server (`eidos-api-server`)
-An HTTP REST API for programmatic access to configuration recommendations:
-- **Recipe Endpoint**: Serves configuration recommendations via HTTP
+An HTTP REST API for programmatic access to configuration recipes:
+- **Recipe Endpoint**: Serves configuration recipes via HTTP
 - **Health/Metrics**: Kubernetes-ready observability endpoints
 
 ## Key Design Principles
@@ -173,7 +174,6 @@ flowchart TD
     PKG["pkg/"] --> COLL
     PKG --> MEAS
     PKG --> REC
-    PKG --> RECM
     PKG --> VER
     PKG --> SER
     PKG --> LOG
@@ -181,8 +181,7 @@ flowchart TD
     
     COLL["collector/<br/>System data collection<br/>(OS, K8s, GPU, SystemD)"]
     MEAS["measurement/<br/>Data model for<br/>collected metrics"]
-    REC["recipe/<br/>Recipe building and<br/>query matching"]
-    RECM["recommender/<br/>Snapshot analysis and<br/>recommendation generation"]
+    REC["recipe/<br/>Recipe building,<br/>query matching, and<br/>snapshot analysis"]
     VER["version/<br/>Semantic version<br/>parsing & comparison<br/>(with vendor extras)"]
     SER["serializer/<br/>Output formatting<br/>(JSON, YAML, table)"]
     LOG["logging/<br/>Structured logging"]
@@ -235,7 +234,7 @@ flowchart LR
 **Trade-off Analysis**:  
 - Fail-fast ensures data consistency but may be too strict  
 - Best-effort improves availability but complicates downstream logic  
-- **Recommendation**: Fail-fast for now; add best-effort mode behind feature flag
+- **Decision**: Fail-fast for now; add best-effort mode behind feature flag
 
 ### Kubernetes API Server Unavailable
 **Failure**: K8s API server unreachable or rate-limiting  

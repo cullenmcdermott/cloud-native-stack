@@ -4,10 +4,11 @@ The `eidos` CLI provides command-line access to Cloud Native Stack configuration
 
 ## Overview
 
-The CLI provides three main commands:
+The CLI provides two main commands:
 - `snapshot` - Capture system configuration
-- `recipe` - Generate configuration recommendations based on environment parameters
-- `recommend` - Analyze captured snapshots and provide tailored recommendations
+- `recipe` - Generate configuration recipes from environment parameters or snapshots
+  - **Query Mode**: Direct recipe generation from system parameters (OS, GPU, K8s, etc.)
+  - **Snapshot Mode**: Analyze captured snapshots and provide tailored recipes based on workload intent
 
 ## Architecture Diagram
 
@@ -18,16 +19,14 @@ flowchart TD
     B --> B1["Version info (ldflags)<br/>Debug flag → Logging<br/>Shell completion"]
     
     B --> C["snapshot CMD<br/>pkg/cli/snapshot.go"]
-    B --> D["recipe CMD<br/>pkg/cli/recipe.go"]
-    B --> E["recommend CMD<br/>pkg/cli/recommned.go"]
+    B --> D["recipe CMD<br/>pkg/cli/recipe.go<br/>(Query & Snapshot modes)"]
     
     C --> F[Shared Packages]
     D --> F
-    E --> F
     
     F --> F1["Collector Factory"]
     F --> F2["Recipe Builder"]
-    F --> F3["Recommender Service"]
+    F --> F3["Snapshotter Service"]
     F --> F4["Serializer<br/>(JSON/YAML/Table)"]
 ```
 
@@ -219,135 +218,157 @@ eidos recipe \
   --format yaml \
   --output recipe.yaml
 
-# Inference workload on GKE
+# Inference workload on GKE  
 eidos recipe --service gke --gpu a100 --intent inference
+
+# Snapshot mode - analyze captured snapshot for training
+eidos recipe --snapshot system.yaml --intent training
+
+# Snapshot mode - analyze for inference optimization
+eidos recipe \
+  --snapshot cluster-snapshot.yaml \
+  --intent inference \
+  --format yaml \
+  --output recipe.yaml
 ```
 
-### Recommend Command: `pkg/cli/recommned.go`
+### Recipe Command Modes
 
-Analyzes captured system snapshots and generates tailored configuration recommendations based on workload intent.
+The recipe command supports two modes of operation:
 
-#### Command Flow
+#### Query Mode (Default)
+Direct recipe generation from environment parameters:
+
+```mermaid
+flowchart TD
+    A[User Invocation] --> B[Parse Flags<br/>os, osv, kernel, service, k8s, gpu, intent]
+    B --> C[Build Query Object]
+    C --> D[recipe.BuildFromQuery]
+    D --> E[Match Rules in Data Store]
+    E --> F[Apply Overlays]
+    F --> G[Generate Recipe]
+    G --> H[Serialize Output]
+    H --> I[Write to stdout/file]
+    
+    style D fill:#ffeb3b
+```
+
+#### Snapshot Mode
+Analyze captured snapshots and generate tailored recipes:
 
 ```mermaid
 flowchart TD
     A[User Invocation] --> B[Parse Flags<br/>snapshot, intent, format, output]
     B --> C[Load Snapshot from File]
-    C --> D[Create Recommender Service]
-    D --> E[recommender.Recommend]
-    E --> F[Analyze Snapshot]
-    F --> G[Generate Intent-Based Recommendations]
-    G --> H[Serialize Output]
-    H --> I[Write to stdout/file]
+    C --> D[recipe.BuildFromSnapshot]
+    D --> E[Extract Query from Snapshot]
+    E --> F[Match Rules in Data Store]
+    F --> G[Apply Overlays]
+    G --> H[Generate Recipe]
+    H --> I[Serialize Output]
+    H --> J[Write to stdout/file]
     
-    style E fill:#ffeb3b
+    style D fill:#ffeb3b
+    style E fill:#c8e6c9
 ```
 
-#### Detailed Data Flow
+#### Query Extraction from Snapshot
 
-```mermaid
-flowchart TD
-    A[Recommend Command] --> B[snapshotter.SnapshotFromFile]
-    
-    B --> B1["Load YAML Snapshot:<br/>• v0.7.0 format<br/>• 4 measurement types<br/>• Parse all subtypes"]
-    
-    B1 --> C[recommender.New]
-    
-    C --> C1["Initialize Recommender:<br/>• Version info<br/>• Recipe store access<br/>• Intent validation"]
-    
-    C1 --> D[recommender.Recommend]
-    
-    D --> D1["Analyze Snapshot:<br/>• OS configuration (4 subtypes)<br/>• K8s cluster state<br/>• GPU setup<br/>• SystemD services"]
-    
-    D1 --> D2["Intent Matching:<br/>• training: optimize for throughput<br/>• inference: optimize for latency<br/>• any: balanced recommendations"]
-    
-    D2 --> D3["Generate Recommendations:<br/>• Configuration changes<br/>• Optimization suggestions<br/>• Best practices"]
-    
-    D3 --> E["Recommendation Structure:<br/>snapshot, intent<br/>recommendations: []<br/>metadata"]
-    
-    E --> F["serializer.NewFileWriterOrStdout<br/>(JSON/YAML/Table)"]
-    
-    style D1 fill:#c8e6c9
-    style D2 fill:#ffccbc
-    style D3 fill:#c5cae9
-```
+When using snapshot mode, the recipe builder extracts environment parameters from the snapshot:
 
-#### Key Features
+**From OS Measurements:**
+- **release subtype** → OS family (ubuntu, rhel, cos)
+- **release.VERSION_ID** → OS version (24.04, 22.04, etc.)
+- **sysctl.kernel.osrelease** → Kernel version (handles vendor suffixes like `-aws`)
 
-**1. Intent-Based Analysis**
-- **training** – Optimizes for high throughput, batch processing, multi-GPU orchestration
-- **inference** – Optimizes for low latency, single-request performance, efficient batching
+**From Kubernetes Measurements:**
+- **server subtype** → K8s version (handles vendor formats like `v1.33.5-eks-3025e55`)
+- **Version field** → Extract service provider (eks, gke, aks) from vendor extras
+
+**From GPU Measurements:**
+- **Product Name** → GPU type detection (H100, GB200, A100, L40)
+- Maps product names to normalized GPU types for recipe matching
+
+**Intent Types:**
+- **training** – Optimize for high throughput, batch processing, multi-GPU orchestration
+- **inference** – Optimize for low latency, single-request performance, efficient batching
 - **any** – Provides general-purpose recommendations applicable to both workloads
-
-**2. Snapshot Compatibility**
-- Supports v0.7.0 snapshot format with 4 measurement types:
-  - **OS** (4 subtypes: grub, sysctl, kmod, release)
-  - **K8s** (server, image, policy subtypes)
-  - **SystemD** (service configurations)
-  - **GPU** (hardware and driver details)
-
-**3. Vendor Version Support**
-- Handles kernel versions with extras: `6.8.0-1028-aws`
-- Handles K8s versions with vendor suffixes: `v1.33.5-eks-3025e55`
-- Leverages version parser's Extras field for accurate version matching
 
 #### Usage Examples
 
 ```bash
-# Generate recommendations for training workloads
-eidos recommend --snapshot system.yaml --intent training
+# Query mode - generate recipe from parameters
+eidos recipe --os ubuntu --service eks --gpu h100 --intent training
 
-# Analyze for inference optimization
-eidos recommend \
-  --snapshot cluster-snapshot.yaml \
-  --intent inference \
-  --format yaml \
-  --output recommendations.yaml
+# Snapshot mode - analyze snapshot for training workloads
+eidos recipe --snapshot system.yaml --intent training
 
-# General recommendations with table format
-eidos recommend -f system.yaml -i any --format table
+# Snapshot mode with output file
+eidos recipe -f system.yaml -i inference -o recipe.json
 
-# Abbreviated flags
-eidos recommend -f system.yaml -i training -o recs.json
+# Query mode with full specification
+eidos recipe \
+  --os ubuntu \
+  --osv 24.04 \
+  --kernel 6.8.0-1028-aws \
+  --service eks \
+  --k8s v1.33.5 \
+  --gpu gb200 \
+  --intent training \
+  --format yaml
 ```
 
-#### Recommendation Output Structure
+#### Recipe Output Structure
 
 ```yaml
-snapshot:
-  version: v0.7.0
-  node: ip-10-0-160-248
-  timestamp: "2025-01-15T10:30:00Z"
-intent: training
-recommendations:
-  - category: grub
-    parameter: hugepages
-    currentValue: "5128"
-    recommendedValue: "8192"
-    reason: "Increase hugepages for training workload memory efficiency"
-    priority: high
-  - category: sysctl
-    parameter: net.core.somaxconn
-    currentValue: "128"
-    recommendedValue: "4096"
-    reason: "Higher connection queue for distributed training"
-    priority: medium
-  - category: kubernetes
-    parameter: gpu-operator.mig.strategy
-    currentValue: "single"
-    recommendedValue: "mixed"
-    reason: "Enable MIG for multi-tenant training workloads"
-    priority: low
+apiVersion: recipe.dgxc.io/v1
+kind: Recipe
 metadata:
-  recommendationVersion: v0.7.0
+  created: "2025-01-15T10:30:00Z"
+  recipe-version: v0.7.0
+request:
+  os: ubuntu
+  osv: "24.04"
+  kernel: 6.8.0-1028-aws
+  service: eks
+  k8s: v1.33.5-eks-3025e55
+  gpu: gb200
+  intent: training
+matchedRules:
+  - os:ubuntu
+  - gpu:gb200
+  - intent:training
+measurements:
+  - type: K8s
+    subtypes:
+      - subtype: cluster
+        data:
+          gpu-operator-version: "25.3.1"
+          enable-mig: "false"
+  - type: GPU
+    subtypes:
+      - subtype: driver
+        data:
+          version: "570.158.01"
+          cuda-version: "12.7"
 ```
 
 #### Error Handling
 
-- **Invalid Intent**: Returns error with supported intent types
-- **Missing Snapshot File**: File not found error with path
-- **Invalid Snapshot Format**: Parse error with details
-- **Unknown Output Format**: Error with supported formats list
+- **Query Mode**:
+  - Invalid parameter values: Returns error with supported options
+  - Missing required parameters: Allows "all" as default fallback
+  - No matching rules: Returns recipe with empty measurements
+
+- **Snapshot Mode**:
+  - Missing snapshot file: File not found error with path
+  - Invalid snapshot format: Parse error with details
+  - Invalid intent: Returns error with supported intent types (training, inference, any)
+  - Extraction failures: Best-effort extraction with partial query
+
+**Common Errors**:
+- Unknown output format: Error with supported formats list (json, yaml, table)
+- Context cancellation: Respects context timeout and cancellation
 
 ## Shared Infrastructure
 

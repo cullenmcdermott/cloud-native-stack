@@ -116,7 +116,6 @@ cloud-native-stack/
 │   ├── recipe/              # Recipe generation logic
 │   │   ├── header/         # Common header types
 │   │   └── version/        # Semantic version parsing
-│   ├── recommender/         # Snapshot analysis and recommendations
 │   ├── serializer/          # Output formatting (JSON/YAML/table)
 │   ├── server/              # HTTP server implementation
 │   └── snapshotter/         # Snapshot orchestration
@@ -143,8 +142,8 @@ cloud-native-stack/
 #### CLI (`eidos`)
 - **Location**: `cmd/eidos/main.go` → `pkg/cli/`
 - **Framework**: [urfave/cli v3](https://github.com/urfave/cli)
-- **Commands**: `snapshot`, `recipe`, `recommend`
-- **Purpose**: User-facing tool for system snapshots, recipe generation, and recommendations
+- **Commands**: `snapshot`, `recipe`
+- **Purpose**: User-facing tool for system snapshots and recipe generation (supports both query and snapshot modes)
 - **Output**: Supports JSON, YAML, and table formats
 
 #### API Server
@@ -171,16 +170,13 @@ cloud-native-stack/
 #### Recipe Engine
 - **Location**: `pkg/recipe/`
 - **Purpose**: Generate optimized configurations using base-plus-overlay model
+- **Modes**:
+  - **Query Mode**: Direct recipe generation from system parameters
+  - **Snapshot Mode**: Extract query from snapshot → Build recipe → Return recommendations
 - **Input**: OS, OS version, kernel, K8s service/version, GPU type, workload intent
 - **Output**: Recipe with matched rules and configuration measurements
 - **Data Source**: Embedded YAML configuration (`recipe/data/data-v1.yaml`)
-
-#### Recommender
-- **Location**: `pkg/recommender/`
-- **Purpose**: Analyze system snapshots and generate tailored recommendations
-- **Process**: Extract query from snapshot → Build recipe → Return recommendations
-- **Intent Types**: training, inference, any
-- **Query Extraction**: Parses K8s, OS, GPU measurements to construct recipe query
+- **Query Extraction**: Parses K8s, OS, GPU measurements from snapshots to construct recipe queries
 
 #### Snapshotter
 - **Location**: `pkg/snapshotter/`
@@ -575,9 +571,9 @@ eidos recipe \
   --context \
   --format yaml
 
-# Generate recommendations from snapshot
-eidos recommend --snapshot system.yaml --intent training
-eidos recommend -f system.yaml -i inference -o recommendations.yaml
+# Generate recipe from snapshot
+eidos recipe --snapshot system.yaml --intent training
+eidos recipe -f system.yaml -i inference -o recipe.yaml
 ```
 
 ### Running the API Server

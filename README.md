@@ -66,7 +66,9 @@ eidos snapshot --output system.yaml --format json
 
 #### Generate Configuration Recipe
 
-Generate optimized configuration recipes based on your environment:
+Generate optimized configuration recipes based on your environment. The recipe command supports two modes:
+
+**Query Mode** - Generate recipes using direct system parameters:
 
 ```shell
 # Basic recipe for Ubuntu on EKS with H100 GPUs
@@ -85,6 +87,20 @@ eidos recipe \
   --format yaml
 ```
 
+**Snapshot Mode** - Generate recipes from captured system snapshots:
+
+```shell
+# Generate recipe from snapshot for training workloads
+eidos recipe --snapshot system.yaml --intent training
+
+# Output recipe to file in YAML format
+eidos recipe \
+  --snapshot system.yaml \
+  --intent inference \
+  --format yaml \
+  --output recipe.yaml
+```
+
 **Available flags:**
 - `--os` – Operating system (ubuntu, cos, etc.)
 - `--osv` – OS version (e.g., 24.04)
@@ -93,33 +109,12 @@ eidos recipe \
 - `--k8s` – Kubernetes version (supports vendor formats like `v1.33.5-eks-3025e55`)
 - `--gpu` – GPU type (h100, gb200, etc.)
 - `--intent` – Workload intent (training, inference)
+- `--snapshot`, `-f` – Path to snapshot file (enables snapshot mode)
 - `--context` – Include metadata in response
 - `--format` – Output format (json, yaml, table)
 - `--output` – Save to file (default: stdout)
 
-#### Generate Recommendations from Snapshot
-
-Analyze a captured snapshot and generate configuration recommendations:
-
-```shell
-# Generate recommendations for training workloads
-eidos recommend --snapshot system.yaml --intent training
-
-# Output recommendations to file in YAML format
-eidos recommend \
-  --snapshot system.yaml \
-  --intent inference \
-  --format yaml \
-  --output recommendations.yaml
-```
-
-**Available flags:**
-- `--snapshot`, `-f` – Path to snapshot file (required)
-- `--intent`, `-i` – Workload intent: `training`, `inference`, or `any` (required)
-- `--output`, `-o` – Output file path (default: stdout)
-- `--format` – Output format (json, yaml, table)
-
-The `recommend` command analyzes your system snapshot and provides tailored configuration recommendations based on the specified workload intent.
+The recipe command analyzes your environment (from query parameters or snapshot) and generates optimized configuration recommendations based on the specified workload intent.
 
 ### Deploy the Eidos Agent
 
