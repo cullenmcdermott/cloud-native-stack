@@ -37,8 +37,8 @@ Cloud Native Stack (CNS) provides supply chain security artifacts for all contai
 Export variables for the image you want to verify, for example:
 
 ```shell
-export IMAGE="ghcr.io/nvidia/cloud-native-stack/fault-quarantine"
-export DIGEST="sha256:4558fc8a81f26e9dffa513c253de45ffaaca0b41e0bdd7842938778b63c66e1d"
+export IMAGE="ghcr.io/nvidia/cloud-native-stack/eidos"
+export DIGEST="sha256-84e77af0a4c1e9c7909adb2a3f33218c5675a9120f3e2087b89518a9814eab17"
 export IMAGE_DIGEST="$IMAGE@$DIGEST"
 export IMAGE_SBOM="$IMAGE:sha256-$(echo "$DIGEST" | cut -d: -f2).sbom"
 ```
