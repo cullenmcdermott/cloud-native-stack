@@ -79,7 +79,8 @@ type Header struct {
 // and adds a recommendation-timestamp to the Metadata.
 func (h *Header) Set(kind string) {
 	h.Kind = kind
-	h.APIVersion = fmt.Sprintf("%s.%s/%s", strings.ToLower(kind), ApiVersionDomain, ApiVersionV1)
+	kindStr := strings.ToLower(kind)
+	h.APIVersion = fmt.Sprintf("%s.%s/%s", kindStr, ApiVersionDomain, ApiVersionV1)
 	h.Metadata = make(map[string]string)
-	h.Metadata["recommendation-timestamp"] = time.Now().UTC().Format(time.RFC3339)
+	h.Metadata[fmt.Sprintf("%s-timestamp", kindStr)] = time.Now().UTC().Format(time.RFC3339)
 }

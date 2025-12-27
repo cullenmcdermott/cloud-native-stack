@@ -1,8 +1,8 @@
 package recipe
 
 import (
-	"github.com/NVIDIA/cloud-native-stack/pkg/header"
 	"github.com/NVIDIA/cloud-native-stack/pkg/measurement"
+	"github.com/NVIDIA/cloud-native-stack/pkg/recipe/header"
 )
 
 const (

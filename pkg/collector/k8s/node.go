@@ -45,7 +45,12 @@ func (k *Collector) collectNode(ctx context.Context) (map[string]measurement.Rea
 	// Node CRI-O
 	status := node.Status
 	if status.NodeInfo.ContainerRuntimeVersion != "" {
-		providerData["container-runtime"] = measurement.Str(status.NodeInfo.ContainerRuntimeVersion)
+		crID := status.NodeInfo.ContainerRuntimeVersion
+		providerData["container-runtime-id"] = measurement.Str(crID)
+		if parts := strings.SplitN(crID, "://", 2); len(parts) == 2 {
+			providerData["container-runtime-name"] = measurement.Str(parts[0])
+			providerData["container-runtime-version"] = measurement.Str(parts[1])
+		}
 	}
 
 	if status.NodeInfo.KernelVersion != "" {

@@ -6,9 +6,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/NVIDIA/cloud-native-stack/pkg/header"
 	"github.com/NVIDIA/cloud-native-stack/pkg/measurement"
 	"github.com/NVIDIA/cloud-native-stack/pkg/recipe"
+	"github.com/NVIDIA/cloud-native-stack/pkg/recipe/header"
 	"github.com/NVIDIA/cloud-native-stack/pkg/snapshotter"
 	"github.com/NVIDIA/cloud-native-stack/pkg/version"
 )
