@@ -52,9 +52,9 @@ spec:
           args:
             - |
               set -e
-              /ko-app/eidos --debug snapshot -t yaml -o /export/snapshot.yaml
+              /ko-app/eidos --debug snapshot -o /export/snapshot.yaml
               cat /export/snapshot.yaml
-              /ko-app/eidos --debug recipe -t yaml -f /export/snapshot.yaml -i training -o /export/recipe.yaml
+              /ko-app/eidos --debug recipe -f /export/snapshot.yaml -o /export/recipe.yaml
               cat /export/recipe.yaml
           resources:
             requests:
