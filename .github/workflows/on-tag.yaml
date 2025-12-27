@@ -41,8 +41,8 @@ jobs:
       - name: Install ko
         uses: ko-build/setup-ko@d006021bd0c28d1ce33a07e7943d48b079944c8d  # v0.9
 
-      - name: Install cosign
-        uses: sigstore/cosign-installer@d7543c93d881b35a8faa02e8e3605f69b7a1ce62  # v3.10.0
+      # - name: Install cosign
+      #   uses: sigstore/cosign-installer@d7543c93d881b35a8faa02e8e3605f69b7a1ce62  # v3.10.0
 
       - name: Install Syft
         uses: anchore/sbom-action/download-syft@43a17d6e7add2b5535efe4dcae9952337c479a93  # v0.20.11
@@ -51,7 +51,7 @@ jobs:
         shell: bash
         run: |
           echo ${{ secrets.GITHUB_TOKEN }} | ko login ghcr.io -u ${{ github.actor }} --password-stdin
-          echo ${{ secrets.GITHUB_TOKEN }} | cosign login ghcr.io -u ${{ github.actor }} --password-stdin
+          # echo ${{ secrets.GITHUB_TOKEN }} | cosign login ghcr.io -u ${{ github.actor }} --password-stdin
 
       - name: Install GoReleaser
         uses: goreleaser/goreleaser-action@e435ccd777264be153ace6237001ef4d979d3a7a  # v6.4.0
@@ -65,6 +65,49 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           KO_DOCKER_REPO: ''
         run: make release
+
+      # Attestations
+      - name: Install crane
+        run: |
+          go install github.com/google/go-containerregistry/cmd/crane@latest
+
+      - name: Resolve image digest
+        id: img
+        run: |
+          REG_URI="ghcr.io/${{ github.repository_owner }}"
+          TAG="${{ github.ref_name }}"
+          IMG_API_DIGEST="$(crane digest "${REG_URI}/eidos-api-server:${TAG}")"
+          IMG_CLI_DIGEST="$(crane digest "${REG_URI}/eidos:${TAG}")"
+          echo "image-api-digest=${IMG_API_DIGEST}" >> "$GITHUB_OUTPUT"
+          echo "image-cli-digest=${IMG_CLI_DIGEST}" >> "$GITHUB_OUTPUT"
+
+      - name: Generate artifact attestation for eidos-api-server
+        uses: ./.github/actions/sbom-and-attest
+        with:
+          image_name: ghcr.io/${{ github.repository_owner }}/eidos-api-server
+          image_digest: '${{ steps.img.outputs.image-api-digest }}'
+          registry_password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Generate artifact attestation for eidos
+        uses: ./.github/actions/sbom-and-attest
+        with:
+          image_name: ghcr.io/${{ github.repository_owner }}/eidos
+          image_digest: '${{ steps.img.outputs.image-cli-digest }}'
+          registry_password: ${{ secrets.GITHUB_TOKEN }}
+
+      # - name: Generate artifact attestation for eidos-api-server
+      #   uses: actions/attest-build-provenance@00014ed6ed5efc5b1ab7f7f34a39eb55d41aa4f8  # v3.1.0
+      #   with:
+      #     subject-name: ghcr.io/${{ github.repository_owner }}/eidos-api-server
+      #     subject-digest: '${{ steps.img.outputs.image-api-digest }}'
+      #     push-to-registry: true
+
+      # - name: Generate artifact attestation for eidos
+      #   uses: actions/attest-build-provenance@00014ed6ed5efc5b1ab7f7f34a39eb55d41aa4f8  # v3.1.0
+      #   with:
+      #     subject-name: ghcr.io/${{ github.repository_owner }}/eidos
+      #     subject-digest: '${{ steps.img.outputs.image-cli-digest }}'
+      #     push-to-registry: true
 
       # Auth to GCP
       - name: Get Auth Token
@@ -92,31 +135,3 @@ jobs:
             --region ${{ env.RUN_REGION }} \
             --project ${{ env.PROJECT_ID }}
           echo "Deploy complete."
-
-      - name: Install crane
-        run: |
-          go install github.com/google/go-containerregistry/cmd/crane@latest
-
-      - name: Resolve image digest
-        id: img
-        run: |
-          REG_URI="ghcr.io/${{ github.repository_owner }}"
-          TAG="${{ github.ref_name }}"
-          IMG_API_DIGEST="$(crane digest "${REG_URI}/eidos-api-server:${TAG}")"
-          IMG_CLI_DIGEST="$(crane digest "${REG_URI}/eidos:${TAG}")"
-          echo "image-api-digest=${IMG_API_DIGEST}" >> "$GITHUB_OUTPUT"
-          echo "image-cli-digest=${IMG_CLI_DIGEST}" >> "$GITHUB_OUTPUT"
-
-      - name: Generate artifact attestation for eidos-api-server
-        uses: actions/attest-build-provenance@00014ed6ed5efc5b1ab7f7f34a39eb55d41aa4f8  # v3.1.0
-        with:
-          subject-name: ghcr.io/${{ github.repository_owner }}/eidos-api-server
-          subject-digest: '${{ steps.img.outputs.image-api-digest }}'
-          push-to-registry: true
-
-      - name: Generate artifact attestation for eidos
-        uses: actions/attest-build-provenance@00014ed6ed5efc5b1ab7f7f34a39eb55d41aa4f8  # v3.1.0
-        with:
-          subject-name: ghcr.io/${{ github.repository_owner }}/eidos
-          subject-digest: '${{ steps.img.outputs.image-cli-digest }}'
-          push-to-registry: true

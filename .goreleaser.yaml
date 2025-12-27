@@ -90,7 +90,7 @@ kos:
       - "{{.Tag}}"
     preserve_import_paths: false
     bare: true
-    sbom: spdx
+    # sbom: spdx
 
   - id: eidos-api-server
     build: eidos-api-server
@@ -104,7 +104,7 @@ kos:
       - "{{.Tag}}"
     preserve_import_paths: false
     bare: true
-    sbom: spdx
+    # sbom: spdx
 
 archives:
   - id: eidos
