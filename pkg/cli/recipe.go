@@ -103,7 +103,7 @@ The recipe can be output in JSON, YAML, or table format.`,
 			// Load snapshot
 			snapFilePath := cmd.String("snapshot")
 			if snapFilePath != "" {
-				snap, err := snapshotter.SnapshotFromFile(snapFilePath)
+				snap, err := serializer.FromFile[snapshotter.Snapshot](snapFilePath)
 				if err != nil {
 					return fmt.Errorf("failed to load snapshot from %q: %w", snapFilePath, err)
 				}

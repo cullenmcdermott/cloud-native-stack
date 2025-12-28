@@ -80,6 +80,7 @@ func Execute() {
 		Commands: []*cli.Command{
 			snapshotCmd(),
 			recipeCmd(),
+			bundleCmd(),
 		},
 		ShellComplete: commandLister,
 	}

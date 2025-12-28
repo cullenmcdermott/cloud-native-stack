@@ -1,0 +1,72 @@
+# GPU Operator Helm Values
+# Generated from Cloud Native Stack Recipe
+# Timestamp: {{ .Timestamp }}
+
+operator:
+  repository: {{ .DriverRegistry }}
+  {{- if .GPUOperatorVersion }}
+  version: {{ .GPUOperatorVersion }}
+  {{- end }}
+
+driver:
+  enabled: {{ .EnableDriver }}
+  {{- if .DriverVersion }}
+  version: "{{ .DriverVersion }}"
+  {{- end }}
+  {{- if .UseOpenKernelModule }}
+  useOpenKernelModules: true
+  {{- end }}
+  repository: {{ .DriverRegistry }}
+
+toolkit:
+  enabled: true
+  {{- if .NvidiaContainerToolkitVersion }}
+  version: {{ .NvidiaContainerToolkitVersion }}
+  {{- end }}
+
+devicePlugin:
+  enabled: true
+  {{- if .DevicePluginVersion }}
+  version: {{ .DevicePluginVersion }}
+  {{- end }}
+
+dcgm:
+  enabled: true
+  {{- if .DCGMVersion }}
+  version: {{ .DCGMVersion }}
+  {{- end }}
+
+dcgmExporter:
+  enabled: true
+  {{- if .DCGMExporterVersion }}
+  version: {{ .DCGMExporterVersion }}
+  {{- end }}
+
+mig:
+  strategy: {{ .MIGStrategy }}
+
+gds:
+  enabled: {{ .EnableGDS }}
+
+{{- if .VGPULicenseServer }}
+vgpuManager:
+  enabled: true
+  licenseServerURL: {{ .VGPULicenseServer }}
+{{- end }}
+
+{{- if .EnableSecureBoot }}
+sandboxWorkloads:
+  enabled: true
+  defaultWorkload: container
+{{- end }}
+
+{{- if .CustomLabels }}
+nodeSelector:
+  {{- range $key, $value := .CustomLabels }}
+  {{ $key }}: {{ $value }}
+  {{- end }}
+{{- end }}
+
+{{- if .Namespace }}
+namespace: {{ .Namespace }}
+{{- end }}

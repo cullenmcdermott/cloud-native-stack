@@ -1,0 +1,60 @@
+apiVersion: nvidia.com/v1
+kind: ClusterPolicy
+metadata:
+  name: gpu-cluster-policy
+  namespace: {{ .Namespace }}
+  {{- if .CustomLabels }}
+  labels:
+    {{- range $key, $value := .CustomLabels }}
+    {{ $key }}: {{ $value }}
+    {{- end }}
+  {{- end }}
+  {{- if .CustomAnnotations }}
+  annotations:
+    {{- range $key, $value := .CustomAnnotations }}
+    {{ $key }}: {{ $value }}
+    {{- end }}
+  {{- end }}
+spec:
+  operator:
+    defaultRuntime: containerd
+
+  driver:
+    enabled: {{ .EnableDriver }}
+    {{- if .DriverVersion }}
+    version: "{{ .DriverVersion }}"
+    {{- end }}
+    {{- if .UseOpenKernelModule }}
+    useOpenKernelModules: true
+    {{- end }}
+
+  toolkit:
+    enabled: true
+
+  devicePlugin:
+    enabled: true
+
+  dcgm:
+    enabled: true
+
+  dcgmExporter:
+    enabled: true
+
+  mig:
+    strategy: {{ .MIGStrategy }}
+
+  gds:
+    enabled: {{ .EnableGDS }}
+
+  {{- if .EnableVGPU }}
+  vgpuManager:
+    enabled: true
+    {{- if .VGPULicenseServer }}
+    licenseServerURL: {{ .VGPULicenseServer }}
+    {{- end }}
+  {{- end }}
+
+  {{- if .EnableCDI }}
+  cdi:
+    enabled: true
+  {{- end }}

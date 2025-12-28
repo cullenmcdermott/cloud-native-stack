@@ -1,0 +1,169 @@
+# NVIDIA GPU Operator Bundle
+
+Generated from Cloud Native Stack Recipe  
+Timestamp: {{ .Timestamp }}
+
+## Overview
+
+This bundle contains everything needed to deploy the NVIDIA GPU Operator on your Kubernetes cluster.
+
+## Contents
+
+- `values.yaml` - Helm values configuration
+- `clusterpolicy.yaml` - ClusterPolicy manifest
+- `scripts/install.sh` - Installation script
+- `scripts/uninstall.sh` - Uninstallation script
+- `checksums.txt` - File integrity checksums
+
+## Prerequisites
+
+- Kubernetes cluster ({{ if .K8sVersion }}{{ .K8sVersion }}{{ else }}1.21+{{ end }})
+- Helm 3
+- kubectl configured
+{{- if .GPUType }}
+- GPU nodes with {{ .GPUType }} GPUs
+{{- end }}
+
+## Installation
+
+### Option 1: Using the Installation Script
+
+```bash
+chmod +x scripts/install.sh
+./scripts/install.sh
+```
+
+### Option 2: Manual Installation with Helm
+
+```bash
+# Add Helm repository
+helm repo add nvidia {{ .HelmRepository }}
+helm repo update
+
+# Create namespace
+kubectl create namespace {{ .Namespace }}
+
+# Install GPU Operator
+helm upgrade --install gpu-operator nvidia/gpu-operator \
+  --namespace {{ .Namespace }} \
+  {{- if .HelmChartVersion }}
+  --version {{ .HelmChartVersion }} \
+  {{- end }}
+  --values values.yaml \
+  --wait
+```
+
+### Option 3: Using kubectl
+
+```bash
+kubectl apply -f clusterpolicy.yaml
+```
+
+## Verification
+
+Check the GPU Operator pods:
+
+```bash
+kubectl get pods -n {{ .Namespace }}
+```
+
+Verify GPU nodes:
+
+```bash
+kubectl get nodes -o json | jq '.items[].status.capacity."nvidia.com/gpu"'
+```
+
+Test GPU access in a pod:
+
+```bash
+kubectl run gpu-test --rm -it --restart=Never \
+  --image=nvidia/cuda:12.0.0-base-ubuntu22.04 \
+  --limits=nvidia.com/gpu=1 \
+  -- nvidia-smi
+```
+
+## Configuration
+
+### Key Settings
+
+{{- if .DriverVersion }}
+- **Driver Version**: {{ .DriverVersion }}
+{{- end }}
+{{- if .MIGStrategy }}
+- **MIG Strategy**: {{ .MIGStrategy }}
+{{- end }}
+{{- if .EnableGDS }}
+- **GPUDirect Storage**: Enabled
+{{- end }}
+{{- if .EnableCDI }}
+- **CDI**: Enabled
+{{- end }}
+
+### Customization
+
+Edit `values.yaml` to customize the deployment. Key parameters:
+
+- `driver.version` - GPU driver version
+- `mig.strategy` - MIG configuration strategy
+- `gds.enabled` - Enable GPUDirect Storage
+- `nodeSelector` - Target specific nodes
+
+## Uninstallation
+
+Using the uninstallation script:
+
+```bash
+chmod +x scripts/uninstall.sh
+./scripts/uninstall.sh
+```
+
+Or manually:
+
+```bash
+helm uninstall gpu-operator -n {{ .Namespace }}
+kubectl delete crd clusterpolicies.nvidia.com
+```
+
+## Troubleshooting
+
+### Check GPU Operator logs
+
+```bash
+kubectl logs -n {{ .Namespace }} -l app=nvidia-driver-daemonset
+```
+
+### Check ClusterPolicy status
+
+```bash
+kubectl describe clusterpolicy -n {{ .Namespace }}
+```
+
+### Common Issues
+
+1. **Driver pods not starting**: Check node compatibility
+2. **CUDA version mismatch**: Verify driver version
+3. **MIG configuration issues**: Review MIG strategy settings
+
+## Support
+
+- [GPU Operator Documentation](https://docs.nvidia.com/datacenter/cloud-native/gpu-operator/)
+- [Cloud Native Stack Repository](https://github.com/NVIDIA/cloud-native-stack)
+
+## Generated Configuration
+
+{{- if .Request }}
+**Recipe Query:**
+- OS: {{ .Request.Os }}
+{{- if .Request.OsVersion }}
+- OS Version: {{ .Request.OsVersion }}
+{{- end }}
+{{- if .Request.Service }}
+- Service: {{ .Request.Service }}
+{{- end }}
+{{- if .Request.GPU }}
+- GPU: {{ .Request.GPU }}
+{{- end }}
+{{- if .Request.Intent }}
+- Intent: {{ .Request.Intent }}
+{{- end }}
+{{- end }}

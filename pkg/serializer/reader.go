@@ -141,3 +141,45 @@ func (r *Reader) Close() error {
 	}
 	return nil
 }
+
+// FromFile loads an object of type T from the specified file path.
+// The type T must be a struct or any type that can be unmarshaled from the file format.
+// Close must be called to release resources held by the Reader.
+// The caller is responsible for handling the returned error.
+func FromFile[T any](path string) (*T, error) {
+	fileFormat := FormatFromPath(path)
+	slog.Debug("determined file format",
+		slog.String("path", path),
+		slog.String("format", string(fileFormat)),
+	)
+
+	ser, err := NewFileReader(fileFormat, path)
+	if err != nil {
+		slog.Error("failed to create file reader", "error", err, "path", path, "format", fileFormat)
+		return nil, fmt.Errorf("failed to create serializer for %q: %w", path, err)
+	}
+
+	if ser == nil {
+		slog.Error("reader is unexpectedly nil despite no error")
+		return nil, fmt.Errorf("reader is nil for %q", path)
+	}
+
+	defer func() {
+		if ser != nil {
+			if closeErr := ser.Close(); closeErr != nil {
+				slog.Warn("failed to close serializer", "error", closeErr)
+			}
+		}
+	}()
+
+	var r T
+	if err := ser.Deserialize(&r); err != nil {
+		return nil, fmt.Errorf("failed to deserialize object from %q: %w", path, err)
+	}
+
+	slog.Debug("successfully loaded object from file",
+		slog.String("path", path),
+	)
+
+	return &r, nil
+}
