@@ -99,7 +99,6 @@ func TestBundler_Validate(t *testing.T) {
 }
 
 func TestBundler_Configure(t *testing.T) {
-
 	config := config.NewConfig()
 	config.Namespace = "custom-namespace"
 	config.HelmChartVersion = "v1.0.0"

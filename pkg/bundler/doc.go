@@ -377,7 +377,7 @@ Common errors and handling:
 		}
 	}
 
-	// Context cancelled
+	// Context canceled
 	if errors.Is(err, context.Canceled) {
 		// User interrupted or timeout reached
 	}
