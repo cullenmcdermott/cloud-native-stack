@@ -6,6 +6,7 @@ package cli
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
 
 	"github.com/NVIDIA/cloud-native-stack/pkg/bundler"
@@ -27,25 +28,43 @@ func bundleCmd() *cli.Command {
 `,
 		Flags: []cli.Flag{
 			&cli.StringFlag{
-				Name:    "recipe",
-				Aliases: []string{"f"},
-				Usage:   "File path to previously generated recipe file from which to build the bundle.",
+				Name:     "recipe",
+				Aliases:  []string{"f"},
+				Required: true,
+				Usage:    "File path to previously generated recipe file from which to build the bundle.",
+			},
+			&cli.StringSliceFlag{
+				Name:    "bundlers",
+				Aliases: []string{"b"},
+				Usage: fmt.Sprintf(`Types of bundlers to execute (supported types: %s). 
+	If not specified, all supported bundlers are executed.`, bundler.SupportedBundleTypesAsStrings()),
 			},
 			&cli.StringFlag{
-				Name:     "output",
-				Aliases:  []string{"o"},
-				Value:    ".",
-				Required: true,
-				Usage:    "output directory path",
+				Name:    "output",
+				Aliases: []string{"o"},
+				Value:   ".",
+				Usage:   "output directory path",
 			},
 		},
 		Action: func(ctx context.Context, cmd *cli.Command) error {
 			recipeFilePath := cmd.String("recipe")
 			outputDir := cmd.String("output")
+			bundlerTypesStr := cmd.StringSlice("bundlers")
+
+			// Parse bundler types
+			var bundlerTypes []bundler.BundleType
+			for _, t := range bundlerTypesStr {
+				bt, err := bundler.ParseBundleType(t)
+				if err != nil {
+					return fmt.Errorf("invalid bundler type '%s': %w", t, err)
+				}
+				bundlerTypes = append(bundlerTypes, bt)
+			}
 
 			slog.Info("generating bundle",
-				"recipeFilePath", recipeFilePath,
-				"outputDir", outputDir,
+				slog.String("recipeFilePath", recipeFilePath),
+				slog.String("outputDir", outputDir),
+				slog.Any("bundlerTypes", bundlerTypes),
 			)
 
 			rec, err := serializer.FromFile[recipe.Recipe](recipeFilePath)
@@ -54,8 +73,12 @@ func bundleCmd() *cli.Command {
 				return err
 			}
 
-			// Create bundler instance using default configuration
-			b := bundler.New()
+			// Create bundler instance
+			b := bundler.New(
+				// If bundler types are not specified, all supported bundlers are used.
+				// An empty or nil slice means all bundlers as well.
+				bundler.WithBundlerTypes(bundlerTypes),
+			)
 
 			out, err := b.Make(ctx, rec, outputDir)
 			if err != nil {
@@ -69,6 +92,12 @@ func bundleCmd() *cli.Command {
 				"duration_sec", out.TotalDuration.Seconds(),
 				"summary", out.Summary(),
 			)
+
+			// Return error if any bundlers failed
+			if out.HasErrors() {
+				return fmt.Errorf("bundle generation completed with errors: %d/%d bundlers failed",
+					len(out.Errors), len(out.Results))
+			}
 
 			return nil
 		},

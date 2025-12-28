@@ -121,14 +121,14 @@ The recipe command analyzes your environment (from query parameters or snapshot)
 Generate deployment-ready bundles from recipes containing Helm values, Kubernetes manifests, installation scripts, and documentation:
 
 ```shell
-# Generate GPU Operator bundle from recipe
+# Generate bundle from recipe (all bundlers by default)
 eidos bundle --recipe recipe.yaml --output ./bundles
 
-# Generate from snapshot with workload intent
-eidos bundle --snapshot system.yaml --intent training --output ./bundles
+# Specify specific bundler types
+eidos bundle --recipe recipe.yaml --bundlers gpu-operator --output ./bundles
 
-# Specify bundler types explicitly
-eidos bundle --recipe recipe.yaml --bundler gpu-operator --output ./bundles
+# Multiple bundler types
+eidos bundle --recipe recipe.yaml --bundlers gpu-operator --bundlers network-operator --output ./bundles
 ```
 
 **Bundle contents** for GPU Operator:
@@ -145,13 +145,9 @@ gpu-operator/
 ```
 
 **Available flags:**
-- `--recipe` – Path to recipe file
-- `--snapshot` – Path to snapshot file (generates recipe first)
-- `--intent` – Workload intent when using snapshot (training, inference)
-- `--bundler` – Bundler type(s) to use (gpu-operator, network-operator)
-- `--output` – Output directory (default: ./bundles)
-- `--namespace` – Kubernetes namespace for deployment
-- `--dry-run` – Validate without creating files
+- `--recipe`, `-f` – Path to recipe file (required)
+- `--bundlers`, `-b` – Bundler type(s) to execute (gpu-operator, network-operator). If not specified, all registered bundlers are executed
+- `--output`, `-o` – Output directory (default: current directory)
 
 **Installation using generated bundle:**
 ```bash

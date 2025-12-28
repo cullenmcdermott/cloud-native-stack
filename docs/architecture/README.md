@@ -4,9 +4,9 @@ This directory contains architecture documentation for the Cloud Native Stack (C
 
 ## Components
 
-- **[CLI Architecture](cli.md)** - Architecture of the `eidos` command-line tool for capturing system snapshots and generating configuration recipes
+- **[CLI Architecture](cli.md)** - Architecture of the `eidos` command-line tool for capturing system snapshots, generating configuration recipes, and creating deployment bundles
 - **[API Server Architecture](api-server.md)** - Architecture of the HTTP API server for serving configuration recommendations
-- **Bundler Framework** - Extensible system for generating deployment bundles (Helm charts, manifests, scripts) from recipes
+- **Bundler Framework** - Extensible system for generating deployment bundles (Helm charts, manifests, scripts) from recipes with parallel execution by default
 
 ## Overview
 
@@ -18,6 +18,9 @@ A command-line interface for direct interaction with system configuration:
 - **Recipe Command**: Generates optimized configuration recipes from environment parameters or snapshots
   - **Query Mode**: Direct recipe generation from system parameters (OS, GPU, K8s, etc.)
   - **Snapshot Mode**: Analyzes captured snapshots and generates tailored recipes based on workload intent
+- **Bundle Command**: Generates deployment-ready bundles (Helm values, manifests, scripts) from recipes
+  - Parallel execution of multiple bundlers by default
+  - Error collection or fail-fast modes
 
 ### API Server (`eidos-api-server`)
 An HTTP REST API for programmatic access to configuration recipes:
@@ -188,7 +191,7 @@ flowchart TD
     SER["serializer/<br/>Output formatting<br/>(JSON, YAML, table)"]
     LOG["logging/<br/>Structured logging"]
     SVR["server/<br/>HTTP server<br/>infrastructure (API only)"]
-    BUN["bundler/<br/>Bundle generation<br/>(Helm, manifests, scripts)"]
+    BUN["bundler/<br/>Parallel bundle generation<br/>(Helm, manifests, scripts)<br/>Registry-based extensibility"]
 ```
 
 ## Data Flow

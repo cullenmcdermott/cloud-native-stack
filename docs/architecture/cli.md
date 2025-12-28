@@ -4,11 +4,14 @@ The `eidos` CLI provides command-line access to Cloud Native Stack configuration
 
 ## Overview
 
-The CLI provides two main commands:
+The CLI provides three main commands:
 - `snapshot` - Capture system configuration
 - `recipe` - Generate configuration recipes from environment parameters or snapshots
   - **Query Mode**: Direct recipe generation from system parameters (OS, GPU, K8s, etc.)
   - **Snapshot Mode**: Analyze captured snapshots and provide tailored recipes based on workload intent
+- `bundle` - Generate deployment bundles (Helm values, manifests, scripts) from recipes
+  - **Parallel execution by default** for multiple bundlers
+  - Dynamic bundler discovery via registry pattern
 
 ## Architecture Diagram
 
@@ -20,14 +23,17 @@ flowchart TD
     
     B --> C["snapshot CMD<br/>pkg/cli/snapshot.go"]
     B --> D["recipe CMD<br/>pkg/cli/recipe.go<br/>(Query & Snapshot modes)"]
+    B --> E["bundle CMD<br/>pkg/cli/bundle.go<br/>(Parallel by default)"]
     
     C --> F[Shared Packages]
     D --> F
+    E --> F
     
     F --> F1["Collector Factory"]
     F --> F2["Recipe Builder"]
     F --> F3["Snapshotter Service"]
     F --> F4["Serializer<br/>(JSON/YAML/Table)"]
+    F --> F5["Bundler Registry<br/>(Parallel execution)"]
 ```
 
 ## Component Details
@@ -369,6 +375,185 @@ measurements:
 **Common Errors**:
 - Unknown output format: Error with supported formats list (json, yaml, table)
 - Context cancellation: Respects context timeout and cancellation
+
+### Bundle Command: `pkg/cli/bundle.go`
+
+Generates deployment-ready bundles (Helm values, Kubernetes manifests, installation scripts) from recipes.
+
+#### Command Flow
+
+```mermaid
+flowchart TD
+    A[User Invocation] --> B[Parse Flags<br/>recipe, bundlers, output]
+    B --> C[Parse Bundler Types]
+    C --> D[Load Recipe from File]
+    D --> E[Create DefaultBundler]
+    E --> F[Execute Bundlers<br/>Parallel by Default]
+    F --> G[Collect Results]
+    G --> H[Check for Errors]
+    H --> I[Log Summary]
+    I --> J[Return Status]
+    
+    style F fill:#ffeb3b
+```
+
+#### Detailed Data Flow
+
+```mermaid
+flowchart TD
+    A[Bundle Command] --> B[Parse CLI Flags]
+    
+    B --> B1["--recipe (required)<br/>--bundlers (optional)<br/>--output (default: .)"]
+    
+    B1 --> C[serializer.FromFile Recipe]
+    
+    C --> D[bundler.New]
+    
+    D --> D1["Build DefaultBundler:<br/>• Empty bundlerTypes = all registered<br/>• Specified types = filtered selection<br/>• Parallel=true by default"]
+    
+    D1 --> E[DefaultBundler.Make]
+    
+    E --> E1["Select Bundlers:<br/>• If empty: registry.GetAll()<br/>• If specified: registry.Get(types)"]
+    
+    E1 --> E2["Parallel Execution:<br/>• errgroup.WithContext<br/>• One goroutine per bundler<br/>• Concurrent file generation"]
+    
+    E2 --> E3["Each Bundler:<br/>1. Validate recipe (if Validator)<br/>2. Configure (if ConfigurableBundler)<br/>3. Generate bundle files<br/>4. Compute checksums<br/>5. Return BundleResult"]
+    
+    E3 --> F[Aggregate BundleOutput]
+    
+    F --> F1["Results:<br/>• Files generated<br/>• Total size<br/>• Duration<br/>• Success/error counts"]
+    
+    F1 --> G[Check HasErrors]
+    
+    G -->|No Errors| H[Return Success]
+    G -->|Has Errors| I[Return Error]
+    
+    style E2 fill:#ffeb3b
+    style E3 fill:#c8e6c9
+```
+
+#### Bundler Architecture
+
+**Registry Pattern:**
+```go
+// Bundlers self-register at init time
+func init() {
+    bundler.Register("gpu-operator", &GPUOperatorBundler{})
+}
+
+// Dynamic bundler discovery
+bundlers := defaultRegistry.GetAll()  // Returns all registered bundlers
+bundlers := defaultRegistry.Get(type) // Returns specific bundler
+```
+
+**DefaultBundler Options:**
+- `WithBundlerTypes([]BundleType)` – Specify bundler types (empty = all)
+- `WithSequential(bool)` – Enable sequential execution (default: false/parallel)
+- `WithFailFast(bool)` – Stop on first error (default: false/collect all)
+- `WithConfig(*BundlerConfig)` – Provide bundler configuration
+- `WithDryRun(bool)` – Simulate without writing files
+
+**Execution Modes:**
+- **Parallel (default)**: Uses `errgroup.WithContext` for concurrent execution
+  - Faster for multiple bundlers
+  - Non-deterministic bundler order
+  - Requires thread-safe bundler implementations
+- **Sequential**: Executes bundlers one at a time
+  - Predictable order
+  - Easier debugging
+  - Slower for multiple bundlers
+
+#### Usage Examples
+
+```bash
+# Generate all registered bundlers (parallel by default)
+eidos bundle --recipe recipe.yaml --output ./bundles
+
+# Generate specific bundler
+eidos bundle --recipe recipe.yaml --bundlers gpu-operator --output ./bundles
+
+# Multiple bundlers
+eidos bundle \
+  --recipe recipe.yaml \
+  --bundlers gpu-operator \
+  --bundlers network-operator \
+  --output ./bundles
+
+# Use short flags
+eidos bundle -f recipe.yaml -b gpu-operator -o ./bundles
+```
+
+#### Bundle Output Structure
+
+```
+./bundles/
+├── gpu-operator/
+│   ├── values.yaml              # Helm chart values
+│   ├── manifests/
+│   │   └── clusterpolicy.yaml  # ClusterPolicy CR
+│   ├── scripts/
+│   │   ├── install.sh          # Installation script
+│   │   └── uninstall.sh        # Cleanup script
+│   ├── README.md                # Deployment instructions
+│   └── checksums.txt            # SHA256 verification
+└── network-operator/
+    ├── values.yaml
+    ├── manifests/
+    ├── scripts/
+    ├── README.md
+    └── checksums.txt
+```
+
+#### Error Handling
+
+**Validation Errors:**
+- Missing recipe file: File not found error with path
+- Invalid recipe format: Parse error with details
+- Invalid bundler type: Error with list of supported types
+- Empty measurements: Recipe validation failure
+
+**Execution Errors:**
+- **FailFast=false (default)**: Collects all errors, continues execution
+  - Returns partial results with error list
+  - Exit code indicates failure count
+- **FailFast=true**: Stops on first bundler error
+  - Returns immediately with error
+  - Subsequent bundlers not executed
+
+**Common Error Scenarios:**
+```bash
+# Missing recipe file
+$ eidos bundle --output ./bundles
+Error: required flag "recipe" not set
+
+# Invalid bundler type
+$ eidos bundle -f recipe.yaml -b invalid-type
+Error: invalid bundler type 'invalid-type': unknown bundle type: invalid-type
+
+# Bundler failures (FailFast=false)
+$ eidos bundle -f recipe.yaml
+Error: bundle generation completed with errors: 1/2 bundlers failed
+```
+
+#### CLI Integration
+
+The bundle command integrates with the CLI through:
+
+1. **Shared Serializer**: Uses same `serializer.FromFile` for recipe loading
+2. **Structured Logging**: Consistent `slog` structured logging
+3. **Context Propagation**: Respects context cancellation
+4. **Error Patterns**: Uses same error handling conventions
+
+**Log Output Example:**
+```
+INFO  generating bundle recipeFilePath=recipe.yaml outputDir=./bundles bundlerTypes=[gpu-operator]
+INFO  starting bundle generation bundler_count=1 output_dir=./bundles sequential=false dry_run=false
+INFO  bundler completed bundler_type=gpu-operator files=5 size_bytes=12458 duration=45ms
+INFO  bundle generation complete summary="Generated 5 files (12 KB) in 45ms. Success: 1/1 bundlers."
+INFO  bundle generation completed success=1 errors=0 duration_sec=0.045 summary="Generated 5 files (12 KB) in 45ms. Success: 1/1 bundlers."
+```
+
+**Common Errors**:
 
 ## Shared Infrastructure
 

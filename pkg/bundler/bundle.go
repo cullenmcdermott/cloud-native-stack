@@ -44,9 +44,12 @@ type Option func(*DefaultBundler)
 
 // WithBundlerTypes sets the bundler types to execute.
 // If not set, all registered bundlers are executed.
+// Nil or empty slice means all bundlers as well.
 func WithBundlerTypes(types []BundleType) Option {
 	return func(db *DefaultBundler) {
-		db.BundlerTypes = types
+		if len(types) > 0 {
+			db.BundlerTypes = types
+		}
 	}
 }
 
@@ -329,7 +332,7 @@ func (b *DefaultBundler) executeBundler(ctx context.Context, bundlerType BundleT
 // selectBundlers selects which bundlers to execute based on options.
 func selectBundlers(types []BundleType) map[BundleType]Bundler {
 	if len(types) == 0 {
-		// Return all registered bundlers
+		slog.Debug("no specific bundler types provided, selecting all registered bundlers")
 		return defaultRegistry.GetAll()
 	}
 

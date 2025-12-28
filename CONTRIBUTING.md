@@ -191,6 +191,7 @@ cloud-native-stack/
 #### Bundler Framework
 - **Location**: `pkg/bundler/`
 - **Pattern**: Registry-based with pluggable bundler implementations
+- **API**: Object-oriented with functional options (DefaultBundler.New())
 - **Purpose**: Generate deployment bundles from recipes (Helm values, K8s manifests, scripts)
 - **Bundlers**:
   - **GPU Operator**: Generates complete GPU Operator deployment bundle
@@ -201,11 +202,13 @@ cloud-native-stack/
     - SHA256 checksums for verification
 - **Features**:
   - Template-based generation with go:embed
-  - Functional options pattern for configuration
-  - Parallel bundle generation with errgroup
+  - Functional options pattern for configuration (WithBundlerTypes, WithSequential, WithFailFast, WithConfig, WithDryRun)
+  - **Parallel execution by default** (sequential mode available via WithSequential(true))
+  - Empty bundlerTypes = all registered bundlers (dynamic discovery)
+  - Fail-fast or error collection modes
   - Dry-run mode for validation
   - Prometheus metrics for observability
-- **Extensibility**: Implement `Bundler` interface to add new bundle types
+- **Extensibility**: Implement `Bundler` interface and self-register in init() to add new bundle types
 
 ### Common Make Targets
 
@@ -662,24 +665,16 @@ import (
 const bundlerType = bundler.BundleType("network-operator")
 
 func init() {
-    // Self-register bundler in global registry
-    bundler.Register(bundlerType, func() bundler.Bundler {
-        return NewBundler()
-    })
+    // Self-register bundler instance in global registry
+    bundler.Register(bundlerType, &Bundler{})
 }
 
 type Bundler struct {
-    config *bundler.BundlerConfig
+    // Bundler should be stateless or use synchronization for thread-safety
 }
 
-func NewBundler(opts ...bundler.Option) *Bundler {
-    b := &Bundler{
-        config: bundler.DefaultBundlerConfig(),
-    }
-    for _, opt := range opts {
-        opt(b.config)
-    }
-    return b
+func NewBundler() *Bundler {
+    return &Bundler{}
 }
 
 func (b *Bundler) Type() bundler.BundleType {
