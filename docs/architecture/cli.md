@@ -1861,7 +1861,6 @@ The `bundle` command generates deployment-ready bundles from configuration recip
 ✅ Registry-based bundler framework - pluggable implementations  
 ✅ Parallel generation - fast bundle creation with errgroup  
 ✅ Template system - embedded templates with go:embed  
-✅ Dry-run mode - validation without file system changes  
 ✅ Functional options - flexible configuration  
 ✅ Type safety - compile-time bundler type checking  
 ✅ Metrics - Prometheus observability  
@@ -1895,12 +1894,6 @@ eidos bundle --snapshot system.yaml --intent training --output ./bundles
 
 # Specify bundler types explicitly
 eidos bundle --recipe recipe.yaml --bundler gpu-operator --output ./bundles
-
-# Dry-run mode (validate without writing files)
-eidos bundle --recipe recipe.yaml --dry-run
-
-# Custom namespace
-eidos bundle --recipe recipe.yaml --namespace custom-gpu-ns
 ```
 
 ### Bundler Framework Architecture
@@ -1968,12 +1961,8 @@ sequenceDiagram
     
     Template-->>Bundler: Rendered content
     
-    alt Dry Run
-        Bundler->>Bundler: Validate only
-    else Normal Mode
-        Bundler->>FileSystem: Write files
-        FileSystem-->>Bundler: File paths
-    end
+    Bundler->>FileSystem: Write files
+    FileSystem-->>Bundler: File paths
     
     Bundler->>Bundler: Compute checksums
     Bundler-->>Bundle: BundleResult

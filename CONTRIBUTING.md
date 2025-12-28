@@ -817,8 +817,7 @@ make build
 ./dist/eidos_*/eidos bundle \
   --recipe examples/recipe.yaml \
   --bundler network-operator \
-  --output ./test-bundles \
-  --dry-run
+  --output ./test-bundles
 
 # Verify bundle structure
 ls -la test-bundles/network-operator/
