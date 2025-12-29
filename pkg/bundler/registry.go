@@ -7,6 +7,7 @@ import (
 	"github.com/NVIDIA/cloud-native-stack/pkg/bundler/bundle"
 	"github.com/NVIDIA/cloud-native-stack/pkg/bundler/config"
 	"github.com/NVIDIA/cloud-native-stack/pkg/bundler/gpuoperator"
+	"github.com/NVIDIA/cloud-native-stack/pkg/bundler/networkoperator"
 )
 
 // Registry manages registered bundlers with thread-safe operations.
@@ -20,7 +21,8 @@ type Registry struct {
 func NewRegistry(cfg *config.Config) *Registry {
 	return &Registry{
 		bundlers: map[bundle.Type]bundle.Bundler{
-			bundle.BundleTypeGpuOperator: gpuoperator.NewBundler(cfg),
+			bundle.BundleTypeGpuOperator:     gpuoperator.NewBundler(cfg),
+			bundle.BundleTypeNetworkOperator: networkoperator.NewBundler(cfg),
 		},
 	}
 }

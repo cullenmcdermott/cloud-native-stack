@@ -10,6 +10,9 @@ import (
 const (
 	// BundleTypeGpuOperator generates GPU Operator bundles.
 	BundleTypeGpuOperator Type = "gpu-operator"
+
+	// BundleTypeNetworkOperator generates Network Operator bundles.
+	BundleTypeNetworkOperator Type = "network-operator"
 )
 
 // BundleType identifies different types of bundles.
@@ -26,6 +29,8 @@ func ParseType(s string) (Type, error) {
 	switch s {
 	case string(BundleTypeGpuOperator):
 		return BundleTypeGpuOperator, nil
+	case string(BundleTypeNetworkOperator):
+		return BundleTypeNetworkOperator, nil
 	default:
 		return "", fmt.Errorf("unknown bundle type: %s", s)
 	}
@@ -35,6 +40,7 @@ func ParseType(s string) (Type, error) {
 func SupportedTypes() []Type {
 	return []Type{
 		BundleTypeGpuOperator,
+		BundleTypeNetworkOperator,
 	}
 }
 
