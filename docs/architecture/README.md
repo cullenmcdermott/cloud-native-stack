@@ -4,28 +4,53 @@ This directory contains architecture documentation for the Cloud Native Stack (C
 
 ## Components
 
-- **[CLI Architecture](cli.md)** - Architecture of the `eidos` command-line tool for capturing system snapshots, generating configuration recipes, and creating deployment bundles
-- **[API Server Architecture](api-server.md)** - Architecture of the HTTP API server for serving configuration recommendations
-- **Bundler Framework** - Extensible system for generating deployment bundles (Helm charts, manifests, scripts) from recipes with parallel execution by default
+- **[CLI Architecture](cli.md)** - Architecture of the `eidos` command-line tool
+  - **Complete workflow**: Snapshot → Recipe → Bundle
+  - **Commands**: `snapshot`, `recipe`, `bundle`
+  - **Modes**: Query mode and snapshot mode for recipe generation
+- **[API Server Architecture](api-server.md)** - Architecture of the HTTP API server
+  - **Recipe generation only** (Step 2 of workflow)
+  - **Endpoint**: `GET /v1/recipe`
+  - **Note**: Does not support snapshot capture or bundle generation
+- **Bundler Framework** - Extensible system for generating deployment bundles
+  - **Parallel execution by default** for multiple bundlers
+  - **Self-registration pattern** for adding new bundlers
+  - **Available bundlers**: GPU Operator, Network Operator (coming soon)
 
 ## Overview
 
-Cloud Native Stack provides two complementary interfaces for system configuration management:
+Cloud Native Stack provides a three-step workflow for optimizing GPU infrastructure deployments:
 
-### CLI Tool (`eidos`)
-A command-line interface for direct interaction with system configuration:
-- **Snapshot Command**: Captures comprehensive system configuration
-- **Recipe Command**: Generates optimized configuration recipes from environment parameters or snapshots
+```
+┌──────────────┐      ┌──────────────┐      ┌──────────────┐
+│   Snapshot   │─────▶│    Recipe    │─────▶│    Bundle    │
+└──────────────┘      └──────────────┘      └──────────────┘
+   Capture system      Generate optimized    Create deployment
+   configuration        recommendations       artifacts
+```
+
+### Step 1: Snapshot – Capture System Configuration
+Captures comprehensive system state including OS, kernel, GPU, Kubernetes, and SystemD configurations.
+- **CLI**: `eidos snapshot` command
+- **Agent**: Kubernetes Job for automated cluster snapshots
+- **Output**: YAML/JSON snapshot with all system measurements
+
+### Step 2: Recipe – Generate Configuration Recommendations
+Produces optimized configuration recipes based on environment parameters or captured snapshots.
+- **CLI**: `eidos recipe` command (supports query mode and snapshot mode)
   - **Query Mode**: Direct recipe generation from system parameters (OS, GPU, K8s, etc.)
   - **Snapshot Mode**: Analyzes captured snapshots and generates tailored recipes based on workload intent
-- **Bundle Command**: Generates deployment-ready bundles (Helm values, manifests, scripts) from recipes
-  - Parallel execution of multiple bundlers by default
-  - Error collection or fail-fast modes
+- **API Server**: `GET /v1/recipe` endpoint for programmatic access
+- **Output**: Recipe with matched rules and configuration measurements
 
-### API Server (`eidos-api-server`)
-An HTTP REST API for programmatic access to configuration recipes:
-- **Recipe Endpoint**: Serves configuration recipes via HTTP
-- **Health/Metrics**: Kubernetes-ready observability endpoints
+### Step 3: Bundle – Create Deployment Artifacts
+Generates deployment-ready bundles (Helm values, Kubernetes manifests, installation scripts) from recipes.
+- **CLI**: `eidos bundle` command
+- **Parallel execution** of multiple bundlers by default
+- **Available bundlers**: GPU Operator, Network Operator (coming soon)
+- **Output**: Complete deployment bundle with values, manifests, scripts, and checksums
+
+**Note:** The API Server only supports recipe generation (Step 2). For complete workflow including bundle generation, use the CLI.
 
 ## Key Design Principles
 
@@ -196,7 +221,22 @@ flowchart TD
 
 ## Data Flow
 
-### CLI Snapshot Flow
+### Complete Three-Step Workflow
+```mermaid
+flowchart LR
+    A[User] --> B[Step 1: Snapshot]
+    B --> C[system.yaml]
+    C --> D[Step 2: Recipe]
+    D --> E[recipe.yaml]
+    E --> F[Step 3: Bundle]
+    F --> G[deployment/]
+    
+    B -.-> |CLI/Agent| C
+    D -.-> |CLI/API| E
+    F -.-> |CLI only| G
+```
+
+### CLI Snapshot Flow (Step 1)
 ```mermaid
 flowchart LR
     A[User Command] --> B[CLI Parser]
@@ -207,7 +247,7 @@ flowchart LR
     F --> G[Output]
 ```
 
-### CLI Recipe Flow
+### CLI Recipe Flow (Step 2)
 ```mermaid
 flowchart LR
     A[User Flags] --> B[Query Builder]
@@ -218,7 +258,7 @@ flowchart LR
     F --> G[Output]
 ```
 
-### API Recipe Flow
+### API Recipe Flow (Step 2 - Programmatic)
 ```mermaid
 flowchart LR
     A[HTTP Request] --> B[Server Middleware]
@@ -226,6 +266,17 @@ flowchart LR
     C --> D[Recipe Builder]
     D --> E[Store Lookup]
     E --> F[JSON Response]
+```
+
+### CLI Bundle Flow (Step 3)
+```mermaid
+flowchart LR
+    A[Recipe File] --> B[Bundle Parser]
+    B --> C[Bundler Registry]
+    C --> D[Parallel Execution]
+    D --> E[Template Generation]
+    E --> F[File Output]
+    F --> G[Bundle Directory]
 ```
 
 ## Failure Modes and Recovery Strategies

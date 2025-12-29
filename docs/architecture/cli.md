@@ -4,14 +4,38 @@ The `eidos` CLI provides command-line access to Cloud Native Stack configuration
 
 ## Overview
 
-The CLI provides three main commands:
-- `snapshot` - Capture system configuration
-- `recipe` - Generate configuration recipes from environment parameters or snapshots
-  - **Query Mode**: Direct recipe generation from system parameters (OS, GPU, K8s, etc.)
-  - **Snapshot Mode**: Analyze captured snapshots and provide tailored recipes based on workload intent
-- `bundle` - Generate deployment bundles (Helm values, manifests, scripts) from recipes
-  - **Parallel execution by default** for multiple bundlers
-  - Dynamic bundler discovery via registry pattern
+The CLI provides a three-step workflow for optimizing GPU infrastructure:
+
+```
+┌──────────────┐      ┌──────────────┐      ┌──────────────┐
+│   Snapshot   │─────▶│    Recipe    │─────▶│    Bundle    │
+└──────────────┘      └──────────────┘      └──────────────┘
+   Capture system      Generate optimized    Create deployment
+   configuration        recommendations       artifacts
+```
+
+### Step 1: Snapshot Command
+Captures comprehensive system configuration including:
+- Operating system (grub, kmod, sysctl, release)
+- SystemD services (containerd, docker, kubelet)
+- Kubernetes (server version, images, ClusterPolicy)
+- GPU hardware (driver, CUDA, MIG, device info)
+
+### Step 2: Recipe Command  
+Generates optimized configuration recipes with two modes:
+- **Query Mode**: Direct recipe generation from system parameters (OS, GPU, K8s, etc.)
+- **Snapshot Mode**: Analyzes captured snapshots and generates tailored recipes based on workload intent (training/inference)
+
+### Step 3: Bundle Command
+Generates deployment-ready bundles from recipes including:
+- Helm chart values.yaml
+- Kubernetes manifests (ClusterPolicy, etc.)
+- Installation/uninstallation scripts
+- README with deployment instructions
+- SHA256 checksums for verification
+
+**Available bundlers**: GPU Operator, Network Operator (coming soon)
+**Execution**: Parallel by default for multiple bundlers
 
 ## Architecture Diagram
 
@@ -21,9 +45,9 @@ flowchart TD
     
     B --> B1["Version info (ldflags)<br/>Debug flag → Logging<br/>Shell completion"]
     
-    B --> C["snapshot CMD<br/>pkg/cli/snapshot.go"]
-    B --> D["recipe CMD<br/>pkg/cli/recipe.go<br/>(Query & Snapshot modes)"]
-    B --> E["bundle CMD<br/>pkg/cli/bundle.go<br/>(Parallel by default)"]
+    B --> C["Step 1: snapshot CMD<br/>pkg/cli/snapshot.go<br/>Capture system state"]
+    B --> D["Step 2: recipe CMD<br/>pkg/cli/recipe.go<br/>Query & Snapshot modes"]
+    B --> E["Step 3: bundle CMD<br/>pkg/cli/bundle.go<br/>Parallel generation"]
     
     C --> F[Shared Packages]
     D --> F
@@ -34,6 +58,10 @@ flowchart TD
     F --> F3["Snapshotter Service"]
     F --> F4["Serializer<br/>(JSON/YAML/Table)"]
     F --> F5["Bundler Registry<br/>(Parallel execution)"]
+    
+    style C fill:#e8f5e9
+    style D fill:#fff9c4
+    style E fill:#e3f2fd
 ```
 
 ## Component Details

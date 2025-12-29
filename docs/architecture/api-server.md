@@ -4,7 +4,28 @@ The `eidos-api-server` provides HTTP REST API access to Cloud Native Stack confi
 
 ## Overview
 
-The API server is a production-ready HTTP service built on Go's `net/http` with middleware for rate limiting, metrics, request tracking, and graceful shutdown. It exposes recipe generation functionality via RESTful endpoints.
+The API server provides HTTP REST access to **Step 2 of the Cloud Native Stack workflow** – recipe generation. It is a production-ready HTTP service built on Go's `net/http` with middleware for rate limiting, metrics, request tracking, and graceful shutdown.
+
+### Three-Step Workflow Context
+
+```
+┌──────────────┐      ┌──────────────┐      ┌──────────────┐
+│   Snapshot   │─────▶│    Recipe    │─────▶│    Bundle    │
+└──────────────┘      └──────────────┘      └──────────────┘
+   CLI/Agent only      ✅ API Server       CLI only
+```
+
+**API Server Capabilities:**
+- ✅ **Recipe generation** (Step 2) via `GET /v1/recipe` endpoint
+- ✅ **Query mode only** – generates recipes from environment parameters
+- ✅ Health and metrics endpoints for Kubernetes deployment
+
+**API Server Limitations:**
+- ❌ **No snapshot capture** – Use CLI `eidos snapshot` or Kubernetes Agent
+- ❌ **No bundle generation** – Use CLI `eidos bundle` command
+- ❌ **No snapshot mode** – Cannot analyze captured snapshots (query mode only)
+
+**For complete workflow**, use the CLI which supports all three steps: snapshot → recipe → bundle.
 
 ## Architecture Diagram
 

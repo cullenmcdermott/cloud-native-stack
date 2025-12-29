@@ -579,11 +579,12 @@ ls -lh dist/
 # Help
 ./dist/eidos_*/eidos --help
 
-# Snapshot (outputs to stdout)
+# STEP 1: Snapshot - Capture system configuration
 eidos snapshot --format yaml
 eidos snapshot --output system.yaml --format json
 
-# Recipe generation
+# STEP 2: Recipe - Generate optimized configuration
+# Query mode: Direct generation from parameters
 eidos recipe --os ubuntu --service eks --gpu h100
 eidos recipe \
   --os ubuntu \
@@ -596,9 +597,68 @@ eidos recipe \
   --context \
   --format yaml
 
-# Generate recipe from snapshot
+# Snapshot mode: Generate recipe from captured snapshot
 eidos recipe --snapshot system.yaml --intent training
 eidos recipe -f system.yaml -i inference -o recipe.yaml
+
+# STEP 3: Bundle - Create deployment artifacts
+eidos bundle --recipe recipe.yaml --output ./bundles
+eidos bundle -f recipe.yaml -b gpu-operator -o ./deployment
+```
+
+### Complete End-to-End Workflow
+
+Here's a complete example showing all three steps:
+
+```bash
+# 1. Capture system configuration
+eidos snapshot --output snapshot.yaml
+
+echo "Snapshot captured:"
+ls -lh snapshot.yaml
+
+# 2. Generate optimized recipe for training workloads
+eidos recipe \
+  --snapshot snapshot.yaml \
+  --intent training \
+  --format yaml \
+  --output recipe.yaml
+
+echo "Recipe generated:"
+cat recipe.yaml | grep "matchedRules" -A 5
+
+# 3. Create deployment bundle
+eidos bundle \
+  --recipe recipe.yaml \
+  --bundlers gpu-operator \
+  --output ./bundles
+
+echo "Bundle generated:"
+tree bundles/
+
+# 4. Deploy to cluster
+cd bundles/gpu-operator
+cat README.md  # Review deployment instructions
+sha256sum -c checksums.txt  # Verify file integrity
+chmod +x scripts/install.sh
+./scripts/install.sh  # Deploy GPU Operator
+
+# 5. Monitor deployment
+kubectl get pods -n gpu-operator
+kubectl logs -n gpu-operator -l app=nvidia-operator-validator
+```
+
+**Expected Bundle Structure:**
+```
+bundles/gpu-operator/
+├── values.yaml                    # Helm chart configuration
+├── manifests/
+│   └── clusterpolicy.yaml        # ClusterPolicy custom resource
+├── scripts/
+│   ├── install.sh                # Automated installation
+│   └── uninstall.sh              # Cleanup script
+├── README.md                      # Deployment guide
+└── checksums.txt                  # SHA256 checksums
 ```
 
 ### Running the API Server
