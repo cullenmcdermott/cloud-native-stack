@@ -2,9 +2,13 @@ package serializer
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"path/filepath"
 	"testing"
+	"time"
 )
 
 type testData struct {
@@ -164,5 +168,334 @@ func TestRespondJSON_BuffersBeforeWritingHeaders(t *testing.T) {
 	// If it doesn't buffer, we'd get a 200 with an error body
 	if w.Code != http.StatusInternalServerError {
 		t.Errorf("expected buffering to prevent status %d, got %d", http.StatusOK, w.Code)
+	}
+}
+
+func TestNewHttpReader_Defaults(t *testing.T) {
+	reader := NewHttpReader()
+
+	if reader == nil {
+		t.Fatal("expected non-nil HttpReader")
+	}
+
+	if reader.Client == nil {
+		t.Error("expected non-nil Client")
+	}
+
+	if reader.UserAgent != HttpReaderUserAgent {
+		t.Errorf("expected UserAgent 'CNS-Serializer/1.0', got %s", reader.UserAgent)
+	}
+}
+
+func TestNewHttpReader_WithOptions(t *testing.T) {
+	customUserAgent := "TestAgent/1.0"
+
+	reader := NewHttpReader(
+		WithUserAgent(customUserAgent),
+		WithInsecureSkipVerify(true),
+		WithMaxIdleConns(50),
+		WithMaxIdleConnsPerHost(5),
+		WithMaxConnsPerHost(10),
+	)
+
+	if reader.UserAgent != customUserAgent {
+		t.Errorf("expected UserAgent %s, got %s", customUserAgent, reader.UserAgent)
+	}
+
+	if reader.InsecureSkipVerify != true {
+		t.Error("expected InsecureSkipVerify to be true")
+	}
+
+	if reader.MaxIdleConns != 50 {
+		t.Errorf("expected MaxIdleConns 50, got %d", reader.MaxIdleConns)
+	}
+
+	if reader.MaxIdleConnsPerHost != 5 {
+		t.Errorf("expected MaxIdleConnsPerHost 5, got %d", reader.MaxIdleConnsPerHost)
+	}
+
+	if reader.MaxConnsPerHost != 10 {
+		t.Errorf("expected MaxConnsPerHost 10, got %d", reader.MaxConnsPerHost)
+	}
+}
+
+func TestNewHttpReader_WithCustomClient(t *testing.T) {
+	customClient := &http.Client{
+		Timeout: 5 * time.Second,
+	}
+
+	reader := NewHttpReader(WithClient(customClient))
+
+	if reader.Client != customClient {
+		t.Error("expected custom client to be used")
+	}
+
+	if reader.Client.Timeout != 5*time.Second {
+		t.Errorf("expected timeout 5s, got %v", reader.Client.Timeout)
+	}
+}
+
+func TestHttpReader_Read_Success(t *testing.T) {
+	// Create test server
+	testData := []byte("test response data")
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		w.Write(testData)
+	}))
+	defer server.Close()
+
+	reader := NewHttpReader()
+	data, err := reader.Read(server.URL)
+	if err != nil {
+		t.Fatalf("Read() failed: %v", err)
+	}
+
+	if string(data) != string(testData) {
+		t.Errorf("expected data %q, got %q", string(testData), string(data))
+	}
+}
+
+func TestHttpReader_Read_EmptyURL(t *testing.T) {
+	reader := NewHttpReader()
+	_, err := reader.Read("")
+	if err == nil {
+		t.Error("expected error for empty URL")
+	}
+	if err.Error() != "url is empty" {
+		t.Errorf("expected 'url is empty' error, got %v", err)
+	}
+}
+
+func TestHttpReader_Read_NotFound(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusNotFound)
+	}))
+	defer server.Close()
+
+	reader := NewHttpReader()
+	_, err := reader.Read(server.URL)
+	if err == nil {
+		t.Error("expected error for 404 status")
+	}
+}
+
+func TestHttpReader_Read_ServerError(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusInternalServerError)
+	}))
+	defer server.Close()
+
+	reader := NewHttpReader()
+	_, err := reader.Read(server.URL)
+	if err == nil {
+		t.Error("expected error for 500 status")
+	}
+}
+
+func TestHttpReader_Read_InvalidURL(t *testing.T) {
+	reader := NewHttpReader()
+	_, err := reader.Read("not-a-valid-url")
+	if err == nil {
+		t.Error("expected error for invalid URL")
+	}
+}
+
+func TestHttpReader_Read_JSONResponse(t *testing.T) {
+	testResponse := map[string]interface{}{
+		"message": "success",
+		"code":    200,
+	}
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(testResponse)
+	}))
+	defer server.Close()
+
+	reader := NewHttpReader()
+	data, err := reader.Read(server.URL)
+	if err != nil {
+		t.Fatalf("Read() failed: %v", err)
+	}
+
+	var result map[string]interface{}
+	if err := json.Unmarshal(data, &result); err != nil {
+		t.Fatalf("failed to unmarshal JSON response: %v", err)
+	}
+
+	if result["message"] != "success" {
+		t.Errorf("expected message 'success', got %v", result["message"])
+	}
+}
+
+func TestHttpReader_ReadToFile_Success(t *testing.T) {
+	testData := []byte("test file content")
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		w.Write(testData)
+	}))
+	defer server.Close()
+
+	// Create temp directory for test file
+	tmpDir := t.TempDir()
+	filePath := filepath.Join(tmpDir, "test-output.txt")
+
+	reader := NewHttpReader()
+	err := reader.Download(server.URL, filePath)
+	if err != nil {
+		t.Fatalf("ReadToFile() failed: %v", err)
+	}
+
+	// Verify file was created and contains expected data
+	data, err := os.ReadFile(filePath)
+	if err != nil {
+		t.Fatalf("failed to read output file: %v", err)
+	}
+
+	if string(data) != string(testData) {
+		t.Errorf("expected file content %q, got %q", string(testData), string(data))
+	}
+}
+
+func TestHttpReader_ReadToFile_ReadError(t *testing.T) {
+	// Create temp directory for test file
+	tmpDir := t.TempDir()
+	filePath := filepath.Join(tmpDir, "test-output.txt")
+
+	reader := NewHttpReader()
+	err := reader.Download("not-a-valid-url", filePath)
+	if err == nil {
+		t.Error("expected error for invalid URL")
+	}
+}
+
+func TestHttpReader_ReadToFile_WriteError(t *testing.T) {
+	testData := []byte("test content")
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		w.Write(testData)
+	}))
+	defer server.Close()
+
+	// Use invalid path (directory that doesn't exist)
+	invalidPath := "/nonexistent/directory/file.txt"
+
+	reader := NewHttpReader()
+	err := reader.Download(server.URL, invalidPath)
+	if err == nil {
+		t.Error("expected error for invalid file path")
+	}
+}
+
+func TestHttpReader_ReadToFile_JSONFile(t *testing.T) {
+	testResponse := map[string]string{
+		"key1": "value1",
+		"key2": "value2",
+	}
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(testResponse)
+	}))
+	defer server.Close()
+
+	tmpDir := t.TempDir()
+	filePath := filepath.Join(tmpDir, "test.json")
+
+	reader := NewHttpReader()
+	err := reader.Download(server.URL, filePath)
+	if err != nil {
+		t.Fatalf("ReadToFile() failed: %v", err)
+	}
+
+	// Verify file contains valid JSON
+	data, err := os.ReadFile(filePath)
+	if err != nil {
+		t.Fatalf("failed to read output file: %v", err)
+	}
+
+	var result map[string]string
+	if err := json.Unmarshal(data, &result); err != nil {
+		t.Fatalf("failed to unmarshal JSON from file: %v", err)
+	}
+
+	if result["key1"] != "value1" {
+		t.Errorf("expected key1='value1', got %s", result["key1"])
+	}
+}
+
+func TestHttpReader_Read_UserAgentHeader(t *testing.T) {
+	customUserAgent := "CustomAgent/2.0"
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte("ok"))
+	}))
+	defer server.Close()
+
+	reader := NewHttpReader(WithUserAgent(customUserAgent))
+
+	// Note: The current implementation doesn't set User-Agent header in requests
+	// This test documents current behavior
+	_, err := reader.Read(server.URL)
+	if err != nil {
+		t.Fatalf("Read() failed: %v", err)
+	}
+
+	// The UserAgent field is set but not currently used in requests
+	// This is a potential enhancement point
+	if reader.UserAgent != customUserAgent {
+		t.Errorf("expected UserAgent %s, got %s", customUserAgent, reader.UserAgent)
+	}
+}
+
+func TestHttpReader_Read_LargeResponse(t *testing.T) {
+	// Create large test data (1MB)
+	largeData := make([]byte, 1024*1024)
+	for i := range largeData {
+		largeData[i] = byte(i % 256)
+	}
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		w.Write(largeData)
+	}))
+	defer server.Close()
+
+	reader := NewHttpReader()
+	data, err := reader.Read(server.URL)
+	if err != nil {
+		t.Fatalf("Read() failed: %v", err)
+	}
+
+	if len(data) != len(largeData) {
+		t.Errorf("expected data length %d, got %d", len(largeData), len(data))
+	}
+}
+
+func TestHttpReader_Read_MultipleRequests(t *testing.T) {
+	requestCount := 0
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		requestCount++
+		w.WriteHeader(http.StatusOK)
+		fmt.Fprintf(w, "request %d", requestCount)
+	}))
+	defer server.Close()
+
+	reader := NewHttpReader()
+
+	// Make multiple requests with same reader
+	for i := 1; i <= 3; i++ {
+		data, err := reader.Read(server.URL)
+		if err != nil {
+			t.Fatalf("Read() request %d failed: %v", i, err)
+		}
+
+		expected := fmt.Sprintf("request %d", i)
+		if string(data) != expected {
+			t.Errorf("request %d: expected %q, got %q", i, expected, string(data))
+		}
+	}
+
+	if requestCount != 3 {
+		t.Errorf("expected 3 requests, got %d", requestCount)
 	}
 }

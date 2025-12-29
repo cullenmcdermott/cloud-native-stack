@@ -73,7 +73,7 @@ The recipe can be output in JSON, YAML, or table format.`,
 			&cli.StringFlag{
 				Name:    "snapshot",
 				Aliases: []string{"f"},
-				Usage: `File path to previously generated configuration snapshot from which to build the recipe. 
+				Usage: `File path or URL to previously generated configuration snapshot from which to build the recipe. 
 	If provided, all other query flags with the exception of intent are ignored.`,
 			},
 			outputFlag,

@@ -15,11 +15,6 @@ const (
 	test1Name = "test1"
 )
 
-type testConfig struct {
-	Name  string
-	Value int
-}
-
 func TestWriter_SerializeJSON(t *testing.T) {
 	var buf bytes.Buffer
 	writer := NewWriter(FormatJSON, &buf)

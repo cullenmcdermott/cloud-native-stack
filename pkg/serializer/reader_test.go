@@ -3,12 +3,20 @@ package serializer
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
+	"io"
 	"os"
 	"strings"
 	"testing"
 
 	"gopkg.in/yaml.v3"
 )
+
+// Test data structures
+type testConfig struct {
+	Name  string `json:"name" yaml:"name"`
+	Value int    `json:"value" yaml:"value"`
+}
 
 func TestFormatFromPath(t *testing.T) {
 	tests := []struct {
@@ -825,4 +833,478 @@ func ExampleNewFileReaderAuto() {
 
 	// Use the data
 	_ = config.Name // "example"
+}
+
+// New comprehensive tests
+
+func TestFromFile_Success(t *testing.T) {
+	t.Run("load json file", func(t *testing.T) {
+		// Create temporary file
+		tmpfile, err := os.CreateTemp("", "test*.json")
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer os.Remove(tmpfile.Name())
+
+		// Write test data
+		data := testConfig{Name: "fromfile", Value: 999}
+		jsonData, _ := json.Marshal(data)
+		tmpfile.Write(jsonData)
+		tmpfile.Close()
+
+		// Use FromFile
+		result, err := FromFile[testConfig](tmpfile.Name())
+		if err != nil {
+			t.Fatalf("FromFile failed: %v", err)
+		}
+
+		if result == nil {
+			t.Fatal("Expected non-nil result")
+		}
+
+		if result.Name != "fromfile" || result.Value != 999 {
+			t.Errorf("Unexpected result: %+v", result)
+		}
+	})
+
+	t.Run("load yaml file", func(t *testing.T) {
+		tmpfile, err := os.CreateTemp("", "test*.yaml")
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer os.Remove(tmpfile.Name())
+
+		data := testConfig{Name: "yamltest", Value: 777}
+		yamlData, _ := yaml.Marshal(data)
+		tmpfile.Write(yamlData)
+		tmpfile.Close()
+
+		result, err := FromFile[testConfig](tmpfile.Name())
+		if err != nil {
+			t.Fatalf("FromFile failed: %v", err)
+		}
+
+		if result.Name != "yamltest" || result.Value != 777 {
+			t.Errorf("Unexpected result: %+v", result)
+		}
+	})
+
+	t.Run("load slice from json", func(t *testing.T) {
+		tmpfile, err := os.CreateTemp("", "test*.json")
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer os.Remove(tmpfile.Name())
+
+		data := []testConfig{
+			{Name: "item1", Value: 111},
+			{Name: "item2", Value: 222},
+		}
+		jsonData, _ := json.Marshal(data)
+		tmpfile.Write(jsonData)
+		tmpfile.Close()
+
+		result, err := FromFile[[]testConfig](tmpfile.Name())
+		if err != nil {
+			t.Fatalf("FromFile failed: %v", err)
+		}
+
+		if len(*result) != 2 {
+			t.Fatalf("Expected 2 items, got %d", len(*result))
+		}
+	})
+
+	t.Run("load map from yaml", func(t *testing.T) {
+		tmpfile, err := os.CreateTemp("", "test*.yaml")
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer os.Remove(tmpfile.Name())
+
+		data := map[string]int{"key1": 100, "key2": 200}
+		yamlData, _ := yaml.Marshal(data)
+		tmpfile.Write(yamlData)
+		tmpfile.Close()
+
+		result, err := FromFile[map[string]int](tmpfile.Name())
+		if err != nil {
+			t.Fatalf("FromFile failed: %v", err)
+		}
+
+		if (*result)["key1"] != 100 || (*result)["key2"] != 200 {
+			t.Errorf("Unexpected result: %+v", *result)
+		}
+	})
+}
+
+func TestFromFile_Errors(t *testing.T) {
+	t.Run("nonexistent file", func(t *testing.T) {
+		_, err := FromFile[testConfig]("/nonexistent/file.json")
+		if err == nil {
+			t.Fatal("Expected error for nonexistent file")
+		}
+		if !strings.Contains(err.Error(), "failed to create serializer") {
+			t.Errorf("Expected serializer creation error, got: %v", err)
+		}
+	})
+
+	t.Run("invalid json format", func(t *testing.T) {
+		tmpfile, err := os.CreateTemp("", "test*.json")
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer os.Remove(tmpfile.Name())
+
+		tmpfile.WriteString("{invalid json}")
+		tmpfile.Close()
+
+		_, err = FromFile[testConfig](tmpfile.Name())
+		if err == nil {
+			t.Fatal("Expected error for invalid JSON")
+		}
+		if !strings.Contains(err.Error(), "failed to deserialize") {
+			t.Errorf("Expected deserialization error, got: %v", err)
+		}
+	})
+
+	t.Run("type mismatch", func(t *testing.T) {
+		tmpfile, err := os.CreateTemp("", "test*.json")
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer os.Remove(tmpfile.Name())
+
+		// Write array but try to deserialize as object
+		tmpfile.WriteString(`[{"name":"test"}]`)
+		tmpfile.Close()
+
+		_, err = FromFile[testConfig](tmpfile.Name())
+		if err == nil {
+			t.Fatal("Expected error for type mismatch")
+		}
+	})
+}
+
+func TestReader_DeserializeTableFormat(t *testing.T) {
+	reader := &Reader{
+		format: FormatTable,
+		input:  strings.NewReader("data"),
+	}
+
+	var result testConfig
+	err := reader.Deserialize(&result)
+	if err == nil {
+		t.Fatal("Expected error for table format deserialization")
+	}
+	if !strings.Contains(err.Error(), "table format is not supported") {
+		t.Errorf("Expected table format error, got: %v", err)
+	}
+}
+
+func TestReader_DeserializeUnsupportedFormat(t *testing.T) {
+	reader := &Reader{
+		format: Format("unsupported"),
+		input:  strings.NewReader("data"),
+	}
+
+	var result testConfig
+	err := reader.Deserialize(&result)
+	if err == nil {
+		t.Fatal("Expected error for unsupported format")
+	}
+	if !strings.Contains(err.Error(), "unsupported format") {
+		t.Errorf("Expected unsupported format error, got: %v", err)
+	}
+}
+
+func TestReader_MultipleDeserialize(t *testing.T) {
+	t.Run("multiple deserialize calls should work", func(t *testing.T) {
+		// JSON decoder can handle multiple calls if we reset the reader
+		jsonData := `{"name":"test1","value":123}`
+
+		reader, err := NewReader(FormatJSON, strings.NewReader(jsonData))
+		if err != nil {
+			t.Fatalf("NewReader failed: %v", err)
+		}
+
+		var result1 testConfig
+		err = reader.Deserialize(&result1)
+		if err != nil {
+			t.Fatalf("First Deserialize failed: %v", err)
+		}
+
+		// Second deserialize should fail (EOF) because reader is consumed
+		var result2 testConfig
+		err = reader.Deserialize(&result2)
+		if err == nil {
+			t.Fatal("Expected error on second deserialize from exhausted reader")
+		}
+	})
+}
+
+func TestReader_EmptyFile(t *testing.T) {
+	t.Run("empty json file", func(t *testing.T) {
+		tmpfile, err := os.CreateTemp("", "test*.json")
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer os.Remove(tmpfile.Name())
+		tmpfile.Close()
+
+		reader, err := NewFileReader(FormatJSON, tmpfile.Name())
+		if err != nil {
+			t.Fatalf("NewFileReader failed: %v", err)
+		}
+		defer reader.Close()
+
+		var result testConfig
+		err = reader.Deserialize(&result)
+		if err == nil {
+			t.Fatal("Expected error for empty file")
+		}
+	})
+}
+
+func TestReader_LargeFile(t *testing.T) {
+	t.Run("deserialize large array", func(t *testing.T) {
+		tmpfile, err := os.CreateTemp("", "test*.json")
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer os.Remove(tmpfile.Name())
+
+		// Create large array (1000 items)
+		var largeData []testConfig
+		for i := 0; i < 1000; i++ {
+			largeData = append(largeData, testConfig{
+				Name:  fmt.Sprintf("item%d", i),
+				Value: i,
+			})
+		}
+
+		jsonData, _ := json.Marshal(largeData)
+		tmpfile.Write(jsonData)
+		tmpfile.Close()
+
+		reader, err := NewFileReaderAuto(tmpfile.Name())
+		if err != nil {
+			t.Fatalf("NewFileReaderAuto failed: %v", err)
+		}
+		defer reader.Close()
+
+		var result []testConfig
+		err = reader.Deserialize(&result)
+		if err != nil {
+			t.Fatalf("Deserialize failed: %v", err)
+		}
+
+		if len(result) != 1000 {
+			t.Errorf("Expected 1000 items, got %d", len(result))
+		}
+
+		// Spot check first and last items
+		if result[0].Name != "item0" || result[0].Value != 0 {
+			t.Errorf("First item incorrect: %+v", result[0])
+		}
+		if result[999].Name != "item999" || result[999].Value != 999 {
+			t.Errorf("Last item incorrect: %+v", result[999])
+		}
+	})
+}
+
+func TestReader_SpecialCharacters(t *testing.T) {
+	t.Run("json with unicode", func(t *testing.T) {
+		jsonData := `{"name":"测试","value":42}`
+		reader, err := NewReader(FormatJSON, strings.NewReader(jsonData))
+		if err != nil {
+			t.Fatalf("NewReader failed: %v", err)
+		}
+
+		var result testConfig
+		err = reader.Deserialize(&result)
+		if err != nil {
+			t.Fatalf("Deserialize failed: %v", err)
+		}
+
+		if result.Name != "测试" {
+			t.Errorf("Expected name '测试', got %q", result.Name)
+		}
+	})
+
+	t.Run("yaml with special characters", func(t *testing.T) {
+		yamlData := `name: "test: with: colons"
+value: 123`
+		reader, err := NewReader(FormatYAML, strings.NewReader(yamlData))
+		if err != nil {
+			t.Fatalf("NewReader failed: %v", err)
+		}
+
+		var result testConfig
+		err = reader.Deserialize(&result)
+		if err != nil {
+			t.Fatalf("Deserialize failed: %v", err)
+		}
+
+		if result.Name != "test: with: colons" {
+			t.Errorf("Expected name with colons, got %q", result.Name)
+		}
+	})
+}
+
+func TestNewReader_NilInput(t *testing.T) {
+	reader, err := NewReader(FormatJSON, nil)
+	if err != nil {
+		t.Fatalf("NewReader should succeed with nil input, got error: %v", err)
+	}
+
+	// But Deserialize should fail
+	var result testConfig
+	err = reader.Deserialize(&result)
+	if err == nil {
+		t.Fatal("Expected error when deserializing from nil input")
+	}
+	if !strings.Contains(err.Error(), "input source is nil") {
+		t.Errorf("Expected nil input error, got: %v", err)
+	}
+}
+
+func TestReader_CustomCloser(t *testing.T) {
+	t.Run("custom closer is called", func(t *testing.T) {
+		closeCalled := false
+		customReader := &testClosableReader{
+			Reader: strings.NewReader(`{"name":"test","value":123}`),
+			onClose: func() error {
+				closeCalled = true
+				return nil
+			},
+		}
+
+		reader, err := NewReader(FormatJSON, customReader)
+		if err != nil {
+			t.Fatalf("NewReader failed: %v", err)
+		}
+
+		var result testConfig
+		if err := reader.Deserialize(&result); err != nil {
+			t.Fatalf("Deserialize failed: %v", err)
+		}
+
+		// Close should call custom closer
+		if err := reader.Close(); err != nil {
+			t.Fatalf("Close failed: %v", err)
+		}
+
+		if !closeCalled {
+			t.Error("Expected custom closer to be called")
+		}
+	})
+}
+
+// testClosableReader wraps a reader and adds a closer
+type testClosableReader struct {
+	io.Reader
+	onClose func() error
+}
+
+func (r *testClosableReader) Close() error {
+	if r.onClose != nil {
+		return r.onClose()
+	}
+	return nil
+}
+
+func TestFormatFromPath_EdgeCases(t *testing.T) {
+	tests := []struct {
+		name     string
+		path     string
+		expected Format
+	}{
+		{"empty path", "", FormatJSON},
+		{"only extension", ".json", FormatJSON},
+		{"multiple dots", "file.backup.json", FormatJSON},
+		{"mixed case", "File.YaMl", FormatYAML},
+		{"absolute path", "/usr/local/config.yaml", FormatYAML},
+		{"windows path", "C:\\Users\\config.json", FormatJSON},
+		{"url-like path", "https://example.com/data.yaml", FormatYAML},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := FormatFromPath(tt.path)
+			if result != tt.expected {
+				t.Errorf("FormatFromPath(%q) = %v, want %v", tt.path, result, tt.expected)
+			}
+		})
+	}
+}
+
+func TestReader_ConcurrentAccess(t *testing.T) {
+	t.Run("concurrent deserialize should be safe with separate readers", func(t *testing.T) {
+		jsonData := `{"name":"concurrent","value":100}`
+
+		done := make(chan bool, 10)
+		for i := 0; i < 10; i++ {
+			go func() {
+				reader, err := NewReader(FormatJSON, strings.NewReader(jsonData))
+				if err != nil {
+					t.Errorf("NewReader failed: %v", err)
+					done <- false
+					return
+				}
+
+				var result testConfig
+				if err := reader.Deserialize(&result); err != nil {
+					t.Errorf("Deserialize failed: %v", err)
+					done <- false
+					return
+				}
+
+				if result.Name != "concurrent" {
+					t.Errorf("Expected name 'concurrent', got %q", result.Name)
+					done <- false
+					return
+				}
+
+				done <- true
+			}()
+		}
+
+		// Wait for all goroutines
+		for i := 0; i < 10; i++ {
+			if !<-done {
+				t.Fatal("At least one goroutine failed")
+			}
+		}
+	})
+}
+
+// Benchmark for new tests
+func BenchmarkFromFile_JSON(b *testing.B) {
+	tmpfile, _ := os.CreateTemp("", "bench*.json")
+	defer os.Remove(tmpfile.Name())
+
+	data := testConfig{Name: "benchmark", Value: 12345}
+	jsonData, _ := json.Marshal(data)
+	tmpfile.Write(jsonData)
+	tmpfile.Close()
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		FromFile[testConfig](tmpfile.Name())
+	}
+}
+
+func BenchmarkFromFile_YAML(b *testing.B) {
+	tmpfile, _ := os.CreateTemp("", "bench*.yaml")
+	defer os.Remove(tmpfile.Name())
+
+	data := testConfig{Name: "benchmark", Value: 12345}
+	yamlData, _ := yaml.Marshal(data)
+	tmpfile.Write(yamlData)
+	tmpfile.Close()
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		FromFile[testConfig](tmpfile.Name())
+	}
 }

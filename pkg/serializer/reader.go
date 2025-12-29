@@ -6,13 +6,21 @@ import (
 	"io"
 	"log/slog"
 	"os"
+	"path/filepath"
 	"strings"
+	"time"
 
 	"gopkg.in/yaml.v3"
 )
 
-// FormatFromPath determines the format based on file extension.
-// Returns FormatJSON as default if the extension is not recognized.
+// FormatFromPath determines the serialization format based on file extension.
+// Supported extensions:
+//   - .json → FormatJSON
+//   - .yaml, .yml → FormatYAML
+//   - .table, .txt → FormatTable
+//
+// Returns FormatJSON as default for unknown extensions.
+// Extension matching is case-insensitive.
 func FormatFromPath(filePath string) Format {
 	lowerPath := strings.ToLower(filePath)
 	switch {
@@ -28,17 +36,41 @@ func FormatFromPath(filePath string) Format {
 	}
 }
 
-// Reader handles deserialization of configuration data from various formats.
-// Close must be called to release resources when using NewFileReader.
+// Reader handles deserialization of structured data from various formats (JSON, YAML).
+// It supports reading from any io.Reader source including files, strings, and HTTP responses.
+//
+// Resource Management:
+//   - Close must be called to release resources when using NewFileReader or NewFileReaderAuto
+//   - Safe to call Close multiple times (idempotent)
+//   - Close is a no-op for readers created with NewReader from non-closeable sources
+//
+// Supported formats: JSON, YAML (Table format is write-only)
 type Reader struct {
 	format Format
 	input  io.Reader
 	closer io.Closer
 }
 
-// NewReader creates a new Reader with the specified format and input source.
-// If format is unknown, returns an error.
-// The caller is responsible for closing the input if it implements io.Closer.
+// NewReader creates a new Reader for deserializing data from an io.Reader source.
+//
+// Parameters:
+//   - format: The serialization format (FormatJSON or FormatYAML)
+//   - input: Any io.Reader implementation (e.g., strings.Reader, bytes.Buffer, *os.File)
+//
+// Returns error if:
+//   - format is unknown or unsupported
+//   - format is FormatTable (table format does not support deserialization)
+//
+// Resource Management:
+//   - If input implements io.Closer, it will be stored and closed by Reader.Close()
+//   - Otherwise, Close() is a no-op
+//
+// Example:
+//
+//	reader, err := NewReader(FormatJSON, strings.NewReader(`{"key":"value"}`})
+//	if err != nil { panic(err) }
+//	var data map[string]string
+//	err = reader.Deserialize(&data)
 func NewReader(format Format, input io.Reader) (*Reader, error) {
 	if format.IsUnknown() {
 		return nil, fmt.Errorf("unknown format: %s", format)
@@ -61,9 +93,31 @@ func NewReader(format Format, input io.Reader) (*Reader, error) {
 	return r, nil
 }
 
-// NewFileReader creates a new Reader that reads from the specified file path.
-// The format is determined by the provided format parameter.
-// Close must be called to release the file handle.
+// NewFileReader creates a new Reader that reads from a file path or URL.
+//
+// Parameters:
+//   - format: The serialization format (FormatJSON or FormatYAML)
+//   - filePath: Local file path or HTTP/HTTPS URL
+//
+// URL Support:
+//   - Supports http:// and https:// URLs
+//   - Downloads remote files to temporary directory
+//   - Temporary files are managed by Reader.Close()
+//
+// Returns error if:
+//   - format is unknown or unsupported
+//   - format is FormatTable (table format does not support deserialization)
+//   - file cannot be opened or URL cannot be downloaded
+//
+// Resource Management:
+//   - Close must be called to release the file handle
+//   - For remote URLs, Close also removes the temporary downloaded file
+//
+// Example:
+//
+//	reader, err := NewFileReader(FormatJSON, "/path/to/config.json")
+//	if err != nil { panic(err) }
+//	defer reader.Close()
 func NewFileReader(format Format, filePath string) (*Reader, error) {
 	if format.IsUnknown() {
 		return nil, fmt.Errorf("unknown format: %s", format)
@@ -73,11 +127,28 @@ func NewFileReader(format Format, filePath string) (*Reader, error) {
 		return nil, fmt.Errorf("table format does not support deserialization")
 	}
 
-	file, err := os.Open(filePath)
+	// If the filePath is a URL or special scheme, handle accordingly
+	var file *os.File
+	var err error
+
+	if strings.HasPrefix(filePath, "http://") || strings.HasPrefix(filePath, "https://") {
+		name := fmt.Sprintf("eidos-%d.tmp", time.Now().UnixNano())
+		tempFilePath := filepath.Join(os.TempDir(), name)
+		httpReader := NewHttpReader()
+		if err = httpReader.Download(filePath, tempFilePath); err != nil {
+			return nil, fmt.Errorf("failed to download remote file: %w", err)
+		}
+		file, err = os.Open(tempFilePath)
+	} else {
+		file, err = os.Open(filePath)
+	}
+
+	// Handle file open error
 	if err != nil {
 		return nil, fmt.Errorf("failed to open file: %w", err)
 	}
 
+	// Create Reader
 	return &Reader{
 		format: format,
 		input:  file,
@@ -85,16 +156,43 @@ func NewFileReader(format Format, filePath string) (*Reader, error) {
 	}, nil
 }
 
-// NewFileReaderAuto creates a new Reader that reads from the specified file path.
-// The format is automatically determined from the file extension.
-// Close must be called to release the file handle.
+// NewFileReaderAuto creates a new Reader with automatic format detection.
+// The format is determined from the file extension using FormatFromPath.
+//
+// This is a convenience wrapper around NewFileReader that auto-detects the format.
+// See NewFileReader for full documentation on supported paths, URLs, and resource management.
+//
+// Example:
+//
+//	reader, err := NewFileReaderAuto("config.yaml") // Auto-detects YAML format
+//	if err != nil { panic(err) }
+//	defer reader.Close()
+//	var config MyConfig
+//	err = reader.Deserialize(&config)
 func NewFileReaderAuto(filePath string) (*Reader, error) {
 	format := FormatFromPath(filePath)
 	return NewFileReader(format, filePath)
 }
 
 // Deserialize reads data from the input source and unmarshals it into v.
-// The type of v must be a pointer to the target structure.
+//
+// Parameters:
+//   - v: A pointer to the target structure or variable
+//
+// Type Requirements:
+//   - v must be a pointer (e.g., &myStruct, &mySlice, &myMap)
+//   - The underlying type must be compatible with the format (JSON or YAML)
+//
+// Returns error if:
+//   - Reader is nil
+//   - Input source is nil
+//   - Data cannot be decoded (invalid format, type mismatch)
+//   - Format is FormatTable (not supported for deserialization)
+//
+// Example:
+//
+//	var config struct { Name string; Value int }
+//	err := reader.Deserialize(&config)
 func (r *Reader) Deserialize(v any) error {
 	if r == nil {
 		return fmt.Errorf("reader is nil")
@@ -128,7 +226,20 @@ func (r *Reader) Deserialize(v any) error {
 }
 
 // Close releases any resources held by the Reader.
-// It is safe to call Close multiple times.
+//
+// Behavior:
+//   - If Reader was created from a file (NewFileReader), closes the file handle
+//   - If Reader was created from a non-closeable source (NewReader), this is a no-op
+//   - Sets internal closer to nil after first close to prevent double-close errors
+//   - Safe to call on nil Reader
+//
+// Idempotency:
+//   - Safe to call multiple times (subsequent calls are no-ops)
+//   - Returns nil on subsequent calls after successful first close
+//
+// Best Practice:
+//   - Always defer Close() immediately after creating a Reader from files
+//   - Example: defer reader.Close()
 func (r *Reader) Close() error {
 	if r == nil {
 		return nil
@@ -142,10 +253,32 @@ func (r *Reader) Close() error {
 	return nil
 }
 
-// FromFile loads an object of type T from the specified file path.
-// The type T must be a struct or any type that can be unmarshaled from the file format.
-// Close must be called to release resources held by the Reader.
-// The caller is responsible for handling the returned error.
+// FromFile is a generic convenience function that loads and deserializes a file in one call.
+// The file format is automatically detected from the file extension.
+//
+// Type Parameter:
+//   - T: The target type (struct, slice, map, etc.) compatible with JSON/YAML unmarshaling
+//
+// Parameters:
+//   - path: File path or HTTP/HTTPS URL
+//
+// Returns:
+//   - Pointer to populated instance of type T
+//   - Error if file cannot be read or deserialized
+//
+// Resource Management:
+//   - Automatically handles Reader creation and cleanup (Close is called internally)
+//   - No need to manually close the reader
+//
+// Example:
+//
+//	type Config struct { Name string; Port int }
+//	config, err := FromFile[Config]("config.yaml")
+//	if err != nil { panic(err) }
+//	fmt.Println(config.Name) // Use config directly
+//
+// Note: This is a higher-level API. Use NewFileReader directly if you need
+// more control over the Reader lifecycle or want to reuse it.
 func FromFile[T any](path string) (*T, error) {
 	fileFormat := FormatFromPath(path)
 	slog.Debug("determined file format",

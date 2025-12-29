@@ -1,8 +1,8 @@
 kind: Recipe
 apiVersion: recipe.dgxc.io/v1
 metadata:
-  recipe-timestamp: "2025-12-27T15:47:51Z"
-  recipe-version: 0.7.13
+  recipe-timestamp: "2025-12-29T13:34:07Z"
+  recipe-version: v0.7.15-next
 request:
   os: ubuntu
   osv:
@@ -28,7 +28,7 @@ matchedRules:
   - 'OS: ubuntu any, Kernel: any, Service: eks, K8s: any, GPU: any, Intent: any, Context: false'
   - 'OS: any any, Kernel: any, Service: eks, K8s: any, GPU: gb200, Intent: any, Context: false'
 measurements:
-  - type: os
+  - type: OS
     subtypes:
       - subtype: kmod
         data:
@@ -141,7 +141,7 @@ measurements:
           /proc/sys/vm/overcommit_memory: Always allow memory overcommit for flexible GPU container allocation
           /proc/sys/vm/swappiness: Swap tendency (lower values keep GPU-related memory resident)
           /proc/sys/vm/zone_reclaim_mode: Disable NUMA zone reclaim for consistent cross-node GPU access
-  - type: systemd
+  - type: SystemD
     subtypes:
       - subtype: containerd.service
         data:
@@ -174,7 +174,7 @@ measurements:
           IOWeight: Unlimited I/O weight
           LimitNOFILE: Unlimited file descriptors for container connections
           LimitNPROC: Unlimited process count for GPU containers
-  - type: k8s
+  - type: K8s
     subtypes:
       - subtype: server
         data:
@@ -234,7 +234,7 @@ measurements:
           mig: Multi-Instance GPU disabled for dedicated GPU access
           rdma: RDMA support enabled for high-speed GPU networking
           useOpenKernelModule: Use open-source EFA kernel module for compatibility with GB200 GPUs
-  - type: gpu
+  - type: GPU
     subtypes:
       - subtype: smi
         data:

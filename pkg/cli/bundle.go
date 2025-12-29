@@ -32,7 +32,7 @@ func bundleCmd() *cli.Command {
 				Name:     "recipe",
 				Aliases:  []string{"f"},
 				Required: true,
-				Usage:    "File path to previously generated recipe file from which to build the bundle.",
+				Usage:    "File path or URL to previously generated recipe file from which to build the bundle.",
 			},
 			&cli.StringSliceFlag{
 				Name:    "bundlers",
