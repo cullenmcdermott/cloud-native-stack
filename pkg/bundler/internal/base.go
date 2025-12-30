@@ -194,7 +194,7 @@ func (b *BaseBundler) Finalize(start time.Time) {
 	)
 }
 
-// CheckContext checks if the context has been cancelled.
+// CheckContext checks if the context has been canceled.
 // This should be called periodically during long-running operations
 // to allow for graceful cancellation.
 func (b *BaseBundler) CheckContext(ctx context.Context) error {

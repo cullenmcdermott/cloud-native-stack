@@ -137,7 +137,7 @@ func NewContextChecker() *ContextChecker {
 	return &ContextChecker{}
 }
 
-// Check checks if the context has been cancelled.
+// Check checks if the context has been canceled.
 func (c *ContextChecker) Check(ctx context.Context) error {
 	select {
 	case <-ctx.Done():

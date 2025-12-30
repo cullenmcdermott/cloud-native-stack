@@ -51,11 +51,9 @@ func TestBundler_Make(t *testing.T) {
 			wantErr:    false,
 		},
 		{
-			name: "invalid recipe",
-			recipeFunc: func() *internal.RecipeBuilder {
-				return internal.NewRecipeBuilder() // Empty recipe
-			},
-			wantErr: true,
+			name:       "invalid recipe",
+			recipeFunc: internal.NewRecipeBuilder, // Empty recipe
+			wantErr:    true,
 		},
 	}
 

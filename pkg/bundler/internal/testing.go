@@ -62,7 +62,7 @@ func (h *TestHarness) TestMake(bundler BundlerInterface) {
 }
 
 // TestMakeWithConfig tests the Make method with a specific config.
-func (h *TestHarness) TestMakeWithConfig(bundler BundlerInterface, cfg *config.Config) {
+func (h *TestHarness) TestMakeWithConfig(bundler BundlerInterface, _ *config.Config) {
 	ctx := context.Background()
 	tmpDir := h.t.TempDir()
 

@@ -103,7 +103,7 @@ func TestBaseBundler_WriteFile(t *testing.T) {
 	}
 
 	// Verify file was created
-	if _, err := os.Stat(testFile); os.IsNotExist(err) {
+	if _, statErr := os.Stat(testFile); os.IsNotExist(statErr) {
 		t.Error("File was not created")
 	}
 
@@ -255,7 +255,7 @@ func TestBaseBundler_GenerateChecksums(t *testing.T) {
 
 	// Verify checksums file exists
 	checksumPath := filepath.Join(bundleDir, "checksums.txt")
-	if _, err := os.Stat(checksumPath); os.IsNotExist(err) {
+	if _, statErr := os.Stat(checksumPath); os.IsNotExist(statErr) {
 		t.Error("Checksums file was not created")
 	}
 
@@ -390,4 +390,132 @@ func TestBaseBundler_AddError(t *testing.T) {
 	if b.Result.Errors[0] != testErr.Error() {
 		t.Errorf("Result.Errors[0] = %s, want %s", b.Result.Errors[0], testErr.Error())
 	}
+}
+
+func TestBaseBundler_BuildBaseConfigMap(t *testing.T) {
+	cfg := config.NewConfig(
+		config.WithNamespace("test-namespace"),
+		config.WithHelmRepository("https://test.repo"),
+		config.WithHelmChartVersion("v1.2.3"),
+		config.WithCustomLabels(map[string]string{
+			"env":  "prod",
+			"team": "platform",
+		}),
+		config.WithCustomAnnotations(map[string]string{
+			"owner":   "ops-team",
+			"version": "1.0",
+		}),
+	)
+
+	b := NewBaseBundler(cfg, types.BundleTypeGpuOperator)
+	configMap := b.BuildBaseConfigMap()
+
+	// Test basic config values
+	if configMap["namespace"] != "test-namespace" {
+		t.Errorf("namespace = %s, want test-namespace", configMap["namespace"])
+	}
+	if configMap["helm_repository"] != "https://test.repo" {
+		t.Errorf("helm_repository = %s, want https://test.repo", configMap["helm_repository"])
+	}
+	if configMap["helm_chart_version"] != "v1.2.3" {
+		t.Errorf("helm_chart_version = %s, want v1.2.3", configMap["helm_chart_version"])
+	}
+
+	// Test custom labels
+	if configMap["label_env"] != "prod" {
+		t.Errorf("label_env = %s, want prod", configMap["label_env"])
+	}
+	if configMap["label_team"] != "platform" {
+		t.Errorf("label_team = %s, want platform", configMap["label_team"])
+	}
+
+	// Test custom annotations
+	if configMap["annotation_owner"] != "ops-team" {
+		t.Errorf("annotation_owner = %s, want ops-team", configMap["annotation_owner"])
+	}
+	if configMap["annotation_version"] != "1.0" {
+		t.Errorf("annotation_version = %s, want 1.0", configMap["annotation_version"])
+	}
+}
+
+func TestBaseBundler_GenerateFileFromTemplate(t *testing.T) {
+	templates := map[string]string{
+		"test.yaml": "name: {{.Name}}\nvalue: {{.Value}}",
+	}
+
+	getTemplate := func(name string) (string, bool) {
+		tmpl, ok := templates[name]
+		return tmpl, ok
+	}
+
+	tmpDir := t.TempDir()
+	b := NewBaseBundler(nil, types.BundleTypeGpuOperator)
+
+	tests := []struct {
+		name         string
+		ctx          context.Context
+		templateName string
+		outputPath   string
+		data         interface{}
+		wantErr      bool
+		wantContent  string
+	}{
+		{
+			name:         "successful generation",
+			ctx:          context.Background(),
+			templateName: "test.yaml",
+			outputPath:   filepath.Join(tmpDir, "test1.yaml"),
+			data: map[string]interface{}{
+				"Name":  "TestName",
+				"Value": "TestValue",
+			},
+			wantErr:     false,
+			wantContent: "name: TestName\nvalue: TestValue",
+		},
+		{
+			name:         "template not found",
+			ctx:          context.Background(),
+			templateName: "missing.yaml",
+			outputPath:   filepath.Join(tmpDir, "test2.yaml"),
+			data:         map[string]interface{}{},
+			wantErr:      true,
+		},
+		{
+			name: "cancelled context",
+			ctx: func() context.Context {
+				ctx, cancel := context.WithCancel(context.Background())
+				cancel()
+				return ctx
+			}(),
+			templateName: "test.yaml",
+			outputPath:   filepath.Join(tmpDir, "test3.yaml"),
+			data:         map[string]interface{}{},
+			wantErr:      true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := b.GenerateFileFromTemplate(tt.ctx, getTemplate, tt.templateName,
+				tt.outputPath, tt.data, 0644)
+
+			if (err != nil) != tt.wantErr {
+				t.Errorf("GenerateFileFromTemplate() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+
+			if !tt.wantErr && tt.wantContent != "" {
+				content, err := os.ReadFile(tt.outputPath)
+				if err != nil {
+					t.Fatalf("Failed to read generated file: %v", err)
+				}
+				if string(content) != tt.wantContent {
+					t.Errorf("Generated content = %s, want %s", string(content), tt.wantContent)
+				}
+			}
+		})
+	}
+}
+func contains(s, substr string) bool {
+	return len(s) >= len(substr) && (s == substr || len(s) > len(substr) && (s[:len(substr)] == substr || contains(s[1:], substr)))
 }
