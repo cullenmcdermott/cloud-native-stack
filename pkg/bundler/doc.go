@@ -247,7 +247,7 @@ DefaultBundler uses errgroup.WithContext for parallel execution:
 
 All operations log via slog:
 
-	slog.Info("starting bundle generation",
+	slog.Debug("starting bundle generation",
 		"bundler_count", 2,
 		"output_dir", "./bundles",
 	)

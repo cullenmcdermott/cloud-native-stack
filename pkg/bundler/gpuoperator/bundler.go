@@ -92,7 +92,7 @@ func (b *Bundler) Make(ctx context.Context, recipe *recipe.Recipe, dir string) (
 	// Finalize bundle generation
 	b.Finalize(start)
 
-	slog.Info("GPU Operator bundle generated",
+	slog.Debug("GPU Operator bundle generated",
 		"files", len(b.Result.Files),
 		"size_bytes", b.Result.Size,
 		"duration", b.Result.Duration.Round(time.Millisecond),

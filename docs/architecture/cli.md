@@ -2259,13 +2259,13 @@ slog integration for structured log output:
 
 ```go
 // Bundle generation start
-slog.Info("generating bundle",
+slog.Debug("generating bundle",
     "bundler_type", bundlerType,
     "output_dir", outputDir,
 )
 
 // Bundle generation complete
-slog.Info("bundle generated successfully",
+slog.Debug("bundle generated successfully",
     "bundler_type", bundlerType,
     "files", len(result.Files),
     "bytes", result.TotalBytes,

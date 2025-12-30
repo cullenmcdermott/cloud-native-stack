@@ -64,7 +64,7 @@ func bundleCmd() *cli.Command {
 				bundlerTypes = append(bundlerTypes, bt)
 			}
 
-			slog.Info("generating bundle",
+			slog.Debug("generating bundle",
 				slog.String("recipeFilePath", recipeFilePath),
 				slog.String("outputDir", outputDir),
 				slog.Any("bundlerTypes", bundlerTypes),
@@ -89,7 +89,7 @@ func bundleCmd() *cli.Command {
 				return err
 			}
 
-			slog.Info("bundle generation completed",
+			slog.Debug("bundle generation completed",
 				"success", out.SuccessCount(),
 				"errors", len(out.Errors),
 				"duration_sec", out.TotalDuration.Seconds(),

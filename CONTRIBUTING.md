@@ -1153,7 +1153,7 @@ func ProcessRequest(ctx context.Context, id string) error {
         return err
     }
     
-    slog.Info("request processed successfully", "id", id)
+    slog.Debug("request processed successfully", "id", id)
     return nil
 }
 ```

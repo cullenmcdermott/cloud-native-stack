@@ -30,10 +30,10 @@
 //
 //	func main() {
 //	    logging.SetDefaultStructuredLogger("eidos", "v1.0.0")
-//	    defer slog.Info("application started")
+//	    defer slog.Debug("application started")
 //
 //	    // Use slog as normal
-//	    slog.Info("processing request", "id", "req-123")
+//	    slog.Debug("processing request", "id", "req-123")
 //	    slog.Debug("detailed state", "data", complexObject)
 //	    slog.Error("operation failed", "error", err)
 //	}
@@ -41,7 +41,7 @@
 // Creating a custom logger:
 //
 //	logger := logging.NewStructuredLogger("api-server", "v2.0.0", "debug")
-//	logger.Info("server starting", "port", 8080)
+//	logger.Debug("server starting", "port", 8080)
 //
 // Setting explicit log level:
 //
@@ -95,13 +95,13 @@
 //
 //	func main() {
 //	    logging.SetDefaultStructuredLogger("myapp", version)
-//	    defer slog.Info("application started")
+//	    defer slog.Debug("application started")
 //	    // ...
 //	}
 //
 // 2. Include context in log messages:
 //
-//	slog.Info("request processed",
+//	slog.Debug("request processed",
 //	    "method", "GET",
 //	    "path", "/api/v1/resources",
 //	    "duration_ms", 125,
@@ -110,7 +110,7 @@
 // 3. Use appropriate log levels:
 //
 //	slog.Debug("cache hit", "key", key)  // Development/troubleshooting
-//	slog.Info("server started")          // Normal operations
+//	slog.Debug("server started")          // Normal operations
 //	slog.Warn("retry attempt 3")         // Potential issues
 //	slog.Error("db connection failed")   // Errors requiring action
 //

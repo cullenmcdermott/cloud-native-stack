@@ -164,7 +164,7 @@ func (b *DefaultBundler) Make(ctx context.Context, recipe *recipe.Recipe, dir st
 		return nil, errors.New(errors.ErrCodeInvalidRequest, "no bundlers selected")
 	}
 
-	slog.Info("starting bundle generation",
+	slog.Debug("starting bundle generation",
 		"bundler_count", len(bundlers),
 		"output_dir", dir,
 	)
@@ -178,7 +178,7 @@ func (b *DefaultBundler) Make(ctx context.Context, recipe *recipe.Recipe, dir st
 	output.TotalDuration = time.Since(start)
 	output.OutputDir = dir
 
-	slog.Info("bundle generation complete", "summary", output.Summary())
+	slog.Debug("bundle generation complete", "summary", output.Summary())
 
 	return output, nil
 }
@@ -311,7 +311,7 @@ func (b *DefaultBundler) executeBundler(ctx context.Context, bundlerType types.B
 	recordBundleSize(bundlerType, result.Size)
 	recordBundleFiles(bundlerType, len(result.Files))
 
-	slog.Info("bundler completed",
+	slog.Debug("bundler completed",
 		"bundler_type", bundlerType,
 		"files", len(result.Files),
 		"size_bytes", result.Size,
