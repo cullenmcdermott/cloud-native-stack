@@ -1,0 +1,821 @@
+# Data Architecture
+
+This document describes the data system used by the Eidos CLI and API to generate optimized system configuration recommendations (i.e. recipes) based on environment parameters.
+
+## Table of Contents
+
+- [Overview](#overview)
+- [Data Structure](#data-structure)
+- [Base Measurements](#base-measurements)
+- [Overlay System](#overlay-system)
+- [Query Matching Algorithm](#query-matching-algorithm)
+- [Recipe Generation Process](#recipe-generation-process)
+- [Usage Examples](#usage-examples)
+- [Maintenance Guide](#maintenance-guide)
+
+## Overview
+
+The recipe system is a rule-based configuration engine that generates tailored system configurations by:
+
+1. **Starting with base measurements** - Universal settings applicable to all environments
+2. **Layering environment-specific overlays** - Targeted configurations that match query parameters
+3. **Merging configurations intelligently** - Overlays augment or override base values
+4. **Delivering optimized recipes** - Complete configuration recommendations
+
+The entire recipe data is defined in a single YAML file: [`pkg/recipe/data/data-v1.yaml`](../../pkg/recipe/data/data-v1.yaml)
+
+> Note: This file is embedded into both the CLI binary and API server at compile time, making the system fully self-contained with no external dependencies.
+
+## Data Structure
+
+The recipe data follows this top-level structure:
+
+```yaml
+base:
+  - type: OS
+    subtypes: [...]
+  - type: SystemD
+    subtypes: [...]
+  - type: K8s
+    subtypes: [...]
+  - type: GPU
+    subtypes: [...]
+  - type: ...
+    subtypes: [...]
+
+overlays:
+  - key:
+      service: eks
+      os: ubuntu
+    types: [...]
+  - key:
+      service: eks
+      gpu: gb200
+    types: [...]
+```
+
+### Top-Level Fields
+
+- **`base`** - Array of measurements that apply universally to all queries
+- **`overlays`** - Array of conditional measurement sets that match specific query parameters
+
+### Measurement Structure
+
+Each measurement (in both `base` and overlay `types`) follows this format:
+
+```yaml
+- type: <MeasurementType>        # OS, SystemD, K8s, or GPU
+  subtypes:
+    - subtype: <SubtypeName>     # Specific configuration category
+      data:                       # Key-value configuration settings
+        <key>: <value>
+      context:                    # Optional human-readable explanations
+        <key>: <explanation>
+```
+
+**Measurement Types:**
+- `OS` - Operating system configuration (kernel modules, grub parameters, sysctl settings, OS release)
+- `SystemD` - SystemD service configurations (containerd, kubelet, etc.)
+- `K8s` - Kubernetes cluster settings (versions, images, registry, feature flags)
+- `GPU` - GPU hardware and driver configurations (CUDA version, driver version, MIG settings)
+
+**Common Subtypes:**
+
+| Type | Subtype | Description |
+|------|---------|-------------|
+| OS | `kmod` | Kernel modules to load |
+| OS | `grub` | Boot parameters |
+| OS | `sysctl` | Kernel runtime parameters |
+| OS | `release` | OS identification |
+| SystemD | `containerd.service` | Container runtime configuration |
+| SystemD | `kubelet.service` | Kubernetes node agent configuration |
+| K8s | `server` | Kubernetes version |
+| K8s | `image` | Container image versions |
+| K8s | `registry` | Container registry configuration |
+| K8s | `config` | Feature flags (MIG, CDI, RDMA) |
+| GPU | `smi` | GPU hardware state |
+| GPU | `driver` | Driver configuration |
+| GPU | `device` | Device-specific settings |
+
+### Context Metadata
+
+The `context` field provides human-readable explanations for each configuration setting. This metadata:
+
+- Explains **why** a setting is configured
+- Describes the **impact** on GPU workloads
+- Is **optional** in responses (controlled by `?context=true` query parameter)
+- Should be updated whenever data values change
+
+Example:
+```yaml
+data:
+  numa_balancing: disable
+context:
+  numa_balancing: Disable auto-migration for predictable GPU memory locality
+```
+
+## Base Measurements
+
+Base measurements represent the **universal configuration foundation** that applies to all environments regardless of specific hardware, cloud provider, or Kubernetes version.
+
+### Characteristics
+
+- **Always included** in every generated recipe
+- **Broadly applicable** across different environments
+- **Conservative defaults** that work in most scenarios
+- **Foundation for overlays** which build upon these settings
+
+### What Goes in Base
+
+Base measurements should include:
+
+✅ **Core kernel modules** required for GPU operations (nvidia, nvidia_uvm, rdma_cm)  
+✅ **Essential sysctl parameters** for GPU workloads (numa_balancing, hugepages)  
+✅ **Standard containerd settings** for container runtime  
+✅ **Default Kubernetes versions** and images  
+✅ **Common GPU driver settings** (persistence mode, CUDA version)
+
+❌ **Avoid putting in base:**
+- Cloud provider-specific settings (EKS/GKE-specific modules)
+- Hardware-specific configurations (GB200 vs H100 differences)
+- Workload-specific tuning (training vs inference optimizations)
+- Experimental features not broadly adopted
+
+### Example Base Configuration
+
+```yaml
+base:
+  - type: OS
+    subtypes:
+      - subtype: kmod
+        data:
+          nvidia: true              # Core driver
+          nvidia_uvm: true          # Unified memory
+          rdma_cm: true             # RDMA support
+        context:
+          nvidia: Core NVIDIA GPU driver
+          nvidia_uvm: Unified Virtual Memory for CPU-GPU shared memory
+          rdma_cm: RDMA connection manager for efficient GPU communication
+
+  - type: K8s
+    subtypes:
+      - subtype: server
+        data:
+          version: v1.33.5        # Current stable version
+        context:
+          version: Kubernetes version for GPU orchestration
+```
+
+## Overlay System
+
+Overlays are **conditional configuration sets** that apply only when query parameters match specific criteria. They enable environment-specific optimizations without cluttering the base configuration.
+
+### Overlay Structure
+
+Each overlay consists of two parts:
+
+```yaml
+- key:                    # Query selector - defines when this overlay applies
+    service: eks          # Cloud provider/platform
+    os: ubuntu            # Operating system
+    gpu: gb200            # GPU hardware type
+    intent: training      # Workload intent
+  types:                  # Measurements to merge when key matches
+    - type: OS
+      subtypes: [...]
+    - type: K8s
+      subtypes: [...]
+```
+
+### Query Key Fields
+
+Overlay keys use the same fields as user queries:
+
+| Field | Type | Description | Example Values |
+|-------|------|-------------|----------------|
+| `os` | String | Operating system family | `ubuntu`, `cos`, `rhel` |
+| `osv` | Version | OS version | `24.04`, `22.04` |
+| `kernel` | Version | Kernel version (with vendor suffixes) | `6.8.0-1028-aws`, `5.15` |
+| `service` | String | Kubernetes platform | `eks`, `gke`, `aks`, `self-managed` |
+| `k8s` | Version | Kubernetes version (with vendor formats) | `v1.33.5-eks-3025e55`, `1.32` |
+| `gpu` | String | GPU hardware type | `h100`, `gb200`, `a100` |
+| `intent` | String | Workload purpose | `training`, `inference` |
+
+**All fields are optional.** Unpopulated fields act as wildcards (match any value).
+
+### What Goes in Overlays
+
+Overlays should contain:
+
+✅ **Platform-specific settings**
+   - AWS EKS: EFA kernel modules, EKS-specific Kubernetes versions
+   - Google GKE: GKE networking configurations
+   - Azure AKS: AKS-specific storage settings
+
+✅ **Hardware-specific optimizations**
+   - GB200: DRA features, open kernel modules, EFA support
+   - H100: MIG configurations, NVSwitch settings
+   - A100: PCIe vs SXM differences
+
+✅ **Workload-specific tuning**
+   - Training: Large batch size settings, checkpoint configurations
+   - Inference: Low-latency networking, smaller memory allocations
+
+✅ **Version-specific features**
+   - Kubernetes 1.33+: Dynamic Resource Allocation (DRA) support
+   - Driver 570+: Open kernel module support
+   - CUDA 12+: New memory management features
+
+### Overlay Examples
+
+**Example 1: AWS EKS + Ubuntu (Platform-specific)**
+```yaml
+- key:
+    service: eks
+    os: ubuntu
+  types:
+    - type: OS
+      subtypes:
+        - subtype: grub
+          data:
+            BOOT_IMAGE: /boot/vmlinuz-6.8.0-1028-aws  # AWS-optimized kernel
+          context:
+            BOOT_IMAGE: AWS-optimized kernel image version
+```
+
+**Example 2: AWS EKS + GB200 (Hardware + Platform)**
+```yaml
+- key:
+    service: eks
+    gpu: gb200
+  types:
+    - type: K8s
+      subtypes:
+        - subtype: server
+          data:
+            version: v1.33                # Minimum version for GB200 DRA support
+          context:
+            version: Minimum AWS EKS Kubernetes version to support DRA for GB200 GPUs
+        - subtype: image
+          data:
+            aws-efa-k8s-device-plugin: v0.5.3
+          context:
+            aws-efa-k8s-device-plugin: EFA device plugin for high-speed GPU-to-GPU networking
+        - subtype: config
+          data:
+            useOpenKernelModule: true
+          context:
+            useOpenKernelModule: Use open-source kernel module for GB200 compatibility
+    - type: OS
+      subtypes:
+        - subtype: kmod
+          data:
+            efa: true                     # AWS Elastic Fabric Adapter
+          context:
+            efa: AWS EFA support for GPU clusters
+```
+
+**Example 3: Training Workload (Intent-specific)**
+```yaml
+- key:
+    intent: training
+  types:
+    - type: OS
+      subtypes:
+        - subtype: sysctl
+          data:
+            /proc/sys/vm/nr_hugepages: "20000"     # More hugepages for training
+          context:
+            /proc/sys/vm/nr_hugepages: Increased hugepages for large training batches
+```
+
+## Query Matching Algorithm
+
+The recipe system uses an **asymmetric rule matching algorithm** where overlay keys (rules) match against user queries (candidates).
+
+### Matching Rules
+
+An overlay key matches a user query when **every populated field in the overlay key is satisfied by the query**:
+
+1. **Empty/unpopulated fields in overlay key** = Wildcard (matches any value)
+2. **Populated fields must match exactly** (case-insensitive for enums)
+3. **Version matching** uses semantic version comparison (Major.Minor.Patch)
+4. **Matching is asymmetric**: `overlayKey.IsMatch(userQuery)` ≠ `userQuery.IsMatch(overlayKey)`
+
+### Matching Logic by Field Type
+
+**Enum Fields** (os, service, gpu, intent):
+- Overlay field empty OR `"any"` → Matches any query value
+- Overlay field populated → Must match query value exactly
+
+**Version Fields** (osv, kernel, k8s):
+- Overlay field nil/invalid → Matches any query value
+- Overlay field populated → Major.Minor.Patch must match (ignoring vendor suffixes)
+
+### Matching Examples
+
+**Example 1: Broad Overlay**
+```yaml
+Overlay Key:  { service: "eks" }
+User Query:   { service: "eks", os: "ubuntu", gpu: "h100" }
+Result:       ✅ MATCH - Overlay only requires service=eks, other fields are wildcards
+```
+
+**Example 2: Specific Overlay**
+```yaml
+Overlay Key:  { service: "eks", gpu: "gb200" }
+User Query:   { service: "eks", os: "ubuntu", gpu: "h100" }
+Result:       ❌ NO MATCH - GPU doesn't match (gb200 ≠ h100)
+```
+
+**Example 3: Multiple Matches**
+```yaml
+User Query: { service: "eks", os: "ubuntu", gpu: "gb200" }
+
+Overlays:
+  1. { service: "eks" }                    → ✅ MATCH
+  2. { service: "eks", os: "ubuntu" }      → ✅ MATCH  
+  3. { service: "eks", gpu: "gb200" }      → ✅ MATCH
+  4. { service: "gke" }                    → ❌ NO MATCH
+
+Result: All matching overlays (1, 2, 3) are applied in sequence
+```
+
+**Example 4: Version Matching**
+```yaml
+Overlay Key:  { k8s: "1.33" }
+User Query:   { k8s: "v1.33.5-eks-3025e55" }
+Result:       ✅ MATCH - Versions match 1.33, vendor suffix ignored
+```
+
+### Asymmetric Matching
+
+The matching algorithm is **directional** - rules match candidates, not vice versa:
+
+```go
+// Rule (overlay key) matches candidate (user query)
+rule := Query{Os: "ubuntu"}
+candidate := Query{Os: "ubuntu", GPU: "h100"}
+
+rule.IsMatch(candidate)      // true  - rule is satisfied by candidate
+candidate.IsMatch(rule)      // false - candidate is too specific for rule
+```
+
+**Why Asymmetric?**
+- **Overlays act as selectors** - They define conditions for when they should apply
+- **User queries are concrete** - They describe actual environments
+- **Enables flexible matching** - Broad overlays apply to many specific queries
+
+## Recipe Generation Process
+
+The recipe builder (`pkg/recipe/builder.go`) generates recipes through the following steps:
+
+### Step 1: Load Recipe Store
+
+```go
+store, err := loadStore(ctx)
+```
+
+- Embedded YAML data is unmarshaled into Go structs
+- Cached in memory on first access (singleton pattern)
+- Contains base measurements and all overlay definitions
+
+### Step 2: Clone Base Measurements
+
+```go
+merged := cloneMeasurements(store.Base)
+```
+
+- **Deep copy** of all base measurements to prevent mutation
+- Each measurement, subtype, data map, and context map is cloned
+- Ensures thread-safety and immutability of the store
+
+### Step 3: Index by Type
+
+```go
+index := indexMeasurementsByType(merged)
+```
+
+- Create `map[MeasurementType]*Measurement` for O(1) lookups
+- Enables efficient merging of overlays by type
+- Example: `index["K8s"]` → pointer to Kubernetes measurement
+
+### Step 4: Iterate Overlays
+
+```go
+for _, overlay := range store.Overlays {
+    if overlay.Key.IsMatch(query) {
+        merged, index = mergeOverlayMeasurements(merged, index, overlay.Types)
+        matchedRules = append(matchedRules, overlay.Key.String())
+    }
+}
+```
+
+For each overlay:
+1. Check if overlay key matches user query
+2. If match, merge overlay measurements into result
+3. Track matched overlay keys for debugging
+
+### Step 5: Merge Overlay Measurements
+
+```go
+func mergeOverlayMeasurements(base, overlays) {
+    for overlay in overlays:
+        if overlay.Type exists in base:
+            mergeMeasurementSubtypes(base[overlay.Type], overlay)
+        else:
+            append overlay to base
+}
+```
+
+**Merging Logic:**
+- If measurement type exists → Merge subtypes
+- If measurement type new → Append entire measurement
+
+### Step 6: Merge Subtypes
+
+```go
+func mergeMeasurementSubtypes(target, overlay) {
+    for overlaySubtype in overlay.Subtypes:
+        targetSubtype = target.FindSubtype(overlaySubtype.Name)
+        if targetSubtype exists:
+            merge overlaySubtype.Data into targetSubtype.Data
+            merge overlaySubtype.Context into targetSubtype.Context
+        else:
+            append overlaySubtype to target.Subtypes
+}
+```
+
+**Subtype Merging:**
+- Existing subtypes → Data and context are merged (overlay values override base)
+- New subtypes → Appended to measurement
+- **Data merging**: `overlayValue` overwrites `baseValue` for same key
+- **Context merging**: `overlayContext` overwrites `baseContext` for same key
+
+### Step 7: Strip Context (Optional)
+
+```go
+if !query.IncludeContext {
+    stripContext(measurements)
+}
+```
+
+- Remove context metadata if not requested via `?context=true`
+- Reduces payload size for production use cases
+- Context included by default in CLI, excluded in API unless requested
+
+### Complete Flow Diagram
+
+```mermaid
+flowchart TD
+    Start["User Query<br/>{service: 'eks', gpu: 'gb200'}"]
+    
+    Start --> Load[Load Recipe Store]
+    
+    Load --> Clone["Clone Base<br/>• OS (kmod, grub...)<br/>• K8s (version, images)<br/>• GPU (driver, cuda)"]
+    
+    Clone --> Index["Index by Type<br/>{OS: {...}, K8s: {...}, GPU: {...}}"]
+    
+    Index --> Overlay1["Overlay 1: {service: 'eks'}<br/>MATCH ✅ → Merge<br/>• Update K8s image versions"]
+    
+    Overlay1 --> Overlay2["Overlay 2: {service: 'eks', gpu: 'gb200'}<br/>MATCH ✅ → Merge<br/>• Add EFA module to OS<br/>• Add aws-efa-k8s-device-plugin<br/>• Set useOpenKernelModule: true"]
+    
+    Overlay2 --> Overlay3["Overlay 3: {service: 'gke'}<br/>NO MATCH ❌ → Skip"]
+    
+    Overlay3 --> Strip[Strip Context<br/>if requested]
+    
+    Strip --> Final["Final Recipe<br/>Base + Overlay 1 + Overlay 2<br/>matchedRules:<br/>• 'OS: any any, Service: eks...'<br/>• 'OS: any any, Service: eks, GPU: gb200...'"]
+```
+
+## Usage Examples
+
+### CLI Usage
+
+**Basic recipe generation:**
+```bash
+# Query mode - Direct parameters
+eidos recipe --os ubuntu --service eks --gpu h100
+
+# Snapshot mode - From captured system state
+eidos snapshot --output snapshot.yaml
+eidos recipe --snapshot snapshot.yaml --intent training
+```
+
+**With context metadata:**
+```bash
+eidos recipe --os ubuntu --service eks --gpu gb200 --context
+```
+
+**Full specification:**
+```bash
+eidos recipe \
+  --os ubuntu \
+  --osv 24.04 \
+  --kernel 6.8 \
+  --service eks \
+  --k8s 1.33 \
+  --gpu gb200 \
+  --intent training \
+  --format yaml \
+  --output recipe.yaml
+```
+
+### API Usage
+
+**Basic query:**
+```bash
+curl "https://cns.dgxc.io/v1/recipe?os=ubuntu&service=eks&gpu=h100"
+```
+
+**With context:**
+```bash
+curl "https://cns.dgxc.io/v1/recipe?os=ubuntu&gpu=gb200&context=true"
+```
+
+**Full specification:**
+```bash
+curl "https://cns.dgxc.io/v1/recipe?os=ubuntu&osv=24.04&service=eks&k8s=1.33&gpu=gb200&intent=training&context=true"
+```
+
+### Example Response
+
+```json
+{
+  "apiVersion": "v1",
+  "kind": "Recipe",
+  "request": {
+    "os": "ubuntu",
+    "service": "eks",
+    "gpu": "gb200"
+  },
+  "matchedRules": [
+    "OS: ubuntu any, Kernel: any, Service: eks, K8s: any, GPU: any, Intent: any, Context: false",
+    "OS: any any, Kernel: any, Service: eks, K8s: any, GPU: gb200, Intent: any, Context: false"
+  ],
+  "measurements": [
+    {
+      "type": "OS",
+      "subtypes": [
+        {
+          "subtype": "kmod",
+          "data": {
+            "nvidia": "true",
+            "nvidia_uvm": "true",
+            "efa": "true"
+          }
+        },
+        {
+          "subtype": "grub",
+          "data": {
+            "BOOT_IMAGE": "/boot/vmlinuz-6.8.0-1028-aws",
+            "numa_balancing": "disable"
+          }
+        }
+      ]
+    },
+    {
+      "type": "K8s",
+      "subtypes": [
+        {
+          "subtype": "server",
+          "data": {
+            "version": "v1.33"
+          }
+        },
+        {
+          "subtype": "image",
+          "data": {
+            "gpu-operator": "v25.3.3",
+            "aws-efa-k8s-device-plugin": "v0.5.3"
+          }
+        },
+        {
+          "subtype": "config",
+          "data": {
+            "useOpenKernelModule": "true"
+          }
+        }
+      ]
+    }
+  ]
+}
+```
+
+## Maintenance Guide
+
+### Adding New Base Measurements
+
+**When to add:**
+- Universal settings applicable to all environments
+- Core requirements for GPU operations
+- Broadly adopted best practices
+
+**Steps:**
+1. Identify the measurement type (OS, SystemD, K8s, GPU)
+2. Add to the appropriate subtype in the `base` section
+3. Include data values and context explanations
+4. Test with various query combinations
+
+**Example - Adding new sysctl parameter:**
+```yaml
+base:
+  - type: OS
+    subtypes:
+      - subtype: sysctl
+        data:
+          /proc/sys/net/core/rmem_max: "134217728"  # New parameter
+        context:
+          /proc/sys/net/core/rmem_max: Maximum socket receive buffer for GPU data transfers
+```
+
+### Adding New Overlays
+
+**When to add:**
+- Platform-specific configurations (new cloud provider)
+- Hardware-specific settings (new GPU model)
+- Version-specific features (new Kubernetes version)
+- Workload-specific optimizations
+
+**Steps:**
+1. Determine the query key (which fields need to match)
+2. Define the measurements to add/override
+3. Add context explanations for all changes
+4. Place overlay in logical order (more specific overlays after general ones)
+5. Test matching with relevant queries
+
+**Example - Adding GKE support:**
+```yaml
+overlays:
+  - key:
+      service: gke
+    types:
+      - type: K8s
+        subtypes:
+          - subtype: image
+            data:
+              gke-metadata-server: v0.1.5
+            context:
+              gke-metadata-server: GKE metadata service for workload identity
+```
+
+**Example - Adding A100 GPU support:**
+```yaml
+overlays:
+  - key:
+      gpu: a100
+    types:
+      - type: GPU
+        subtypes:
+          - subtype: smi
+            data:
+              driver-version: "535.183.01"
+              cuda-version: "12.2"
+            context:
+              driver-version: Recommended driver for A100 GPUs
+              cuda-version: Optimal CUDA version for A100 architecture
+      - type: K8s
+        subtypes:
+          - subtype: config
+            data:
+              mig: true
+            context:
+              mig: Enable Multi-Instance GPU for A100 partitioning
+```
+
+### Modifying Existing Values
+
+**When to modify:**
+- Version updates (new driver, Kubernetes, CUDA versions)
+- Performance improvements discovered
+- Security patches or configuration changes
+- Deprecation of old settings
+
+**Steps:**
+1. Locate the value in base or overlay
+2. Update the value
+3. **Always update the context** to explain the change
+4. Test the change doesn't break existing queries
+5. Document breaking changes in release notes
+
+**Example - Updating driver version:**
+```yaml
+# Before
+- subtype: smi
+  data:
+    driver-version: "535.183.01"
+  context:
+    driver-version: Recommended NVIDIA driver for GPU operations
+
+# After
+- subtype: smi
+  data:
+    driver-version: "570.158.01"
+  context:
+    driver-version: Updated driver with improved memory management and H100 support
+```
+
+### Best Practices
+
+1. **Overlay Ordering**
+   - Place more general overlays first
+   - Specific overlays (multiple key fields) later
+   - Order doesn't affect matching, but aids readability
+
+2. **Key Field Selection**
+   - Use minimum fields needed for matching
+   - Avoid over-specification (too many fields = fewer matches)
+   - Combine related conditions in single overlay when possible
+
+3. **Context Documentation**
+   - Always explain **why** a setting exists
+   - Describe **impact** on GPU workloads
+   - Keep explanations concise (1-2 sentences)
+   - Update context when values change
+
+4. **Value Formats**
+   - Use consistent formatting (lowercase for enums)
+   - Include units where applicable (2M, 8192)
+   - Use semantic versions (v1.33.5)
+   - Boolean values as strings: "true"/"false"
+
+5. **Testing Changes**
+   ```bash
+   # Test base only (broad query)
+   eidos recipe --os any --gpu any
+   
+   # Test specific overlay
+   eidos recipe --service eks --gpu gb200
+   
+   # Test multiple matches
+   eidos recipe --os ubuntu --service eks --gpu gb200 --intent training
+   
+   # Verify context inclusion
+   eidos recipe --os ubuntu --gpu h100 --context | grep -A5 context
+   ```
+
+6. **Validation**
+   - Ensure YAML is valid (`yamllint pkg/recipe/data/data-v1.yaml`)
+   - Test recipe generation doesn't fail
+   - Verify matched rules are expected
+   - Check for unintended side effects on other queries
+
+### Common Pitfalls
+
+❌ **Don't:**
+- Add environment-specific settings to base
+- Create overlays with no matching queries
+- Forget to update context when changing values
+- Use inconsistent naming conventions
+- Over-specify overlay keys (too narrow)
+
+✅ **Do:**
+- Keep base universal and conservative
+- Test overlays match expected queries
+- Always provide context explanations
+- Follow existing naming patterns
+- Use wildcard fields in overlay keys
+
+### Debugging Overlay Matching
+
+**See which overlays matched:**
+```bash
+eidos recipe --os ubuntu --service eks --gpu gb200 --format json | jq '.matchedRules'
+```
+
+**Output:**
+```json
+[
+  "OS: ubuntu any, Kernel: any, Service: eks, K8s: any, GPU: any, Intent: any, Context: false",
+  "OS: any any, Kernel: any, Service: eks, K8s: any, GPU: gb200, Intent: any, Context: false"
+]
+```
+
+**Verify specific configuration:**
+```bash
+# Check if EFA module is included for EKS + GB200
+eidos recipe --service eks --gpu gb200 --format json | \
+  jq '.measurements[] | select(.type=="OS") | .subtypes[] | select(.subtype=="kmod") | .data.efa'
+```
+
+### Version History
+
+- **v1** (Current) - Initial recipe data format
+  - Base measurements for OS, SystemD, K8s, GPU
+  - Overlay system with query matching
+  - Context metadata support
+
+**Future Enhancements:**
+- Support for additional cloud providers (Azure AKS, Oracle OKE)
+- More GPU models (L40, A100, V100)
+- Intent-specific optimizations (training vs inference)
+- Version constraints (minimum/maximum versions)
+- Validation rules and health checks
+
+---
+
+## See Also
+
+- [CLI Architecture](cli.md) - How the CLI uses recipe data
+- [API Server Architecture](api-server.md) - How the API serves recipes
+- [OpenAPI Specification](../../api/eidos/v1/api-server-v1.yaml) - Recipe API contract
+- [Recipe Package Documentation](../../pkg/recipe/) - Go implementation details
