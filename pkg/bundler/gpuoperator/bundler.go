@@ -7,8 +7,11 @@ import (
 	"path/filepath"
 	"time"
 
+	"github.com/NVIDIA/cloud-native-stack/pkg/bundler/types"
+
 	"github.com/NVIDIA/cloud-native-stack/pkg/bundler/common"
 	"github.com/NVIDIA/cloud-native-stack/pkg/bundler/config"
+	"github.com/NVIDIA/cloud-native-stack/pkg/bundler/result"
 	"github.com/NVIDIA/cloud-native-stack/pkg/errors"
 	"github.com/NVIDIA/cloud-native-stack/pkg/measurement"
 	"github.com/NVIDIA/cloud-native-stack/pkg/recipe"
@@ -31,7 +34,7 @@ func NewBundler(conf *config.Config) *Bundler {
 }
 
 // Make generates the GPU Operator bundle based on the provided recipe.
-func (b *Bundler) Make(ctx context.Context, recipe *recipe.Recipe, dir string) (*common.Result, error) {
+func (b *Bundler) Make(ctx context.Context, recipe *recipe.Recipe, dir string) (*result.Result, error) {
 	// Check for required measurements
 	if err := recipe.ValidateMeasurementExists(measurement.TypeK8s); err != nil {
 		return nil, fmt.Errorf("measurements are required for GPU Operator bundling: %w", err)
@@ -43,11 +46,11 @@ func (b *Bundler) Make(ctx context.Context, recipe *recipe.Recipe, dir string) (
 	}
 
 	start := time.Now()
-	result := common.NewResult(common.BundleTypeGpuOperator)
+	result := result.New(types.BundleTypeGpuOperator)
 
 	slog.Debug("generating GPU Operator bundle",
 		"output_dir", dir,
-		"namespace", b.config.Namespace,
+		"namespace", b.config.Namespace(),
 	)
 
 	// Create bundle directory structure
@@ -80,21 +83,21 @@ func (b *Bundler) Make(ctx context.Context, recipe *recipe.Recipe, dir string) (
 	}
 
 	// Generate installation scripts
-	if b.config.IncludeScripts {
+	if b.config.IncludeScripts() {
 		if err := b.generateScripts(ctx, recipe, scriptsDir, configMap, contextChecker, templateRenderer, fileWriter); err != nil {
 			return result, err
 		}
 	}
 
 	// Generate README
-	if b.config.IncludeReadme {
+	if b.config.IncludeReadme() {
 		if err := b.generateReadme(ctx, recipe, bundleDir, configMap, contextChecker, templateRenderer, fileWriter); err != nil {
 			return result, err
 		}
 	}
 
 	// Generate checksums file
-	if b.config.IncludeChecksums {
+	if b.config.IncludeChecksums() {
 		if err := b.generateChecksums(ctx, bundleDir, result); err != nil {
 			return result, err
 		}
@@ -117,15 +120,15 @@ func (b *Bundler) Make(ctx context.Context, recipe *recipe.Recipe, dir string) (
 // buildConfigMap creates a configuration map from bundler config.
 func (b *Bundler) buildConfigMap() map[string]string {
 	config := make(map[string]string)
-	config["namespace"] = b.config.Namespace
-	config["helm_repository"] = b.config.HelmRepository
-	config["helm_chart_version"] = b.config.HelmChartVersion
+	config["namespace"] = b.config.Namespace()
+	config["helm_repository"] = b.config.HelmRepository()
+	config["helm_chart_version"] = b.config.HelmChartVersion()
 
 	// Add custom labels and annotations
-	for k, v := range b.config.CustomLabels {
+	for k, v := range b.config.CustomLabels() {
 		config["label_"+k] = v
 	}
-	for k, v := range b.config.CustomAnnotations {
+	for k, v := range b.config.CustomAnnotations() {
 		config["annotation_"+k] = v
 	}
 
@@ -245,7 +248,7 @@ func (b *Bundler) generateReadme(ctx context.Context, recipe *recipe.Recipe,
 }
 
 // generateChecksums generates a checksums file for bundle verification.
-func (b *Bundler) generateChecksums(ctx context.Context, dir string, result *common.Result) error {
+func (b *Bundler) generateChecksums(ctx context.Context, dir string, result *result.Result) error {
 	generator := common.NewChecksumGenerator(result)
 	fileWriter := common.NewFileWriter(result)
 

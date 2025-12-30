@@ -5,6 +5,9 @@ import (
 	"fmt"
 	"path/filepath"
 
+	"github.com/NVIDIA/cloud-native-stack/pkg/bundler/result"
+	"github.com/NVIDIA/cloud-native-stack/pkg/bundler/types"
+
 	"github.com/NVIDIA/cloud-native-stack/pkg/bundler/common"
 	"github.com/NVIDIA/cloud-native-stack/pkg/bundler/config"
 	"github.com/NVIDIA/cloud-native-stack/pkg/measurement"
@@ -32,7 +35,7 @@ func NewBundler(cfg *config.Config) *Bundler {
 }
 
 // Make generates a Network Operator bundle from a recipe.
-func (b *Bundler) Make(ctx context.Context, r *recipe.Recipe, outputDir string) (*common.Result, error) {
+func (b *Bundler) Make(ctx context.Context, r *recipe.Recipe, outputDir string) (*result.Result, error) {
 	if err := ctx.Err(); err != nil {
 		return nil, fmt.Errorf("context cancelled: %w", err)
 	}
@@ -43,7 +46,7 @@ func (b *Bundler) Make(ctx context.Context, r *recipe.Recipe, outputDir string) 
 	}
 
 	// Create result tracker
-	result := common.NewResult(common.BundleTypeNetworkOperator)
+	res := result.New(types.BundleTypeNetworkOperator)
 
 	// Create output directory structure
 	dirManager := common.NewDirectoryManager()
@@ -56,7 +59,7 @@ func (b *Bundler) Make(ctx context.Context, r *recipe.Recipe, outputDir string) 
 	configMap := b.buildConfigMap(r)
 
 	// Initialize utilities
-	fileWriter := common.NewFileWriter(result)
+	fileWriter := common.NewFileWriter(res)
 	contextChecker := common.NewContextChecker()
 	templateRenderer := common.NewTemplateRenderer(GetTemplate)
 
@@ -78,14 +81,14 @@ func (b *Bundler) Make(ctx context.Context, r *recipe.Recipe, outputDir string) 
 	}
 
 	// Generate checksums file last
-	if err := b.generateChecksums(ctx, bundleDir, result); err != nil {
+	if err := b.generateChecksums(ctx, bundleDir, res); err != nil {
 		return nil, fmt.Errorf("failed to generate checksums: %w", err)
 	}
 
 	// Mark as successful
-	result.MarkSuccess()
+	res.MarkSuccess()
 
-	return result, nil
+	return res, nil
 }
 
 // validateRecipe checks if recipe has required measurements.
@@ -115,21 +118,21 @@ func (b *Bundler) buildConfigMap(r *recipe.Recipe) map[string]string {
 	configMap := make(map[string]string)
 
 	// Add bundler config values
-	if b.cfg.HelmRepository != "" {
-		configMap["helm_repository"] = b.cfg.HelmRepository
+	if b.cfg.HelmRepository() != "" {
+		configMap["helm_repository"] = b.cfg.HelmRepository()
 	}
-	if b.cfg.HelmChartVersion != "" {
-		configMap["helm_chart_version"] = b.cfg.HelmChartVersion
+	if b.cfg.HelmChartVersion() != "" {
+		configMap["helm_chart_version"] = b.cfg.HelmChartVersion()
 	}
-	if b.cfg.Namespace != "" {
-		configMap["namespace"] = b.cfg.Namespace
+	if b.cfg.Namespace() != "" {
+		configMap["namespace"] = b.cfg.Namespace()
 	}
 
 	// Add custom labels and annotations using common utilities
-	for k, v := range b.cfg.CustomLabels {
+	for k, v := range b.cfg.CustomLabels() {
 		configMap["label_"+k] = v
 	}
-	for k, v := range b.cfg.CustomAnnotations {
+	for k, v := range b.cfg.CustomAnnotations() {
 		configMap["annotation_"+k] = v
 	}
 
@@ -280,13 +283,13 @@ func (b *Bundler) generateReadme(ctx context.Context, r *recipe.Recipe, configMa
 }
 
 // generateChecksums creates a checksums.txt file with SHA256 hashes.
-func (b *Bundler) generateChecksums(ctx context.Context, outputDir string, result *common.Result) error {
+func (b *Bundler) generateChecksums(ctx context.Context, outputDir string, res *result.Result) error {
 	if err := ctx.Err(); err != nil {
 		return err
 	}
 
-	generator := common.NewChecksumGenerator(result)
-	fileWriter := common.NewFileWriter(result)
+	generator := common.NewChecksumGenerator(res)
+	fileWriter := common.NewFileWriter(res)
 
 	content, err := generator.Generate(outputDir, "Network Operator")
 	if err != nil {

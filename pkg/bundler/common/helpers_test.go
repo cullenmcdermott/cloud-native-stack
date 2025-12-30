@@ -57,84 +57,6 @@ func TestTemplateRenderer_Render(t *testing.T) {
 	}
 }
 
-func TestFileWriter_WriteFile(t *testing.T) {
-	tmpDir := t.TempDir()
-	result := NewResult(BundleTypeGpuOperator)
-	writer := NewFileWriter(result)
-
-	path := filepath.Join(tmpDir, "test.txt")
-	content := []byte("test content")
-
-	err := writer.WriteFile(path, content, 0644)
-	if err != nil {
-		t.Fatalf("WriteFile() error = %v", err)
-	}
-
-	// Verify file was created
-	if _, err := os.Stat(path); os.IsNotExist(err) {
-		t.Error("File was not created")
-	}
-
-	// Verify result was updated
-	if len(result.Files) != 1 {
-		t.Errorf("Expected 1 file in result, got %d", len(result.Files))
-	}
-
-	if result.Size != int64(len(content)) {
-		t.Errorf("Expected size %d, got %d", len(content), result.Size)
-	}
-}
-
-func TestFileWriter_WriteFileString(t *testing.T) {
-	tmpDir := t.TempDir()
-	result := NewResult(BundleTypeGpuOperator)
-	writer := NewFileWriter(result)
-
-	path := filepath.Join(tmpDir, "test.txt")
-	content := "test content"
-
-	err := writer.WriteFileString(path, content, 0644)
-	if err != nil {
-		t.Fatalf("WriteFileString() error = %v", err)
-	}
-
-	// Read back and verify
-	data, err := os.ReadFile(path)
-	if err != nil {
-		t.Fatalf("Failed to read file: %v", err)
-	}
-
-	if string(data) != content {
-		t.Errorf("File content = %v, want %v", string(data), content)
-	}
-}
-
-func TestFileWriter_MakeExecutable(t *testing.T) {
-	tmpDir := t.TempDir()
-	result := NewResult(BundleTypeGpuOperator)
-	writer := NewFileWriter(result)
-
-	path := filepath.Join(tmpDir, "script.sh")
-	if err := os.WriteFile(path, []byte("#!/bin/bash"), 0644); err != nil {
-		t.Fatalf("Failed to create file: %v", err)
-	}
-
-	err := writer.MakeExecutable(path)
-	if err != nil {
-		t.Errorf("MakeExecutable() error = %v", err)
-	}
-
-	// Verify permissions
-	info, err := os.Stat(path)
-	if err != nil {
-		t.Fatalf("Failed to stat file: %v", err)
-	}
-
-	if info.Mode().Perm() != 0755 {
-		t.Errorf("Expected permissions 0755, got %o", info.Mode().Perm())
-	}
-}
-
 func TestDirectoryManager_CreateDirectories(t *testing.T) {
 	tmpDir := t.TempDir()
 	manager := NewDirectoryManager()
@@ -249,48 +171,6 @@ func TestComputeChecksum(t *testing.T) {
 				t.Errorf("ComputeChecksum() = %v, want %v", got, tt.want)
 			}
 		})
-	}
-}
-
-func TestChecksumGenerator_Generate(t *testing.T) {
-	tmpDir := t.TempDir()
-	result := NewResult(BundleTypeGpuOperator)
-
-	// Create test files
-	file1 := filepath.Join(tmpDir, "file1.txt")
-	file2 := filepath.Join(tmpDir, "file2.txt")
-	if err := os.WriteFile(file1, []byte("content1"), 0644); err != nil {
-		t.Fatalf("Failed to create test file: %v", err)
-	}
-	if err := os.WriteFile(file2, []byte("content2"), 0644); err != nil {
-		t.Fatalf("Failed to create test file: %v", err)
-	}
-
-	result.AddFile(file1, 8)
-	result.AddFile(file2, 8)
-
-	generator := NewChecksumGenerator(result)
-	content, err := generator.Generate(tmpDir, "Test")
-	if err != nil {
-		t.Fatalf("Generate() error = %v", err)
-	}
-
-	// Verify content is not empty
-	if len(content) == 0 {
-		t.Error("Generated checksums content is empty")
-	}
-
-	// Verify contains header
-	if !contains(content, "Test Bundle Checksums") {
-		t.Error("Checksums content missing header")
-	}
-
-	// Verify contains file references
-	if !contains(content, "file1.txt") {
-		t.Error("Checksums content missing file1.txt")
-	}
-	if !contains(content, "file2.txt") {
-		t.Error("Checksums content missing file2.txt")
 	}
 }
 

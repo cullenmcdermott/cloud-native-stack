@@ -10,6 +10,8 @@ import (
 	"os"
 	"path/filepath"
 	"text/template"
+
+	"github.com/NVIDIA/cloud-native-stack/pkg/bundler/result"
 )
 
 // TemplateRenderer provides template rendering functionality for bundlers.
@@ -47,11 +49,11 @@ func (r *TemplateRenderer) Render(name string, data map[string]interface{}) (str
 
 // FileWriter provides file writing functionality with result tracking.
 type FileWriter struct {
-	result *Result
+	result *result.Result
 }
 
 // NewFileWriter creates a new file writer with the given result tracker.
-func NewFileWriter(result *Result) *FileWriter {
+func NewFileWriter(result *result.Result) *FileWriter {
 	return &FileWriter{
 		result: result,
 	}
@@ -153,11 +155,11 @@ func ComputeChecksum(content []byte) string {
 
 // ChecksumGenerator generates checksums for bundle files.
 type ChecksumGenerator struct {
-	result *Result
+	result *result.Result
 }
 
 // NewChecksumGenerator creates a new checksum generator.
-func NewChecksumGenerator(result *Result) *ChecksumGenerator {
+func NewChecksumGenerator(result *result.Result) *ChecksumGenerator {
 	return &ChecksumGenerator{
 		result: result,
 	}

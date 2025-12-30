@@ -2,120 +2,212 @@ package config
 
 import "fmt"
 
-// Config provides configuration options for bundlers.
+// Config provides immutable configuration options for bundlers.
+// All fields are read-only after creation to prevent accidental modifications.
+// Use Clone() to create a modified copy or Merge() to combine configurations.
 type Config struct {
-	// OutputFormat specifies the format for generated files.
+	// outputFormat specifies the format for generated files.
 	// Supported: "yaml", "json", "helm"
-	OutputFormat string `json:"output_format" yaml:"output_format"`
+	outputFormat string
 
-	// Compression enables tar.gz compression of the bundle.
-	Compression bool `json:"compression" yaml:"compression"`
+	// compression enables tar.gz compression of the bundle.
+	compression bool
 
-	// IncludeScripts includes installation and setup scripts.
-	IncludeScripts bool `json:"include_scripts" yaml:"include_scripts"`
+	// includeScripts includes installation and setup scripts.
+	includeScripts bool
 
-	// IncludeReadme includes README documentation.
-	IncludeReadme bool `json:"include_readme" yaml:"include_readme"`
+	// includeReadme includes README documentation.
+	includeReadme bool
 
-	// IncludeChecksums includes checksum file for verification.
-	IncludeChecksums bool `json:"include_checksums" yaml:"include_checksums"`
+	// includeChecksums includes checksum file for verification.
+	includeChecksums bool
 
-	// HelmChartVersion specifies the Helm chart version to use.
-	HelmChartVersion string `json:"helm_chart_version,omitempty" yaml:"helm_chart_version,omitempty"`
+	// helmChartVersion specifies the Helm chart version to use.
+	helmChartVersion string
 
-	// HelmRepository specifies the Helm repository URL.
-	HelmRepository string `json:"helm_repository,omitempty" yaml:"helm_repository,omitempty"`
+	// helmRepository specifies the Helm repository URL.
+	helmRepository string
 
-	// CustomLabels adds custom labels to generated resources.
-	CustomLabels map[string]string `json:"custom_labels,omitempty" yaml:"custom_labels,omitempty"`
+	// customLabels adds custom labels to generated resources.
+	customLabels map[string]string
 
-	// CustomAnnotations adds custom annotations to generated resources.
-	CustomAnnotations map[string]string `json:"custom_annotations,omitempty" yaml:"custom_annotations,omitempty"`
+	// customAnnotations adds custom annotations to generated resources.
+	customAnnotations map[string]string
 
-	// Namespace specifies the Kubernetes namespace for resources.
-	Namespace string `json:"namespace,omitempty" yaml:"namespace,omitempty"`
+	// namespace specifies the Kubernetes namespace for resources.
+	namespace string
 
-	// Verbose enables detailed output during bundle generation.
-	Verbose bool `json:"verbose" yaml:"verbose"`
+	// verbose enables detailed output during bundle generation.
+	verbose bool
+}
+
+// Getter methods for read-only access
+
+// OutputFormat returns the output format setting.
+func (c *Config) OutputFormat() string {
+	return c.outputFormat
+}
+
+// Compression returns the compression setting.
+func (c *Config) Compression() bool {
+	return c.compression
+}
+
+// IncludeScripts returns the include scripts setting.
+func (c *Config) IncludeScripts() bool {
+	return c.includeScripts
+}
+
+// IncludeReadme returns the include readme setting.
+func (c *Config) IncludeReadme() bool {
+	return c.includeReadme
+}
+
+// IncludeChecksums returns the include checksums setting.
+func (c *Config) IncludeChecksums() bool {
+	return c.includeChecksums
+}
+
+// HelmChartVersion returns the Helm chart version setting.
+func (c *Config) HelmChartVersion() string {
+	return c.helmChartVersion
+}
+
+// HelmRepository returns the Helm repository URL setting.
+func (c *Config) HelmRepository() string {
+	return c.helmRepository
+}
+
+// CustomLabels returns a copy of the custom labels to prevent modification.
+func (c *Config) CustomLabels() map[string]string {
+	labels := make(map[string]string, len(c.customLabels))
+	for k, v := range c.customLabels {
+		labels[k] = v
+	}
+	return labels
+}
+
+// CustomAnnotations returns a copy of the custom annotations to prevent modification.
+func (c *Config) CustomAnnotations() map[string]string {
+	annotations := make(map[string]string, len(c.customAnnotations))
+	for k, v := range c.customAnnotations {
+		annotations[k] = v
+	}
+	return annotations
+}
+
+// Namespace returns the namespace setting.
+func (c *Config) Namespace() string {
+	return c.namespace
+}
+
+// Verbose returns the verbose setting.
+func (c *Config) Verbose() bool {
+	return c.verbose
 }
 
 // Validate checks if the Config has valid settings.
 func (c *Config) Validate() error {
 	validFormats := map[string]bool{"yaml": true, "json": true, "helm": true}
-	if !validFormats[c.OutputFormat] {
+	if !validFormats[c.outputFormat] {
 		return fmt.Errorf("invalid output format: %s (must be yaml, json, or helm)",
-			c.OutputFormat)
+			c.outputFormat)
 	}
 
-	if c.Namespace == "" {
+	if c.namespace == "" {
 		return fmt.Errorf("namespace cannot be empty")
 	}
 
 	return nil
 }
 
+type Option func(*Config)
+
+func WithOutputFormat(format string) Option {
+	return func(c *Config) {
+		c.outputFormat = format
+	}
+}
+
+func WithCompression(enabled bool) Option {
+	return func(c *Config) {
+		c.compression = enabled
+	}
+}
+
+func WithIncludeScripts(enabled bool) Option {
+	return func(c *Config) {
+		c.includeScripts = enabled
+	}
+}
+
+func WithIncludeReadme(enabled bool) Option {
+	return func(c *Config) {
+		c.includeReadme = enabled
+	}
+}
+
+func WithIncludeChecksums(enabled bool) Option {
+	return func(c *Config) {
+		c.includeChecksums = enabled
+	}
+}
+
+func WithHelmChartVersion(version string) Option {
+	return func(c *Config) {
+		c.helmChartVersion = version
+	}
+}
+
+func WithHelmRepository(url string) Option {
+	return func(c *Config) {
+		c.helmRepository = url
+	}
+}
+
+func WithCustomLabels(labels map[string]string) Option {
+	return func(c *Config) {
+		for k, v := range labels {
+			c.customLabels[k] = v
+		}
+	}
+}
+
+func WithCustomAnnotations(annotations map[string]string) Option {
+	return func(c *Config) {
+		for k, v := range annotations {
+			c.customAnnotations[k] = v
+		}
+	}
+}
+
+func WithNamespace(namespace string) Option {
+	return func(c *Config) {
+		c.namespace = namespace
+	}
+}
+
+func WithVerbose(enabled bool) Option {
+	return func(c *Config) {
+		c.verbose = enabled
+	}
+}
+
 // NewConfig returns a Config with default values.
-func NewConfig() *Config {
-	return &Config{
-		OutputFormat:      "yaml",
-		Compression:       false,
-		IncludeScripts:    true,
-		IncludeReadme:     true,
-		IncludeChecksums:  true,
-		CustomLabels:      make(map[string]string),
-		CustomAnnotations: make(map[string]string),
-		Namespace:         "default",
-		Verbose:           false,
+func NewConfig(options ...Option) *Config {
+	c := &Config{
+		outputFormat:      "yaml",
+		compression:       false,
+		includeScripts:    true,
+		includeReadme:     true,
+		includeChecksums:  true,
+		customLabels:      make(map[string]string),
+		customAnnotations: make(map[string]string),
+		namespace:         "default",
+		verbose:           false,
 	}
-}
-
-// Merge merges another config into this one, with the other config taking precedence.
-func (c *Config) Merge(other *Config) {
-	if other == nil {
-		return
+	for _, opt := range options {
+		opt(c)
 	}
-
-	if other.OutputFormat != "" {
-		c.OutputFormat = other.OutputFormat
-	}
-	c.Compression = other.Compression
-	c.IncludeScripts = other.IncludeScripts
-	c.IncludeReadme = other.IncludeReadme
-	c.IncludeChecksums = other.IncludeChecksums
-
-	if other.HelmChartVersion != "" {
-		c.HelmChartVersion = other.HelmChartVersion
-	}
-	if other.HelmRepository != "" {
-		c.HelmRepository = other.HelmRepository
-	}
-	if other.Namespace != "" {
-		c.Namespace = other.Namespace
-	}
-
-	// Merge labels and annotations
-	for k, v := range other.CustomLabels {
-		c.CustomLabels[k] = v
-	}
-	for k, v := range other.CustomAnnotations {
-		c.CustomAnnotations[k] = v
-	}
-
-	c.Verbose = other.Verbose
-}
-
-// Clone creates a deep copy of the config.
-func (c *Config) Clone() *Config {
-	clone := *c
-	clone.CustomLabels = make(map[string]string, len(c.CustomLabels))
-	clone.CustomAnnotations = make(map[string]string, len(c.CustomAnnotations))
-
-	for k, v := range c.CustomLabels {
-		clone.CustomLabels[k] = v
-	}
-	for k, v := range c.CustomAnnotations {
-		clone.CustomAnnotations[k] = v
-	}
-
-	return &clone
+	return c
 }

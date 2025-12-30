@@ -37,7 +37,7 @@ Basic usage with default settings (generates GPU Operator bundle):
 Customize with functional options:
 
 	b := bundler.New(
-		bundler.WithBundlerTypes([]bundle.BundleType{bundle.BundleTypeGpuOperator}),
+		bundler.WithBundlerTypes([]types.BundleType{types.BundleTypeGpuOperator}),
 		bundler.WithFailFast(true),
 		bundler.WithDryRun(true),
 	)
@@ -142,7 +142,7 @@ Customize bundler behavior with config.Config:
 Create and populate custom registry:
 
 	reg := bundler.NewRegistry()
-	reg.Register(bundle.BundleTypeGpuOperator, gpuoperator.NewBundler(cfg))
+	reg.Register(types.BundleTypeGpuOperator, gpuoperator.NewBundler(cfg))
 	reg.Register("network-operator", networkoperator.NewBundler(cfg))
 
 	// Use custom registry
@@ -154,7 +154,7 @@ Registry operations are thread-safe:
 	types := reg.List()
 
 	// Get specific bundler
-	bundler, ok := reg.Get(bundle.BundleTypeGpuOperator)
+	bundler, ok := reg.Get(types.BundleTypeGpuOperator)
 
 	// Unregister bundler
 	err := reg.Unregister("network-operator")
@@ -166,7 +166,7 @@ Registry operations are thread-safe:
 Each bundler returns a bundle.Result:
 
 	result := &bundle.Result{
-		Type:     bundle.BundleTypeGpuOperator,
+		Type:     types.BundleTypeGpuOperator,
 		Files:    []string{"values.yaml", "scripts/install.sh"},
 		Duration: 250 * time.Millisecond,
 		Size:     4096,
@@ -256,7 +256,7 @@ Implement the bundle.Bundler interface:
 		"github.com/NVIDIA/cloud-native-stack/pkg/recipe"
 	)
 
-	const BundleTypeMyBundler bundle.BundleType = "my-bundler"
+	const BundleTypeMyBundler types.BundleType = "my-bundler"
 
 	type Bundler struct {
 		config *config.Config
@@ -317,7 +317,7 @@ Best practices:
 		cfg.CustomLabels["env"] = "prod"
 
 		b := bundler.New(
-			bundler.WithBundlerTypes([]bundle.BundleType{bundle.BundleTypeGpuOperator}),
+			bundler.WithBundlerTypes([]types.BundleType{types.BundleTypeGpuOperator}),
 			bundler.WithConfig(cfg),
 			bundler.WithFailFast(true),
 		)
@@ -345,7 +345,7 @@ Best practices:
 		reg := bundler.NewRegistry()
 
 		// Register multiple bundlers
-		reg.Register(bundle.BundleTypeGpuOperator, gpuoperator.NewBundler(cfg))
+		reg.Register(types.BundleTypeGpuOperator, gpuoperator.NewBundler(cfg))
 		reg.Register("network-operator", networkoperator.NewBundler(cfg))
 		reg.Register("storage-operator", storageoperator.NewBundler(cfg))
 

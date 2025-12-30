@@ -19,6 +19,8 @@ vendor/
 # Binaries
 bin
 dist
+/eidos-api-server
+/eidos
 
 # Keys 
 cosign.*

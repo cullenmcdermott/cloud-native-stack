@@ -10,7 +10,7 @@ import (
 	"log/slog"
 
 	"github.com/NVIDIA/cloud-native-stack/pkg/bundler"
-	"github.com/NVIDIA/cloud-native-stack/pkg/bundler/common"
+	"github.com/NVIDIA/cloud-native-stack/pkg/bundler/types"
 	"github.com/NVIDIA/cloud-native-stack/pkg/recipe"
 	"github.com/NVIDIA/cloud-native-stack/pkg/serializer"
 	"github.com/urfave/cli/v3"
@@ -38,7 +38,7 @@ func bundleCmd() *cli.Command {
 				Name:    "bundlers",
 				Aliases: []string{"b"},
 				Usage: fmt.Sprintf(`Types of bundlers to execute (supported types: %s). 
-	If not specified, all supported bundlers are executed.`, common.SupportedBundleTypesAsStrings()),
+	If not specified, all supported bundlers are executed.`, types.SupportedBundleTypesAsStrings()),
 			},
 			&cli.StringFlag{
 				Name:    "output",
@@ -53,9 +53,9 @@ func bundleCmd() *cli.Command {
 			bundlerTypesStr := cmd.StringSlice("bundlers")
 
 			// Parse bundler types
-			var bundlerTypes []common.BundleType
+			var bundlerTypes []types.BundleType
 			for _, t := range bundlerTypesStr {
-				bt, err := common.ParseType(t)
+				bt, err := types.ParseType(t)
 				if err != nil {
 					return fmt.Errorf("invalid bundler type '%s': %w", t, err)
 				}

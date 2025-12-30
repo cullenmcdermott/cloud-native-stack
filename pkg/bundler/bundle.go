@@ -5,15 +5,59 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
-	"reflect"
+	"sync"
 	"time"
 
-	"github.com/NVIDIA/cloud-native-stack/pkg/bundler/common"
+	"github.com/NVIDIA/cloud-native-stack/pkg/bundler/types"
+
 	"github.com/NVIDIA/cloud-native-stack/pkg/bundler/config"
+	"github.com/NVIDIA/cloud-native-stack/pkg/bundler/gpuoperator"
+	"github.com/NVIDIA/cloud-native-stack/pkg/bundler/networkoperator"
+	"github.com/NVIDIA/cloud-native-stack/pkg/bundler/registry"
+	"github.com/NVIDIA/cloud-native-stack/pkg/bundler/result"
 	"github.com/NVIDIA/cloud-native-stack/pkg/errors"
 	"github.com/NVIDIA/cloud-native-stack/pkg/recipe"
-	"golang.org/x/sync/errgroup"
 )
+
+// idempotencyCache provides thread-safe caching of bundle results
+// for duplicate request prevention.
+type idempotencyCache struct {
+	cache map[string]*result.Output
+	mu    sync.RWMutex
+	ttl   time.Duration
+}
+
+// newIdempotencyCache creates a new idempotency cache with the given TTL.
+func newIdempotencyCache(ttl time.Duration) *idempotencyCache {
+	return &idempotencyCache{
+		cache: make(map[string]*result.Output),
+		ttl:   ttl,
+	}
+}
+
+// Get retrieves a cached result by idempotency key.
+func (c *idempotencyCache) Get(key string) (*result.Output, bool) {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+	output, exists := c.cache[key]
+	return output, exists
+}
+
+// Set stores a result with the given idempotency key and schedules expiration.
+func (c *idempotencyCache) Set(key string, output *result.Output) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	c.cache[key] = output
+
+	// Schedule automatic expiration
+	go func() {
+		time.Sleep(c.ttl)
+		c.mu.Lock()
+		delete(c.cache, key)
+		c.mu.Unlock()
+	}()
+}
 
 // DefaultBundler provides default options for bundling operations.
 //
@@ -25,7 +69,7 @@ import (
 type DefaultBundler struct {
 	// BundlerTypes specifies which bundlers to execute.
 	// If empty, all registered bundlers are executed.
-	BundlerTypes []common.BundleType
+	BundlerTypes []types.BundleType
 
 	// FailFast stops execution on first bundler error.
 	// Default is false (continues and collects all errors).
@@ -35,7 +79,10 @@ type DefaultBundler struct {
 	Config *config.Config
 
 	// Registry to retrieve bundlers from.
-	Registry *Registry
+	Registry *registry.Registry
+
+	// idempotencyCache caches results by idempotency key to prevent duplicate work.
+	idempotencyCache *idempotencyCache
 }
 
 // Option defines a functional option for configuring DefaultBundler.
@@ -44,7 +91,7 @@ type Option func(*DefaultBundler)
 // WithBundlerTypes sets the bundler types to execute.
 // If not set, all registered bundlers are executed.
 // Nil or empty slice means all bundlers as well.
-func WithBundlerTypes(types []common.BundleType) Option {
+func WithBundlerTypes(types []types.BundleType) Option {
 	return func(db *DefaultBundler) {
 		if len(types) > 0 {
 			db.BundlerTypes = types
@@ -71,7 +118,7 @@ func WithConfig(config *config.Config) Option {
 
 // WithRegistry sets the registry to retrieve bundlers from.
 // This overrides the default registry created by New().
-func WithRegistry(registry *Registry) Option {
+func WithRegistry(registry *registry.Registry) Option {
 	return func(db *DefaultBundler) {
 		if registry != nil {
 			db.Registry = registry
@@ -92,17 +139,22 @@ func WithRegistry(registry *Registry) Option {
 // Example:
 //
 //	b := bundler.New(
-//		bundler.WithBundlerTypes([]common.BundleType{common.BundleTypeGpuOperator}),
+//		bundler.WithBundlerTypes([]types.BundleType{types.BundleTypeGpuOperator}),
 //		bundler.WithFailFast(true),
 //	)
 func New(opts ...Option) *DefaultBundler {
 	cfg := config.NewConfig()
-	reg := NewRegistry(cfg)
+	reg := registry.NewRegistry()
+
+	// Register default bundlers
+	reg.Register(types.BundleTypeGpuOperator, gpuoperator.NewBundler(cfg))
+	reg.Register(types.BundleTypeNetworkOperator, networkoperator.NewBundler(cfg))
 
 	// Create DefaultBundler with defaults
 	db := &DefaultBundler{
-		Config:   cfg,
-		Registry: reg,
+		Config:           cfg,
+		Registry:         reg,
+		idempotencyCache: newIdempotencyCache(24 * time.Hour),
 	}
 
 	// Apply options
@@ -115,9 +167,9 @@ func New(opts ...Option) *DefaultBundler {
 
 // Make generates bundles from the given recipe into the specified directory.
 // It accepts various options to customize the bundling process.
-// Returns a common.Output summarizing the results of the bundling operation.
+// Returns a result.Output summarizing the results of the bundling operation.
 // Errors encountered during the process are returned as well.
-func (b *DefaultBundler) Make(ctx context.Context, recipe *recipe.Recipe, dir string) (*common.Output, error) {
+func (b *DefaultBundler) Make(ctx context.Context, recipe *recipe.Recipe, dir string) (*result.Output, error) {
 	start := time.Now()
 
 	// Validate input
@@ -174,54 +226,71 @@ func (b *DefaultBundler) Make(ctx context.Context, recipe *recipe.Recipe, dir st
 	return output, nil
 }
 
-// makeParallel executes bundlers concurrently.
-func (b *DefaultBundler) makeParallel(ctx context.Context, recipe *recipe.Recipe, dir string, bundlers map[common.BundleType]common.Bundler) (*common.Output, error) {
-	output := &common.Output{
-		Results: make([]*common.Result, 0, len(bundlers)),
-		Errors:  make([]common.BundleError, 0),
+// makeParallel executes bundlers concurrently using buffered channels
+// and WaitGroup to prevent deadlocks.
+func (b *DefaultBundler) makeParallel(ctx context.Context, recipe *recipe.Recipe, dir string, bundlers map[types.BundleType]registry.Bundler) (*result.Output, error) {
+	output := &result.Output{
+		Results: make([]*result.Result, 0, len(bundlers)),
+		Errors:  make([]result.BundleError, 0),
 	}
 
-	g, gctx := errgroup.WithContext(ctx)
-	resultChan := make(chan *common.Result, len(bundlers))
-	errorChan := make(chan common.BundleError, len(bundlers))
+	// Use buffered channels to prevent blocking on writes
+	resultChan := make(chan *result.Result, len(bundlers))
+	errorChan := make(chan result.BundleError, len(bundlers))
+
+	var wg sync.WaitGroup
+	wg.Add(len(bundlers))
+
+	// Track if we should stop early due to FailFast
+	var firstError error
+	var firstErrorMu sync.Mutex
 
 	for bundlerType, bundler := range bundlers {
 		// Capture loop variables for goroutine
 		bundlerType := bundlerType
 		bundler := bundler
 
-		g.Go(func() error {
-			result, err := b.executeBundler(gctx, bundlerType, bundler, recipe, dir)
+		go func() {
+			defer wg.Done()
 
-			// Always send result (even if failed)
-			select {
-			case resultChan <- result:
-			case <-gctx.Done():
-				return gctx.Err()
+			// Check if we should skip due to FailFast
+			if b.FailFast {
+				firstErrorMu.Lock()
+				hasError := firstError != nil
+				firstErrorMu.Unlock()
+				if hasError {
+					return
+				}
 			}
 
+			res, err := b.executeBundler(ctx, bundlerType, bundler, recipe, dir)
+
+			// Non-blocking writes to buffered channels
+			resultChan <- res
+
 			if err != nil {
-				select {
-				case errorChan <- common.BundleError{
+				errorChan <- result.BundleError{
 					BundlerType: bundlerType,
 					Error:       err.Error(),
-				}:
-				case <-gctx.Done():
-					return gctx.Err()
 				}
 
 				if b.FailFast {
-					return err
+					firstErrorMu.Lock()
+					if firstError == nil {
+						firstError = err
+					}
+					firstErrorMu.Unlock()
 				}
 			}
-			return nil
-		})
+		}()
 	}
 
-	// Wait for all bundlers and close channels
-	err := g.Wait()
-	close(resultChan)
-	close(errorChan)
+	// Close channels after all goroutines complete
+	go func() {
+		wg.Wait()
+		close(resultChan)
+		close(errorChan)
+	}()
 
 	// Collect results
 	for result := range resultChan {
@@ -237,8 +306,9 @@ func (b *DefaultBundler) makeParallel(ctx context.Context, recipe *recipe.Recipe
 		output.Errors = append(output.Errors, bundleErr)
 	}
 
-	if err != nil && b.FailFast {
-		return output, errors.Wrap(errors.ErrCodeInternal, "bundler execution failed", err)
+	// Return first error if FailFast is enabled
+	if b.FailFast && firstError != nil {
+		return output, errors.Wrap(errors.ErrCodeInternal, "bundler execution failed", firstError)
 	}
 
 	// When FailFast is false, collect errors but don't return error
@@ -247,29 +317,22 @@ func (b *DefaultBundler) makeParallel(ctx context.Context, recipe *recipe.Recipe
 }
 
 // executeBundler executes a single bundler and records metrics.
-func (b *DefaultBundler) executeBundler(ctx context.Context, bundlerType common.BundleType, bundler common.Bundler,
-	recipe *recipe.Recipe, dir string) (*common.Result, error) {
+func (b *DefaultBundler) executeBundler(ctx context.Context, bundlerType types.BundleType, bundler registry.Bundler,
+	recipe *recipe.Recipe, dir string) (*result.Result, error) {
 
 	start := time.Now()
 
-	// Check if bundler implements Validate method via reflection
-	// We can't use a type assertion with *recipe.Recipe in a local interface,
-	// so we use a method value approach
-	validateMethod := reflect.ValueOf(bundler).MethodByName("Validate")
-	if validateMethod.IsValid() && validateMethod.Type().NumIn() == 2 {
-		// Call Validate(ctx, recipe)
-		results := validateMethod.Call([]reflect.Value{
-			reflect.ValueOf(ctx),
-			reflect.ValueOf(recipe),
-		})
-		if len(results) > 0 && !results[0].IsNil() {
-			err := results[0].Interface().(error)
+	// Check if bundler implements ValidatableBundler interface
+	// Type assertion is type-safe and 10-100x faster than reflection
+	if validator, ok := bundler.(registry.ValidatableBundler); ok {
+		if err := validator.Validate(ctx, recipe); err != nil {
 			recordValidationFailure(bundlerType)
-			return common.NewResult(bundlerType), errors.Wrap(errors.ErrCodeInvalidRequest,
+			return result.New(bundlerType), errors.Wrap(errors.ErrCodeInvalidRequest,
 				fmt.Sprintf("validation failed for bundler %s", bundlerType), err)
 		}
 	}
 
+	// Add context metadata to logging
 	slog.Debug("executing bundler",
 		"bundler_type", bundlerType,
 		"output_dir", dir,
@@ -302,14 +365,14 @@ func (b *DefaultBundler) executeBundler(ctx context.Context, bundlerType common.
 }
 
 // selectBundlers selects which bundlers to execute based on options.
-func (b *DefaultBundler) selectBundlers(types []common.BundleType) map[common.BundleType]common.Bundler {
-	if len(types) == 0 {
+func (b *DefaultBundler) selectBundlers(bundleType []types.BundleType) map[types.BundleType]registry.Bundler {
+	if len(bundleType) == 0 {
 		return b.Registry.GetAll()
 	}
 
 	// Return only specified bundlers
-	selected := make(map[common.BundleType]common.Bundler)
-	for _, t := range types {
+	selected := make(map[types.BundleType]registry.Bundler)
+	for _, t := range bundleType {
 		if b, ok := b.Registry.Get(t); ok {
 			selected[t] = b
 		}

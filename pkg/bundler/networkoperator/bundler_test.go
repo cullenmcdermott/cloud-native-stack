@@ -21,7 +21,9 @@ func TestNewBundler(t *testing.T) {
 		},
 		{
 			name: "with valid config",
-			cfg:  &config.Config{Namespace: "test-namespace"},
+			cfg: config.NewConfig(
+				config.WithNamespace("test-namespace"),
+			),
 		},
 	}
 

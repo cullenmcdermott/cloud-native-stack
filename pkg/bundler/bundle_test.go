@@ -6,15 +6,18 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/NVIDIA/cloud-native-stack/pkg/bundler/common"
+	"github.com/NVIDIA/cloud-native-stack/pkg/bundler/types"
+
 	"github.com/NVIDIA/cloud-native-stack/pkg/bundler/config"
+	"github.com/NVIDIA/cloud-native-stack/pkg/bundler/registry"
+	"github.com/NVIDIA/cloud-native-stack/pkg/bundler/result"
 	"github.com/NVIDIA/cloud-native-stack/pkg/errors"
 	"github.com/NVIDIA/cloud-native-stack/pkg/measurement"
 	"github.com/NVIDIA/cloud-native-stack/pkg/recipe"
 )
 
 var (
-	testReg = NewRegistry(config.NewConfig())
+	testReg = registry.NewRegistry()
 )
 
 func init() {
@@ -28,14 +31,14 @@ type mockBundler struct {
 	shouldFail bool
 }
 
-func (m *mockBundler) Make(ctx context.Context, r *recipe.Recipe, outputDir string) (*common.Result, error) {
-	result := common.NewResult("mock")
+func (m *mockBundler) Make(ctx context.Context, r *recipe.Recipe, outputDir string) (*result.Result, error) {
+	res := result.New("mock")
 	if m.shouldFail {
-		return result, errors.New(errors.ErrCodeInternal, "mock bundler failed")
+		return res, errors.New(errors.ErrCodeInternal, "mock bundler failed")
 	}
-	result.AddFile("test.txt", 100)
-	result.MarkSuccess()
-	return result, nil
+	res.AddFile("test.txt", 100)
+	res.MarkSuccess()
+	return res, nil
 }
 
 // mockConfigurableBundler for testing configuration.
@@ -43,11 +46,11 @@ type mockConfigurableBundler struct {
 	config *config.Config
 }
 
-func (m *mockConfigurableBundler) Make(ctx context.Context, r *recipe.Recipe, outputDir string) (*common.Result, error) {
-	result := common.NewResult("mock-configurable")
-	result.AddFile("test.txt", 100)
-	result.MarkSuccess()
-	return result, nil
+func (m *mockConfigurableBundler) Make(ctx context.Context, r *recipe.Recipe, outputDir string) (*result.Result, error) {
+	res := result.New("mock-configurable")
+	res.AddFile("test.txt", 100)
+	res.MarkSuccess()
+	return res, nil
 }
 
 func (m *mockConfigurableBundler) Configure(config *config.Config) error {
@@ -81,7 +84,7 @@ func TestDefaultBundler_Make(t *testing.T) {
 
 	bundler := New(
 		WithRegistry(testReg),
-		WithBundlerTypes([]common.BundleType{"mock"}),
+		WithBundlerTypes([]types.BundleType{"mock"}),
 	)
 	output, err := bundler.Make(ctx, rec, tmpDir)
 	if err != nil {
@@ -156,10 +159,11 @@ func TestDefaultBundler_MakeWithOptions(t *testing.T) {
 		},
 	}
 
-	config := config.NewConfig()
-	config.Namespace = "test-namespace"
+	config := config.NewConfig(
+		config.WithNamespace("test-namespace"),
+	)
 
-	bundler := New(WithRegistry(testReg), WithBundlerTypes([]common.BundleType{"mock"}),
+	bundler := New(WithRegistry(testReg), WithBundlerTypes([]types.BundleType{"mock"}),
 		WithConfig(config),
 	)
 	output, err := bundler.Make(ctx, rec, tmpDir)
@@ -194,7 +198,7 @@ func TestDefaultBundler_MakeCreatesDirectory(t *testing.T) {
 
 	bundler := New(
 		WithRegistry(testReg),
-		WithBundlerTypes([]common.BundleType{"mock"}),
+		WithBundlerTypes([]types.BundleType{"mock"}),
 	)
 	_, err := bundler.Make(ctx, rec, tmpDir)
 	if err != nil {
@@ -269,7 +273,7 @@ func TestDefaultBundler_MakeWithFailFast(t *testing.T) {
 
 	bundler := New(
 		WithRegistry(testReg),
-		WithBundlerTypes([]common.BundleType{"mock-fail", "mock"}),
+		WithBundlerTypes([]types.BundleType{"mock-fail", "mock"}),
 		WithFailFast(true),
 	)
 	_, err := bundler.Make(ctx, rec, tmpDir)
@@ -300,7 +304,7 @@ func TestDefaultBundler_MakeWithoutFailFast(t *testing.T) {
 
 	bundler := New(
 		WithRegistry(testReg),
-		WithBundlerTypes([]common.BundleType{"mock-fail", "mock"}),
+		WithBundlerTypes([]types.BundleType{"mock-fail", "mock"}),
 		WithFailFast(false),
 	)
 	output, err := bundler.Make(ctx, rec, tmpDir)
@@ -339,10 +343,11 @@ func TestDefaultBundler_MakeWithConfiguration(t *testing.T) {
 		},
 	}
 
-	config := config.NewConfig()
-	config.Namespace = "custom-namespace"
+	config := config.NewConfig(
+		config.WithNamespace("custom-namespace"),
+	)
 
-	bundler := New(WithRegistry(testReg), WithBundlerTypes([]common.BundleType{"mock-configurable"}),
+	bundler := New(WithRegistry(testReg), WithBundlerTypes([]types.BundleType{"mock-configurable"}),
 		WithConfig(config),
 	)
 	output, err := bundler.Make(ctx, rec, tmpDir)
@@ -415,7 +420,7 @@ func TestDefaultBundler_MakeWithEmptyDirectory(t *testing.T) {
 	// Empty dir should default to current directory
 	bundler := New(
 		WithRegistry(testReg),
-		WithBundlerTypes([]common.BundleType{"mock"}),
+		WithBundlerTypes([]types.BundleType{"mock"}),
 	)
 	output, err := bundler.Make(ctx, rec, "")
 	if err != nil {
@@ -448,7 +453,7 @@ func TestDefaultBundler_MakeWithNoBundlers(t *testing.T) {
 	}
 
 	// Specify non-existent bundler type
-	bundler := New(WithBundlerTypes([]common.BundleType{"non-existent"}))
+	bundler := New(WithBundlerTypes([]types.BundleType{"non-existent"}))
 	_, err := bundler.Make(ctx, rec, tmpDir)
 	if err == nil {
 		t.Error("Expected error when no bundlers are selected")
@@ -456,10 +461,10 @@ func TestDefaultBundler_MakeWithNoBundlers(t *testing.T) {
 }
 
 func TestBundleOutput_Summary(t *testing.T) {
-	output := &common.Output{
+	output := &result.Output{
 		TotalFiles: 5,
 		TotalSize:  1024,
-		Results: []*common.Result{
+		Results: []*result.Result{
 			{Success: true},
 			{Success: true},
 			{Success: false},
@@ -475,20 +480,20 @@ func TestBundleOutput_Summary(t *testing.T) {
 func TestBundleOutput_HasErrors(t *testing.T) {
 	tests := []struct {
 		name   string
-		output *common.Output
+		output *result.Output
 		want   bool
 	}{
 		{
 			name: "no errors",
-			output: &common.Output{
-				Errors: []common.BundleError{},
+			output: &result.Output{
+				Errors: []result.BundleError{},
 			},
 			want: false,
 		},
 		{
 			name: "with errors",
-			output: &common.Output{
-				Errors: []common.BundleError{
+			output: &result.Output{
+				Errors: []result.BundleError{
 					{BundlerType: "test", Error: "test error"},
 				},
 			},
@@ -506,7 +511,7 @@ func TestBundleOutput_HasErrors(t *testing.T) {
 }
 
 func TestBundleResult_AddFile(t *testing.T) {
-	result := common.NewResult("test")
+	result := result.New("test")
 	result.AddFile("/path/to/file", 100)
 
 	if len(result.Files) != 1 {
