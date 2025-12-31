@@ -163,7 +163,8 @@ eidos bundle --recipe recipe.yaml \
 eidos bundle -f recipe.yaml -b gpu-operator -o ./bundles
 ```
 
-**Available bundler types:**
+**Currently available bundler types:**
+
 - `gpu-operator` – NVIDIA GPU Operator deployment bundle
 - `network-operator` – NVIDIA Network Operator deployment bundle (coming soon)
 
@@ -172,10 +173,10 @@ eidos bundle -f recipe.yaml -b gpu-operator -o ./bundles
 gpu-operator/
 ├── values.yaml                    # Helm chart configuration
 ├── manifests/
-│   └── clusterpolicy.yaml        # ClusterPolicy custom resource
+│   └── clusterpolicy.yaml         # ClusterPolicy custom resource
 ├── scripts/
-│   ├── install.sh                # Automated installation script
-│   └── uninstall.sh              # Cleanup script
+│   ├── install.sh                 # Automated installation script
+│   └── uninstall.sh               # Cleanup script
 ├── README.md                      # Deployment instructions and prerequisites
 └── checksums.txt                  # SHA256 checksums for file verification
 ```
