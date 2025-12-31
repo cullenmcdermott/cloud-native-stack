@@ -5,7 +5,7 @@ Cloud Native Stack (CNS) provides tooling and comprehensive documentation to hel
 - **CLI (Eidos)** – Three-step workflow: capture system snapshots, generate optimization recipes, and create deployment bundles
 - **API** – REST API for recipe generation and integration with automation pipelines
 - **Agent** – Kubernetes job for automated cluster snapshot collection
-- **Documentation** – Installation guides, playbooks, optimizations, and troubleshooting for GPU infrastructure
+- **Documentation** – (v1) Manual installation guides, playbooks, optimizations, and troubleshooting for GPU infrastructure
 
 ## Quick Start
 
@@ -35,9 +35,9 @@ Eidos follows a three-step workflow to capture, optimize, and deploy GPU infrast
    configuration        recommendations       artifacts
 ```
 
-**Step 1: Snapshot** – Captures current system state (OS, GPU, Kubernetes, SystemD services)
-**Step 2: Recipe** – Generates optimized configuration based on snapshot or query parameters  
-**Step 3: Bundle** – Creates deployment-ready artifacts (Helm values, manifests, scripts)
+* **Step 1: Snapshot** – Captures current system state (OS, GPU, Kubernetes, SystemD services)
+* **Step 2: Recipe** – Generates optimized configuration based on snapshot or query parameters  
+* **Step 3: Bundle** – Creates deployment-ready artifacts (Helm values, manifests, scripts)
 
 > **Note:** Eidos is fully self-contained. It does not connect to external services and never transmits captured configuration data outside your cluster.
 
