@@ -593,7 +593,35 @@ For more information on attestations, see the [GitHub Artifact Attestations docu
 
 ## Documentation
 
-Comprehensive deployment and operations guides:
+### For Users
+
+Get started with installing and using Cloud Native Stack:
+
+- **[Installation Guide](docs/user-guide/installation.md)** – Install the eidos CLI (automated script, manual, or build from source)
+- **[CLI Reference](docs/user-guide/cli-reference.md)** – Complete command reference with examples
+- **[Agent Deployment](docs/user-guide/agent-deployment.md)** – Deploy the Kubernetes agent for automated snapshots
+
+### For Developers
+
+Learn how to contribute and understand the architecture:
+
+- **[Contributing Guide](CONTRIBUTING.md)** – Development setup, testing, and PR process
+- **[Architecture Overview](docs/architecture/README.md)** – System design and components
+- **[Bundler Development](docs/architecture/bundler-development.md)** – How to create new bundlers
+- **[Data Architecture](docs/architecture/data.md)** – Recipe data model and query matching
+
+### For Integrators
+
+Integrate Cloud Native Stack into your infrastructure automation:
+
+- **[API Reference](docs/integration/api-reference.md)** – REST API endpoints and usage examples
+- **[Data Flow](docs/integration/data-flow.md)** – Understanding snapshots, recipes, and bundles
+- **[Automation Guide](docs/integration/automation.md)** – CI/CD integration patterns
+- **[Kubernetes Deployment](docs/integration/kubernetes-deployment.md)** – Self-hosted API server setup
+
+### Additional Resources
+
+Platform-specific deployment and optimization guides:
 
 - **[Installation Guides](docs/install-guides)** – Step-by-step setup for various platforms
 - **[Playbooks](docs/playbooks)** – Ansible automation for CNS deployment

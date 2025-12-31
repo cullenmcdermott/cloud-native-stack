@@ -1,0 +1,514 @@
+# Agent Deployment
+
+Deploy Eidos as a Kubernetes Job to automatically capture cluster configuration snapshots.
+
+## Overview
+
+The Eidos agent runs as a Kubernetes Job that:
+- Captures system configuration from GPU nodes
+- Outputs snapshot to stdout (retrieved via `kubectl logs`)
+- Useful for auditing, troubleshooting, and multi-cluster management
+
+**Agent capabilities:**
+- ✅ Step 1: Snapshot capture
+- ❌ Step 2: Recipe generation (use CLI or API)
+- ❌ Step 3: Bundle generation (use CLI)
+
+## Prerequisites
+
+- Kubernetes cluster with GPU nodes
+- `kubectl` configured with cluster access
+- GPU Operator installed (agent runs in `gpu-operator` namespace)
+- Cluster admin permissions (for RBAC setup)
+
+## Quick Start
+
+### 1. Deploy RBAC and ServiceAccount
+
+The agent requires permissions to read Kubernetes resources:
+
+```shell
+kubectl apply -f https://raw.githubusercontent.com/mchmarny/cloud-native-stack/main/deployments/eidos-agent/1-deps.yaml
+```
+
+**What this creates:**
+- **Namespace**: `gpu-operator` (if not exists)
+- **ServiceAccount**: `eidos` in gpu-operator namespace
+- **ClusterRole**: Permissions to read nodes, pods, ClusterPolicy
+- **ClusterRoleBinding**: Binds role to service account
+
+### 2. Deploy the Agent Job
+
+```shell
+kubectl apply -f https://raw.githubusercontent.com/mchmarny/cloud-native-stack/main/deployments/eidos-agent/2-job.yaml
+```
+
+### 3. View Snapshot Output
+
+Check job status:
+```shell
+kubectl get jobs -n gpu-operator
+```
+
+Retrieve snapshot:
+```shell
+kubectl logs -n gpu-operator job/eidos
+```
+
+Save snapshot to file:
+```shell
+kubectl logs -n gpu-operator job/eidos > snapshot.yaml
+```
+
+## Customization
+
+Before deploying, you may need to customize the Job manifest for your environment.
+
+### Download and Edit Manifest
+
+```shell
+# Download job manifest
+curl -O https://raw.githubusercontent.com/mchmarny/cloud-native-stack/main/deployments/eidos-agent/2-job.yaml
+
+# Edit with your preferred editor
+vim 2-job.yaml
+```
+
+### Node Selection
+
+Target specific GPU nodes using `nodeSelector`:
+
+```yaml
+spec:
+  template:
+    spec:
+      nodeSelector:
+        nvidia.com/gpu.present: "true"        # Any GPU node
+        # nodeGroup: your-gpu-node-group      # Specific node group
+        # instance-type: p4d.24xlarge         # Specific instance type
+```
+
+**Common node selectors:**
+
+| Selector | Purpose |
+|----------|---------|
+| `nvidia.com/gpu.present: "true"` | Any node with GPU |
+| `nodeGroup: gpu-nodes` | Specific node pool (EKS/GKE) |
+| `node.kubernetes.io/instance-type: p4d.24xlarge` | AWS instance type |
+| `cloud.google.com/gke-accelerator: nvidia-tesla-h100` | GKE GPU type |
+
+### Tolerations
+
+If your GPU nodes have taints, add tolerations:
+
+```yaml
+spec:
+  template:
+    spec:
+      tolerations:
+        - key: nvidia.com/gpu
+          operator: Exists
+          effect: NoSchedule
+        # Add your custom taints:
+        - key: dedicated
+          operator: Equal
+          value: gpu
+          effect: NoSchedule
+```
+
+**Common tolerations:**
+
+| Taint Key | Effect | Purpose |
+|-----------|--------|---------|
+| `nvidia.com/gpu` | NoSchedule | GPU Operator default |
+| `dedicated` | NoSchedule | Dedicated GPU nodes |
+| `workload` | NoSchedule | Workload-specific nodes |
+
+### Image Version
+
+Use a specific version instead of `latest`:
+
+```yaml
+spec:
+  template:
+    spec:
+      containers:
+        - name: eidos
+          image: ghcr.io/mchmarny/eidos-api-server:v0.7.6  # Pin to version
+```
+
+**Finding versions:**
+- [GitHub Releases](https://github.com/mchmarny/cloud-native-stack/releases)
+- Container registry: [ghcr.io/mchmarny/eidos-api-server](https://github.com/mchmarny/cloud-native-stack/pkgs/container/eidos-api-server)
+
+### Resource Limits
+
+Adjust CPU and memory limits:
+
+```yaml
+spec:
+  template:
+    spec:
+      containers:
+        - name: eidos
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+```
+
+### Custom Output Format
+
+Change output format via command arguments:
+
+```yaml
+spec:
+  template:
+    spec:
+      containers:
+        - name: eidos
+          args:
+            - snapshot
+            - --format
+            - json  # Change to: yaml, json, table
+```
+
+## Deployment Examples
+
+### Example 1: AWS EKS with GPU Node Group
+
+```yaml
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: eidos
+  namespace: gpu-operator
+spec:
+  template:
+    spec:
+      serviceAccountName: eidos
+      restartPolicy: Never
+      nodeSelector:
+        nodeGroup: gpu-nodes  # Your EKS node group
+      tolerations:
+        - key: nvidia.com/gpu
+          operator: Exists
+          effect: NoSchedule
+      containers:
+        - name: eidos
+          image: ghcr.io/mchmarny/eidos-api-server:latest
+          args: ["snapshot", "--format", "yaml"]
+```
+
+### Example 2: GKE with H100 GPUs
+
+```yaml
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: eidos
+  namespace: gpu-operator
+spec:
+  template:
+    spec:
+      serviceAccountName: eidos
+      restartPolicy: Never
+      nodeSelector:
+        cloud.google.com/gke-accelerator: nvidia-tesla-h100
+      containers:
+        - name: eidos
+          image: ghcr.io/mchmarny/eidos-api-server:latest
+          args: ["snapshot"]
+```
+
+### Example 3: Multi-Node Snapshot (CronJob)
+
+Periodic snapshots for drift detection:
+
+```yaml
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: eidos-snapshot
+  namespace: gpu-operator
+spec:
+  schedule: "0 */6 * * *"  # Every 6 hours
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          serviceAccountName: eidos
+          restartPolicy: Never
+          nodeSelector:
+            nvidia.com/gpu.present: "true"
+          containers:
+            - name: eidos
+              image: ghcr.io/mchmarny/eidos-api-server:latest
+              args: ["snapshot", "--format", "json"]
+```
+
+Retrieve historical snapshots:
+```shell
+# List completed jobs
+kubectl get jobs -n gpu-operator -l job-name=eidos-snapshot
+
+# Get snapshot from specific job
+kubectl logs -n gpu-operator job/eidos-snapshot-28405680
+```
+
+## Post-Deployment
+
+### Monitor Job Status
+
+```shell
+# Check job status
+kubectl get jobs -n gpu-operator
+
+# Describe job for events
+kubectl describe job eidos -n gpu-operator
+
+# Check pod status
+kubectl get pods -n gpu-operator -l job-name=eidos
+```
+
+### Retrieve Snapshot
+
+```shell
+# View logs
+kubectl logs -n gpu-operator job/eidos
+
+# Save to file
+kubectl logs -n gpu-operator job/eidos > snapshot-$(date +%Y%m%d).yaml
+
+# Follow logs (if job is running)
+kubectl logs -n gpu-operator job/eidos -f
+```
+
+### Generate Recipe from Snapshot
+
+```shell
+# Save snapshot
+kubectl logs -n gpu-operator job/eidos > snapshot.yaml
+
+# Generate recipe locally
+eidos recipe --snapshot snapshot.yaml --intent training --output recipe.yaml
+
+# Generate bundle
+eidos bundle --recipe recipe.yaml --output ./bundles
+```
+
+### Clean Up
+
+```shell
+# Delete job
+kubectl delete job eidos -n gpu-operator
+
+# Delete RBAC (if no longer needed)
+kubectl delete -f https://raw.githubusercontent.com/mchmarny/cloud-native-stack/main/deployments/eidos-agent/1-deps.yaml
+```
+
+## Integration Patterns
+
+### 1. CI/CD Pipeline
+
+```yaml
+# GitHub Actions example
+- name: Capture cluster snapshot
+  run: |
+    kubectl apply -f deployments/eidos-agent/2-job.yaml
+    kubectl wait --for=condition=complete --timeout=300s job/eidos -n gpu-operator
+    kubectl logs -n gpu-operator job/eidos > snapshot.yaml
+    
+- name: Generate recipe
+  run: |
+    eidos recipe -f snapshot.yaml -i training -o recipe.yaml
+    
+- name: Upload artifacts
+  uses: actions/upload-artifact@v3
+  with:
+    name: cluster-config
+    path: |
+      snapshot.yaml
+      recipe.yaml
+```
+
+### 2. Multi-Cluster Auditing
+
+```shell
+#!/bin/bash
+# Capture snapshots from multiple clusters
+
+clusters=("prod-us-east" "prod-eu-west" "staging")
+
+for cluster in "${clusters[@]}"; do
+  echo "Capturing snapshot from $cluster..."
+  
+  # Switch context
+  kubectl config use-context $cluster
+  
+  # Deploy agent
+  kubectl apply -f deployments/eidos-agent/2-job.yaml
+  
+  # Wait for completion
+  kubectl wait --for=condition=complete --timeout=300s job/eidos -n gpu-operator
+  
+  # Save snapshot
+  kubectl logs -n gpu-operator job/eidos > snapshot-${cluster}.yaml
+  
+  # Clean up
+  kubectl delete job eidos -n gpu-operator
+done
+```
+
+### 3. Drift Detection
+
+```shell
+#!/bin/bash
+# Compare current snapshot with baseline
+
+# Baseline (first snapshot)
+kubectl apply -f deployments/eidos-agent/2-job.yaml
+kubectl wait --for=condition=complete job/eidos -n gpu-operator
+kubectl logs -n gpu-operator job/eidos > baseline.yaml
+
+# Current (later snapshot)
+kubectl apply -f deployments/eidos-agent/2-job.yaml
+kubectl wait --for=condition=complete job/eidos -n gpu-operator
+kubectl logs -n gpu-operator job/eidos > current.yaml
+
+# Compare
+diff baseline.yaml current.yaml || echo "Configuration drift detected!"
+```
+
+## Troubleshooting
+
+### Job Fails to Start
+
+Check RBAC permissions:
+```shell
+kubectl auth can-i get nodes --as=system:serviceaccount:gpu-operator:eidos
+kubectl auth can-i get pods --as=system:serviceaccount:gpu-operator:eidos
+```
+
+### Job Pending
+
+Check node selectors and tolerations:
+```shell
+# View pod events
+kubectl describe pod -n gpu-operator -l job-name=eidos
+
+# Check node labels
+kubectl get nodes --show-labels
+
+# Check node taints
+kubectl get nodes -o custom-columns=NAME:.metadata.name,TAINTS:.spec.taints
+```
+
+### Job Completes but No Output
+
+Check container logs:
+```shell
+# View pod logs
+kubectl logs -n gpu-operator -l job-name=eidos
+
+# Check for errors
+kubectl logs -n gpu-operator -l job-name=eidos --previous
+```
+
+### Permission Denied
+
+Ensure RBAC is correctly deployed:
+```shell
+# Verify ClusterRole
+kubectl get clusterrole eidos
+
+# Verify ClusterRoleBinding
+kubectl get clusterrolebinding eidos
+
+# Verify ServiceAccount
+kubectl get serviceaccount eidos -n gpu-operator
+```
+
+### Image Pull Errors
+
+Check image access:
+```shell
+# Describe pod
+kubectl describe pod -n gpu-operator -l job-name=eidos
+
+# For private registries, create image pull secret:
+kubectl create secret docker-registry regcred \
+  --docker-server=ghcr.io \
+  --docker-username=<your-username> \
+  --docker-password=<your-pat> \
+  -n gpu-operator
+
+# Add to job spec:
+# imagePullSecrets:
+#   - name: regcred
+```
+
+## Security Considerations
+
+### Least Privilege
+
+The agent only requires read permissions:
+- Nodes
+- Pods
+- ClusterPolicy CRDs
+
+### Network Policies
+
+Restrict agent network access:
+
+```yaml
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: eidos-agent
+  namespace: gpu-operator
+spec:
+  podSelector:
+    matchLabels:
+      job-name: eidos
+  policyTypes:
+    - Egress
+  egress:
+    - to:
+        - namespaceSelector: {}
+      ports:
+        - protocol: TCP
+          port: 443  # Kubernetes API only
+```
+
+### Pod Security Standards
+
+The agent runs as non-root:
+
+```yaml
+spec:
+  template:
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65532
+        fsGroup: 65532
+      containers:
+        - name: eidos
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+```
+
+## See Also
+
+- [CLI Reference](cli-reference.md) - Eidos CLI commands
+- [Installation Guide](installation.md) - Install CLI locally
+- [API Reference](../integration/api-reference.md) - API server deployment
+- [RBAC Manifest](../../deployments/eidos-agent/1-deps.yaml) - Full RBAC configuration
+- [Job Manifest](../../deployments/eidos-agent/2-job.yaml) - Full Job configuration
