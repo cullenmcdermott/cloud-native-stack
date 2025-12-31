@@ -353,53 +353,134 @@ curl "https://cns.dgxc.io/v1/recipe?os=ubuntu&gpu=h100&service=gke" -o recipe.js
 
 #### Response Format
 
-The API returns JSON responses containing configuration recipes:
+The API returns JSON responses containing configuration recipes. For example, an abbreviated response for H100 deployment on EKS using Ubuntu-based GPU nodes would look something like this:
 
 ```json
 {
-  "apiVersion": "recipe.dgxc.io/v1",
-  "kind": "Recipe",
-  "metadata": {
-    "created": "2025-12-27T10:30:00Z",
-    "recipe-version": "v1.0.0"
-  },
-  "request": {
-    "os": "ubuntu",
-    "gpu": "h100",
-    "service": "eks",
-    "intent": "training"
-  },
-  "matchedRules": [
-    "os:ubuntu",
-    "gpu:h100",
-    "intent:training"
-  ],
-  "measurements": [
-    {
-      "type": "K8s",
-      "subtypes": [
-        {
-          "subtype": "cluster",
-          "data": {
-            "gpu-operator-version": "25.3.1",
-            "enable-mig": "false"
-          }
-        }
-      ]
+    "kind": "Recipe",
+    "apiVersion": "recipe.dgxc.io/v1",
+    "metadata": {
+        "recipe-timestamp": "2025-12-31T18:53:52Z",
+        "recipe-version": "0.8.7"
     },
-    {
-      "type": "GPU",
-      "subtypes": [
+    "request": {
+        "os": "ubuntu",
+        "service": "eks",
+        "gpu": "h100"
+    },
+    "matchedRules": [
+        "OS: ubuntu any, Kernel: any, Service: eks, K8s: any, GPU: any, Intent: any, Context: false"
+    ],
+    "measurements": [
         {
-          "subtype": "driver",
-          "data": {
-            "version": "570.158.01",
-            "cuda-version": "12.7"
-          }
+            "type": "OS",
+            "subtypes": [
+                {
+                    "subtype": "kmod",
+                    "data": {
+                        "ecc": true,
+                        "gdrdrv": true,
+                        "gpu_sched": true,
+                        ...
+                    }
+                },
+                {
+                    "subtype": "grub",
+                    "data": {
+                        "BOOT_IMAGE": "/boot/vmlinuz-6.8.0-1028-aws",
+                        "apparmor": "1",
+                        "audit_backlog_limit": "8192",
+                        "hugepages": "5128",
+                        "hugepagesz": "2M",
+                        ...
+                    }
+                },
+                {
+                    "subtype": "sysctl",
+                    "data": {
+                        "/proc/sys/fs/aio-max-nr": "65536",
+                        "/proc/sys/fs/file-max": "9223372036854775807",
+                        "/proc/sys/fs/inotify/max_user_watches": "524288",
+                        ...
+                    }
+                }
+            ]
+        },
+        {
+            "type": "SystemD",
+            "subtypes": [
+                {
+                    "subtype": "containerd.service",
+                    "data": {
+                        "CPUAccounting": true,
+                        "CPUQuotaPerSecUSec": 18446744073709552000,
+                        "CPUSchedulingPolicy": "0",
+                        "CPUShares": 18446744073709552000,
+                        ...
+                    }
+                }
+            ]
+        },
+        {
+            "type": "K8s",
+            "subtypes": [
+                {
+                    "subtype": "server",
+                    "data": {
+                        "version": "v1.33.5"
+                    }
+                },
+                {
+                    "subtype": "registry",
+                    "data": {
+                        "name": "nvcr.io",
+                        "repo": "nvidia",
+                        "uri": "nvcr.io/nvidia"
+                    }
+                },
+                {
+                    "subtype": "image",
+                    "data": {
+                        "container-networking-plugins": "v1.6.2",
+                        "container-toolkit": "v1.17.8",
+                        "dcgm": "4.3.1-1",
+                        ...
+                    }
+                },
+                {
+                    "subtype": "config",
+                    "data": {
+                        "cdi": true,
+                        "confidential_computing": false,
+                        "gds": false,
+                        ...
+                    }
+                },
+                {
+                    "subtype": "network-config",
+                    "data": {
+                        "deploy_ofed": false,
+                        "enable_sriov": false,
+                        "use_host_mofed": false
+                    }
+                }
+            ]
+        },
+        {
+            "type": "GPU",
+            "subtypes": [
+                {
+                    "subtype": "smi",
+                    "data": {
+                        "addressing-mode": "ATS",
+                        "cuda-version": "13.1",
+                        "display-active": "Disabled",
+                        ...
+                    }
+                }
+            ]
         }
-      ]
-    }
-  ]
+    ]
 }
 ```
 
@@ -422,7 +503,7 @@ The API returns standard HTTP status codes with detailed error messages:
 ```json
 {
   "code": "INVALID_PARAMETER",
-  "message": "invalid gpu type: must be one of h100, gb200, a100, l40, all",
+  "message": "invalid gpu type: must be one of h100, gb200, all",
   "details": {
     "parameter": "gpu",
     "provided": "invalid-gpu"
