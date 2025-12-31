@@ -27,12 +27,10 @@ eidos --version
 
 Eidos follows a three-step workflow to capture, optimize, and deploy GPU infrastructure:
 
-```
+```shell
 ┌──────────────┐      ┌──────────────┐      ┌──────────────┐
 │   Snapshot   │─────▶│    Recipe    │─────▶│    Bundle    │
 └──────────────┘      └──────────────┘      └──────────────┘
-   Capture system      Generate optimized    Create deployment
-   configuration        recommendations       artifacts
 ```
 
 * **Step 1: Snapshot** – Captures current system state (OS, GPU, Kubernetes, SystemD services)
