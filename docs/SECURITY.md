@@ -34,29 +34,92 @@ Cloud Native Stack (CNS) provides supply chain security artifacts for all contai
 
 ### Container Image Attestations
 
-All container images published from tagged releases include build provenance attestations, signed using GitHub's OIDC identity. These attestations provide verifiable evidence of how the images were built.
+All container images published from tagged releases include **multiple layers of attestations**, providing comprehensive supply chain security:
+
+1. **Build Provenance** – SLSA attestations signed using GitHub's OIDC identity
+2. **SBOM Attestations** – CycloneDX format signed with Cosign
+3. **Binary SBOMs** – Embedded in CLI binaries via GoReleaser
+
+#### Attestation Types
+
+**Build Provenance (SLSA)**
+- Complete record of the build environment, tools, and process
+- Source repository URL and exact commit SHA
+- GitHub Actions workflow that produced the artifact
+- Build parameters and environment variables
+- Cryptographically signed using Sigstore keyless signing
+- SLSA Build Level 3 compliant
+
+**SBOM Attestations**
+- Complete inventory of packages, libraries, and dependencies
+- CycloneDX JSON format (industry standard)
+- Attached to container images as attestations
+- Signed with Cosign using keyless signing (Fulcio + Rekor)
+- Enables vulnerability scanning and license compliance
 
 #### Verify Image Attestations
 
-You can verify the authenticity and provenance of container images using the GitHub CLI:
+**Method 1: GitHub CLI (Recommended)**
 
 ```shell
 # Verify the eidos CLI image
-gh attestation verify oci://ghcr.io/mchmarny/eidos:TAG --owner mchmarny
+gh attestation verify oci://ghcr.io/mchmarny/eidos:v0.7.0 --owner mchmarny
 
 # Verify the eidos-api-server image  
-gh attestation verify oci://ghcr.io/mchmarny/eidos-api-server:TAG --owner mchmarny
+gh attestation verify oci://ghcr.io/mchmarny/eidos-api-server:v0.7.0 --owner mchmarny
+
+# Verify with specific digest for immutability
+gh attestation verify oci://ghcr.io/mchmarny/eidos@sha256:abc123... --owner mchmarny
 ```
 
-Replace `TAG` with the specific version you want to verify (e.g., `v0.6.4` or `latest`).
+**Method 2: Cosign (SBOM Attestations)**
 
-The attestations include:
-- **Build provenance** – Complete record of the build environment and process
-- **Source repository** – Link to the exact source code commit
-- **Build workflow** – GitHub Actions workflow that produced the image
-- **Signed metadata** – Cryptographically signed using Sigstore
+```shell
+# Verify SBOM attestation signature
+cosign verify-attestation \
+  --type cyclonedx \
+  --certificate-oidc-issuer https://token.actions.githubusercontent.com \
+  --certificate-identity-regexp 'https://github.com/NVIDIA/cloud-native-stack/.github/workflows/.*' \
+  ghcr.io/mchmarny/eidos:v0.7.0
 
-For more information on attestations, see the [GitHub Artifact Attestations documentation](https://docs.github.com/en/actions/security-for-github-actions/using-artifact-attestations).
+# Extract and view SBOM
+cosign verify-attestation \
+  --type cyclonedx \
+  --certificate-oidc-issuer https://token.actions.githubusercontent.com \
+  --certificate-identity-regexp 'https://github.com/NVIDIA/cloud-native-stack/.github/workflows/.*' \
+  ghcr.io/mchmarny/eidos:v0.7.0 | jq -r '.payload' | base64 -d | jq '.predicate'
+```
+
+**Method 3: Policy Enforcement (Kubernetes)**
+
+See [In-Cluster Verification](#in-cluster-verification) section below for automated admission policies.
+
+Replace `TAG` with the specific version you want to verify (e.g., `v0.7.0`).
+
+#### What's Included in Attestations
+
+**Build Provenance Contains:**
+- Build trigger (tag push event)
+- Builder identity (GitHub Actions runner)
+- Source repository and commit SHA
+- Build workflow path and run ID
+- Build parameters and environment
+- Dependencies used during build
+- Timestamp and build duration
+
+**SBOM Contains:**
+- All Go module dependencies with versions
+- Transitive dependencies (full dependency tree)
+- Package licenses (SPDX identifiers)
+- Package URLs (purl) for each component
+- Container base image layers
+- System packages from base image
+
+For more information:
+- [GitHub Artifact Attestations](https://docs.github.com/en/actions/security-for-github-actions/using-artifact-attestations)
+- [SLSA Framework](https://slsa.dev/)
+- [CycloneDX SBOM Standard](https://cyclonedx.org/)
+- [Sigstore Cosign](https://docs.sigstore.dev/cosign/overview/)
 
 ### Setup
 
@@ -74,55 +137,369 @@ export IMAGE_SBOM="$IMAGE:sha256-$(echo "$DIGEST" | cut -d: -f2).sbom"
 docker login ghcr.io
 ```
 
-### SPDX SBOM (Software Bill of Materials)
+### Software Bill of Materials (SBOM)
 
-A Software Bill of Materials (SBOM) provides a detailed inventory of all components in a container image. Cloud Native Stack (CNS) generates SBOMs in [SPDX](https://spdx.dev/) v2.3 format.
+Cloud Native Stack provides **two types of SBOMs** for comprehensive supply chain visibility:
 
-**Query SBOM**:
+1. **Binary SBOMs** – Embedded in CLI binaries (SPDX v2.3 format)
+2. **Container Image SBOMs** – Attached as attestations (CycloneDX JSON format)
+
+#### Binary SBOMs (CLI)
+
+Generated by GoReleaser during release builds, embedded directly in binaries.
+
+**Access Binary SBOM:**
 
 ```shell
-# Get SBOM manifest digest
-export SBOM_DIGEST=$(crane manifest $IMAGE_SBOM | jq -r '.layers[0].digest')
+# Download binary from GitHub releases
+curl -LO https://github.com/NVIDIA/cloud-native-stack/releases/download/v0.7.0/eidos_darwin_arm64.tar.gz
+tar -xzf eidos_darwin_arm64.tar.gz
 
-# Retrieve SBOM content
-crane blob "$IMAGE@$SBOM_DIGEST"
+# SBOM is included as a separate file
+cat eidos_0.7.0_darwin_arm64.sbom.json
 ```
 
-**Example SBOM output** (abbreviated):
+**Binary SBOM Format** (SPDX v2.3):
 
 ```json
 {
   "SPDXID": "SPDXRef-DOCUMENT",
-  "name": "sbom-sha256:4558fc8a...",
+  "name": "eidos",
   "spdxVersion": "SPDX-2.3",
   "creationInfo": {
-    "created": "2025-10-13T16:04:04Z",
-    "creators": ["Tool: ko v0.18.0"]
+    "created": "2025-12-31T10:00:00Z",
+    "creators": ["Tool: goreleaser"]
   },
   "packages": [
     {
-      "SPDXID": "SPDXRef-Package-sha256-850e8fd3...",
-      "name": "sha256:850e8fd3...",
-      "primaryPackagePurpose": "CONTAINER",
+      "SPDXID": "SPDXRef-Package-eidos",
+      "name": "eidos",
+      "versionInfo": "v0.7.0",
+      "supplier": "Organization: NVIDIA",
+      "filesAnalyzed": false,
+      "licenseDeclared": "Apache-2.0",
       "externalRefs": [
         {
           "referenceCategory": "PACKAGE-MANAGER",
-          "referenceType": "purl"
+          "referenceType": "purl",
+          "referenceLocator": "pkg:golang/github.com/NVIDIA/cloud-native-stack@v0.7.0"
         }
       ]
     }
   ]
 }
 ```
+
+#### Container Image SBOMs (API Server & Agent)
+
+Generated by Syft/Anchore, attached as Cosign attestations in CycloneDX format.
+
+**Extract SBOM from Container Image:**
+
+```shell
+# Method 1: Using Cosign (extracts attestation)
+cosign verify-attestation \
+  --type cyclonedx \
+  --certificate-oidc-issuer https://token.actions.githubusercontent.com \
+  --certificate-identity-regexp 'https://github.com/NVIDIA/cloud-native-stack/.github/workflows/.*' \
+  ghcr.io/mchmarny/eidos-api-server:v0.7.0 | \
+  jq -r '.payload' | base64 -d | jq '.predicate' > sbom.json
+
+# Method 2: Using GitHub CLI (shows all attestations)
+gh attestation verify oci://ghcr.io/mchmarny/eidos-api-server:v0.7.0 --owner mchmarny --format json
+```
+
+**Container SBOM Format** (CycloneDX JSON):
+
+```json
+{
+  "bomFormat": "CycloneDX",
+  "specVersion": "1.5",
+  "version": 1,
+  "metadata": {
+    "timestamp": "2025-12-31T10:00:00Z",
+    "tools": [
+      {
+        "vendor": "anchore",
+        "name": "syft",
+        "version": "0.100.0"
+      }
+    ],
+    "component": {
+      "type": "container",
+      "name": "eidos-api-server",
+      "version": "v0.7.0"
+    }
+  },
+  "components": [
+    {
+      "type": "library",
+      "name": "github.com/urfave/cli",
+      "version": "v3.0.0",
+      "purl": "pkg:golang/github.com/urfave/cli@v3.0.0",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT"
+          }
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "k8s.io/client-go",
+      "version": "v0.31.3",
+      "purl": "pkg:golang/k8s.io/client-go@v0.31.3",
+      "licenses": [
+        {
+          "license": {
+            "id": "Apache-2.0"
+          }
+        }
+      ]
+    }
+  ],
+  "dependencies": []
+}
+```
+
+**SBOM Use Cases:**
+
+1. **Vulnerability Scanning** – Feed SBOM to Grype, Trivy, or Snyk
+   ```shell
+   grype sbom:./sbom.json
+   ```
+
+2. **License Compliance** – Analyze licensing obligations
+   ```shell
+   jq '[.components[] | {name, version, license: .licenses[0].license.id}]' sbom.json
+   ```
+
+3. **Dependency Tracking** – Monitor for supply chain risks
+   ```shell
+   jq '.components[] | select(.name | contains("vulnerable-lib"))' sbom.json
+   ```
+
+4. **Audit Trail** – Maintain records for compliance
+   ```shell
+   # SBOM timestamp proves when components were included
+   jq '.metadata.timestamp' sbom.json
+   ```
 ### SLSA Build Provenance
 
-SLSA (Supply chain Levels for Software Artifacts) provides verifiable information about how images were built.
+SLSA (Supply chain Levels for Software Artifacts) provides verifiable information about how images were built. Cloud Native Stack achieves **SLSA Build Level 3** through GitHub Actions OIDC integration.
 
-Cloud Native Stack (CNS) images include SLSA Build Provenance attestations that can be verified both manually (using CLI tools) and automatically (using Kubernetes admission policies). 
+#### What is SLSA?
 
-Refer to [distros/kubernetes/cloud-native-stack/README.md](distros/kubernetes/cloud-native-stack/README.md) for:
+SLSA is a security framework that protects against supply chain attacks by ensuring:
+- **Source integrity** – Code comes from expected repository
+- **Build integrity** – Build process is secure and reproducible
+- **Provenance** – Complete record of how artifacts were created
+- **Auditability** – Cryptographically signed evidence
 
-- Manual verification commands using `cosign` or `gh` CLI
-- Automated in-cluster verification using Sigstore Policy Controller
-- Installation and configuration instructions
+#### SLSA Level 3 Requirements (Achieved)
 
+✅ **Build as Code** – GitHub Actions workflows define reproducible builds  
+✅ **Provenance Available** – Attestations generated for all releases  
+✅ **Provenance Authenticated** – Signed using Sigstore keyless signing  
+✅ **Service Generated** – GitHub Actions generates provenance (not self-asserted)  
+✅ **Non-falsifiable** – Strong authentication of identity (OIDC)  
+✅ **Dependencies Complete** – Full dependency graph in SBOM  
+
+#### Verify SLSA Provenance
+
+**Method 1: GitHub CLI**
+
+```shell
+# Verify provenance exists and is valid
+gh attestation verify oci://ghcr.io/mchmarny/eidos:v0.7.0 --owner mchmarny
+
+# Output shows:
+# ✓ Verification succeeded!
+# 
+# Attestations:
+#   • Build provenance (SLSA v1.0)
+#   • SBOM (CycloneDX)
+```
+
+**Method 2: Extract and Inspect Provenance**
+
+```shell
+# Get full provenance data
+gh attestation verify oci://ghcr.io/mchmarny/eidos:v0.7.0 \
+  --owner mchmarny \
+  --format json | jq '.attestations[] | select(.predicateType | contains("slsa"))'
+
+# Key fields in provenance:
+# - buildType: GitHub Actions workflow
+# - builder.id: GitHub hosted runner
+# - invocation.configSource: Workflow file and commit
+# - materials: Source code commit SHA
+# - metadata.buildInvocationId: GitHub run ID
+```
+
+**Example Provenance Data:**
+
+```json
+{
+  "_type": "https://in-toto.io/Statement/v1",
+  "subject": [
+    {
+      "name": "ghcr.io/mchmarny/eidos",
+      "digest": {
+        "sha256": "abc123..."
+      }
+    }
+  ],
+  "predicateType": "https://slsa.dev/provenance/v1",
+  "predicate": {
+    "buildDefinition": {
+      "buildType": "https://slsa-framework.github.io/github-actions-buildtypes/workflow/v1",
+      "externalParameters": {
+        "workflow": {
+          "ref": "refs/tags/v0.7.0",
+          "repository": "https://github.com/NVIDIA/cloud-native-stack",
+          "path": ".github/workflows/on-tag.yaml"
+        }
+      },
+      "internalParameters": {
+        "github": {
+          "event_name": "push",
+          "repository_id": "123456789",
+          "repository_owner_id": "987654321"
+        }
+      },
+      "resolvedDependencies": [
+        {
+          "uri": "git+https://github.com/NVIDIA/cloud-native-stack@refs/tags/v0.7.0",
+          "digest": {
+            "gitCommit": "abc123..."
+          }
+        }
+      ]
+    },
+    "runDetails": {
+      "builder": {
+        "id": "https://github.com/actions/runner"
+      },
+      "metadata": {
+        "invocationId": "https://github.com/NVIDIA/cloud-native-stack/actions/runs/123456789",
+        "startedOn": "2025-12-31T10:00:00Z",
+        "finishedOn": "2025-12-31T10:15:00Z"
+      }
+    }
+  }
+}
+```
+
+#### In-Cluster Verification
+
+Enforce provenance verification at deployment time using Kubernetes admission controllers.
+
+**Option 1: Sigstore Policy Controller**
+
+```shell
+# Install Policy Controller
+kubectl apply -f https://github.com/sigstore/policy-controller/releases/download/v0.10.0/release.yaml
+
+# Create ClusterImagePolicy to enforce provenance
+cat <<EOF | kubectl apply -f -
+apiVersion: policy.sigstore.dev/v1beta1
+kind: ClusterImagePolicy
+metadata:
+  name: cns-images-require-attestation
+spec:
+  images:
+  - glob: "ghcr.io/mchmarny/eidos*"
+  authorities:
+  - keyless:
+      url: https://fulcio.sigstore.dev
+      identities:
+      - issuerRegExp: ".*\.github\.com.*"
+        subjectRegExp: "https://github.com/NVIDIA/cloud-native-stack/.*"
+    attestations:
+    - name: build-provenance
+      predicateType: https://slsa.dev/provenance/v1
+      policy:
+        type: cue
+        data: |
+          predicate: buildDefinition: buildType: "https://slsa-framework.github.io/github-actions-buildtypes/workflow/v1"
+EOF
+```
+
+**Option 2: Kyverno Policy**
+
+```yaml
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: verify-cns-attestations
+spec:
+  validationFailureAction: Enforce
+  rules:
+  - name: verify-attestation
+    match:
+      any:
+      - resources:
+          kinds:
+          - Pod
+    verifyImages:
+    - imageReferences:
+      - "ghcr.io/mchmarny/eidos*"
+      attestations:
+      - predicateType: https://slsa.dev/provenance/v1
+        attestors:
+        - entries:
+          - keyless:
+              issuer: https://token.actions.githubusercontent.com
+              subject: https://github.com/NVIDIA/cloud-native-stack/.github/workflows/*
+```
+
+**Test Policy Enforcement:**
+
+```shell
+# This should succeed (image with valid attestation)
+kubectl run test-valid --image=ghcr.io/mchmarny/eidos:v0.7.0
+
+# This should fail (unsigned image)
+kubectl run test-invalid --image=nginx:latest
+# Error: image verification failed: no matching attestations found
+```
+
+#### Build Process Transparency
+
+All CNS releases are built using GitHub Actions with full transparency:
+
+1. **Source Code** – Public GitHub repository
+2. **Build Workflow** – `.github/workflows/on-tag.yaml` (version controlled)
+3. **Build Logs** – Public GitHub Actions run logs
+4. **Attestations** – Signed and stored in public transparency log (Rekor)
+5. **Artifacts** – Published to GitHub Releases and GHCR
+
+**View Build History:**
+
+```shell
+# List all releases with attestations
+gh api repos/NVIDIA/cloud-native-stack/releases | \
+  jq -r '.[] | "\(.tag_name): \(.html_url)"'
+
+# View specific build logs
+gh run list --repo NVIDIA/cloud-native-stack --workflow=on-tag.yaml
+gh run view <run-id> --repo NVIDIA/cloud-native-stack --log
+```
+
+**Verify in Transparency Log (Rekor):**
+
+```shell
+# Search Rekor for attestations
+rekor-cli search --artifact ghcr.io/mchmarny/eidos:v0.7.0
+
+# Get entry details
+rekor-cli get --uuid <entry-uuid>
+```
+
+For more information:
+- [SLSA Framework Documentation](https://slsa.dev/)
+- [GitHub Actions SLSA Generation](https://github.com/slsa-framework/slsa-github-generator)
+- [Sigstore Policy Controller](https://docs.sigstore.dev/policy-controller/overview/)
+- [Kyverno Image Verification](https://kyverno.io/docs/writing-policies/verify-images/)
