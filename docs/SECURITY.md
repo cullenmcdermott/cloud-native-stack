@@ -32,6 +32,32 @@ Cloud Native Stack (CNS) provides supply chain security artifacts for all contai
 - **SBOM Attestation**: Complete inventory of packages, libraries, and components
 - **SLSA Build Provenance**: Verifiable build information (how and where images were created)
 
+### Container Image Attestations
+
+All container images published from tagged releases include build provenance attestations, signed using GitHub's OIDC identity. These attestations provide verifiable evidence of how the images were built.
+
+#### Verify Image Attestations
+
+You can verify the authenticity and provenance of container images using the GitHub CLI:
+
+```shell
+# Verify the eidos CLI image
+gh attestation verify oci://ghcr.io/mchmarny/eidos:TAG --owner mchmarny
+
+# Verify the eidos-api-server image  
+gh attestation verify oci://ghcr.io/mchmarny/eidos-api-server:TAG --owner mchmarny
+```
+
+Replace `TAG` with the specific version you want to verify (e.g., `v0.6.4` or `latest`).
+
+The attestations include:
+- **Build provenance** – Complete record of the build environment and process
+- **Source repository** – Link to the exact source code commit
+- **Build workflow** – GitHub Actions workflow that produced the image
+- **Signed metadata** – Cryptographically signed using Sigstore
+
+For more information on attestations, see the [GitHub Artifact Attestations documentation](https://docs.github.com/en/actions/security-for-github-actions/using-artifact-attestations).
+
 ### Setup
 
 Export variables for the image you want to verify, for example:
