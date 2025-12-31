@@ -535,10 +535,27 @@ The Bundler Framework provides an extensible system for generating deployment bu
 **Rationale**: Optional parameters without constructor bloat; backward compatibility  
 **Reference**: [Self-referential functions and the design of options](https://commandcenter.blogspot.com/2014/01/self-referential-functions-and-design.html)
 
-**6. Template-based Generation**  
-**Pattern**: Embedded templates with go:embed, data-driven rendering  
-**Rationale**: Separation of structure (templates) from logic (Go code)  
-**Implementation**: text/template with custom functions, embedded at compile time
+**6. Direct Struct-to-Template Pattern**  
+**Pattern**: Pass typed Go structs directly to text/template  
+**Rationale**: Type safety, eliminates data conversion layer, simpler maintenance  
+**Implementation**: Structs with ValueWithContext fields render directly in templates  
+**Reference**: [text/template](https://pkg.go.dev/text/template)
+
+**Data Flow:**
+```go
+// Recipe → Config Map → Typed Structs → Templates (Direct)
+config := buildConfigMap(recipe)         // Extract config strings
+helmValues := GenerateHelmValues(recipe, config)  // Build typed struct
+b.GenerateFileFromTemplate(ctx, getter, "values.yaml", path, helmValues, 0644)
+// Template accesses: {{ .DriverVersion.Value }}, {{ .Namespace }}
+```
+
+**Architecture Benefits:**
+- Type safety at compile time (vs runtime map lookups)
+- ~200 lines of ToMap() conversion code eliminated
+- Templates are self-documenting (struct fields visible in code)
+- IDE autocomplete for struct fields
+- Simpler debugging (no map[string]interface{} inspection needed)
 
 **7. Parallel Execution by Default**  
 **Pattern**: errgroup.WithContext for concurrent bundle generation  
@@ -632,10 +649,11 @@ config := internal.BuildBaseConfigMap(recipe, map[string]interface{}{
 
 **Key Features**:
 1. **BaseBundler Methods**: CreateBundleDir, WriteFile, GenerateResult
-2. **Internal Helpers**: BuildBaseConfigMap, GenerateFileFromTemplate, Extract*Subtype
+2. **Typed Data Structures**: HelmValues, ManifestData, ScriptData structs
+3. **Direct Template Rendering**: Pass structs to templates without map conversion
 3. **Recipe Structure Alignment**: Matches actual recipe.yaml structure
 4. **Boolean Handling**: Correctly interprets boolean flags
-5. **Template Rendering**: Uses embedded templates for all output files
+5. **Direct Struct Rendering**: Pass typed structs to templates (no ToMap() conversion)
 6. **TestHarness**: Standardized testing with automatic verification
 
 **Bundle Contents**:
@@ -696,23 +714,18 @@ func (b *Bundler) Make(ctx context.Context, r *recipe.Recipe,
         return nil, err
     }
     
-    // 2. Extract configuration using internal helpers
-    imageSubtype := internal.ExtractK8sImageSubtype(r)
-    config := internal.BuildBaseConfigMap(r, map[string]interface{}{
-        "NetworkOperatorVersion": imageSubtype.Data["network-operator"].Value,
-    })
+    // 2. Build configuration map and typed structs
+    config := b.buildConfigMap(r)
+    helmValues := GenerateHelmValues(r, config)
     
-    // 3. Generate files from templates
-    content, err := internal.GenerateFileFromTemplate(b.TemplatesFS(), 
-        "values.yaml.tmpl", config)
-    if err != nil {
+    // 3. Generate files from templates with typed structs
+    if err := b.GenerateFileFromTemplate(ctx, GetTemplate, "values.yaml",
+        filepath.Join(outputDir, "values.yaml"), helmValues, 0644); err != nil {
         return nil, err
     }
     
-    // 4. Write file using BaseBundler helper
-    if err := b.WriteFile(filepath.Join(outputDir, "values.yaml"), content); err != nil {
-        return nil, err
-    }
+    // 4. Write additional files
+    // ... (manifests, scripts, etc.)
     
     // 5. Generate result with checksums
     return b.GenerateResult(outputDir, []string{"values.yaml"})

@@ -72,6 +72,7 @@ func WithFailFast(failFast bool) Option {
 func WithConfig(config *config.Config) Option {
 	return func(db *DefaultBundler) {
 		db.Config = config
+		db.Registry = registry.NewFromGlobal(config)
 	}
 }
 

@@ -433,6 +433,29 @@ flowchart TD
     style E3 fill:#c8e6c9
 ```
 
+#### Bundler Data Flow
+
+**Simplified Architecture (Direct Struct-to-Template):**
+```mermaid
+flowchart TD
+    A[Recipe] --> B[buildConfigMap]
+    B --> C[map string string]
+    C --> D1[GenerateHelmValues]
+    C --> D2[GenerateManifestData]
+    C --> D3[GenerateScriptData]
+    D1 --> E1[HelmValues struct]
+    D2 --> E2[ManifestData struct]
+    D3 --> E3[ScriptData struct]
+    E1 --> F1[Template: values.yaml]
+    E2 --> F2[Template: clusterpolicy.yaml]
+    E3 --> F3[Template: install.sh]
+    F1 & F2 & F3 --> G[Generated Files]
+```
+
+**Key Simplification**: Eliminated ToMap() conversion layer (~200 lines of code removed)  
+**Data Flow**: Recipe → Config Map → Typed Struct → Template (direct field access)  
+**Templates**: Access struct fields directly (e.g., `{{ .DriverVersion.Value }}`, `{{ .Namespace }}`)
+
 #### Bundler Architecture
 
 **BaseBundler Helper Pattern:**
@@ -456,11 +479,24 @@ func init() {
 
 **Internal Utilities for Recipe Parsing:**
 ```go
-// Helper functions reduce boilerplate
-imageSubtype := internal.ExtractK8sImageSubtype(recipe)
-deviceSubtype := internal.ExtractGPUDeviceSubtype(recipe)
-config := internal.BuildBaseConfigMap(recipe, extraData)
-content, err := internal.GenerateFileFromTemplate(templatesFS, "values.yaml.tmpl", config)
+// Extract configuration from recipe
+config := internal.BuildBaseConfigMap(recipe, extraConfig)
+
+// Generate typed data structures
+helmValues := GenerateHelmValues(recipe, config)
+manifestData := GenerateManifestData(recipe, config)  
+scriptData := GenerateScriptData(recipe, config)
+
+// Pass structs directly to templates (no ToMap() conversion)
+b.GenerateFileFromTemplate(ctx, GetTemplate, "values.yaml", path, helmValues, 0644)
+b.GenerateFileFromTemplate(ctx, GetTemplate, "clusterpolicy.yaml", path, manifestData, 0644)
+```
+
+**Data Flow: Recipe → Struct → Template (Direct)**
+```
+Recipe → buildConfigMap() → map[string]string
+       → GenerateHelmValues() → HelmValues struct
+       → Template (direct field access: {{ .DriverVersion.Value }})
 ```
 
 **Registry Pattern:**
