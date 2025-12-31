@@ -1,7 +1,9 @@
 package serializer
 
 import (
+	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -218,6 +220,24 @@ func TestNewHttpReader_WithOptions(t *testing.T) {
 	if reader.MaxConnsPerHost != 10 {
 		t.Errorf("expected MaxConnsPerHost 10, got %d", reader.MaxConnsPerHost)
 	}
+
+	tr, ok := reader.Client.Transport.(*http.Transport)
+	if !ok {
+		t.Fatalf("expected Client.Transport to be *http.Transport")
+	}
+
+	if tr.TLSClientConfig == nil || tr.TLSClientConfig.InsecureSkipVerify != true {
+		t.Error("expected transport TLS InsecureSkipVerify to be true")
+	}
+	if tr.MaxIdleConns != 50 {
+		t.Errorf("expected transport MaxIdleConns 50, got %d", tr.MaxIdleConns)
+	}
+	if tr.MaxIdleConnsPerHost != 5 {
+		t.Errorf("expected transport MaxIdleConnsPerHost 5, got %d", tr.MaxIdleConnsPerHost)
+	}
+	if tr.MaxConnsPerHost != 10 {
+		t.Errorf("expected transport MaxConnsPerHost 10, got %d", tr.MaxConnsPerHost)
+	}
 }
 
 func TestNewHttpReader_WithCustomClient(t *testing.T) {
@@ -269,6 +289,24 @@ func TestHttpReader_TimeoutOptions(t *testing.T) {
 
 	if reader.IdleConnTimeout != idleTimeout {
 		t.Errorf("IdleConnTimeout = %v, want %v", reader.IdleConnTimeout, idleTimeout)
+	}
+
+	if reader.Client.Timeout != totalTimeout {
+		t.Errorf("Client.Timeout = %v, want %v", reader.Client.Timeout, totalTimeout)
+	}
+
+	tr, ok := reader.Client.Transport.(*http.Transport)
+	if !ok {
+		t.Fatalf("expected Client.Transport to be *http.Transport")
+	}
+	if tr.TLSHandshakeTimeout != tlsTimeout {
+		t.Errorf("transport TLSHandshakeTimeout = %v, want %v", tr.TLSHandshakeTimeout, tlsTimeout)
+	}
+	if tr.ResponseHeaderTimeout != headerTimeout {
+		t.Errorf("transport ResponseHeaderTimeout = %v, want %v", tr.ResponseHeaderTimeout, headerTimeout)
+	}
+	if tr.IdleConnTimeout != idleTimeout {
+		t.Errorf("transport IdleConnTimeout = %v, want %v", tr.IdleConnTimeout, idleTimeout)
 	}
 }
 
@@ -361,6 +399,54 @@ func TestHttpReader_Read_JSONResponse(t *testing.T) {
 
 	if result["message"] != "success" {
 		t.Errorf("expected message 'success', got %v", result["message"])
+	}
+}
+
+func TestHttpReader_Read_SetsUserAgent(t *testing.T) {
+	customUserAgent := "TestAgent/9.9"
+
+	seen := make(chan string, 1)
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		seen <- r.Header.Get("User-Agent")
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte("ok"))
+	}))
+	defer server.Close()
+
+	reader := NewHttpReader(WithUserAgent(customUserAgent))
+	_, err := reader.Read(server.URL)
+	if err != nil {
+		t.Fatalf("Read() failed: %v", err)
+	}
+
+	select {
+	case ua := <-seen:
+		if ua != customUserAgent {
+			t.Fatalf("expected User-Agent %q, got %q", customUserAgent, ua)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("timed out waiting for server to receive request")
+	}
+}
+
+func TestHttpReader_ReadWithContext_Canceled(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// If the request isn't canceled, block for long enough to fail the test.
+		time.Sleep(5 * time.Second)
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer server.Close()
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	reader := NewHttpReader()
+	_, err := reader.ReadWithContext(ctx, server.URL)
+	if err == nil {
+		t.Fatal("expected error")
+	}
+	if !errors.Is(err, context.Canceled) {
+		t.Fatalf("expected error to wrap context.Canceled, got %v", err)
 	}
 }
 
