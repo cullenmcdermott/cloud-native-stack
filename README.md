@@ -23,6 +23,8 @@ Verify installation:
 eidos --version
 ```
 
+See the [full version of the installation guide](docs/user-guide/installation.md) for more information.
+
 ### CLI Commands
 
 Eidos follows a three-step workflow to capture, optimize, and deploy GPU infrastructure:
