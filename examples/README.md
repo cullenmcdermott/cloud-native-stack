@@ -9,10 +9,9 @@ examples/
 ├── bundles/          # Generated deployment bundles
 ├── recipes/          # Optimized configuration recipes  
 ├── snapshots/        # System configuration snapshots
-├── gb200-h100-comp.md
-├── gb200.yaml
-├── h100.yaml
-└── recipe.yaml
+  ├── gb200-h100-comp.md
+  ├── gb200.yaml
+  └── h100.yaml
 ```
 
 ## Snapshots
@@ -31,7 +30,7 @@ Complete snapshot from a GB200 NVL72 system showing:
 **Use case:** Generate recipes optimized for GB200 training workloads
 
 ```bash
-eidos recipe --snapshot examples/gb200.yaml --intent training
+eidos recipe --snapshot examples/snapshots/gb200.yaml --intent training
 ```
 
 ### H100 System ([h100.yaml](h100.yaml))
@@ -45,30 +44,29 @@ Snapshot from an H100 GPU cluster with:
 **Use case:** Generate recipes optimized for H100 inference workloads
 
 ```bash
-eidos recipe --snapshot examples/h100.yaml --intent inference
+eidos recipe --snapshot examples/snapshots/h100.yaml --intent inference
 ```
 
 ## Recipes
 
 Optimized configuration recipes generated from snapshots or query parameters:
 
-### General Recipe ([recipe.yaml](recipe.yaml))
+### Example Recipes
 
-Example recipe showing the recipe structure:
+Example recipes showing the recipe structure:
 - Matched overlay rules
 - System measurements (OS, K8s, GPU, SystemD)
 - Optimized configuration values
 - Context metadata
 
-**Generated from:**
-```bash
-eidos recipe --os ubuntu --service eks --gpu h100 --intent training --context
-```
+Recipes are available under:
+- [recipes/gb200-eks-ubuntu-training.yaml](recipes/gb200-eks-ubuntu-training.yaml)
+- [recipes/h100-eks-ubuntu-training.yaml](recipes/h100-eks-ubuntu-training.yaml)
 
 **Use case:** Understand recipe structure or generate bundles
 
 ```bash
-eidos bundle --recipe examples/recipe.yaml --output ./my-bundles
+eidos bundle --recipe examples/recipes/gb200-eks-ubuntu-training.yaml --output ./my-bundles
 ```
 
 ## Bundles
@@ -87,7 +85,7 @@ Complete GPU Operator deployment bundle containing:
 
 **Generated from:**
 ```bash
-eidos bundle --recipe examples/recipe.yaml --bundlers gpu-operator --output examples/bundles
+eidos bundle --recipe examples/recipes/gb200-eks-ubuntu-training.yaml --bundlers gpu-operator --output examples/bundles
 ```
 
 **Deploy:**
@@ -116,17 +114,17 @@ End-to-end example using the provided files:
 
 ```bash
 # 1. Review example snapshot
-cat examples/gb200.yaml
+cat examples/snapshots/gb200.yaml
 
 # 2. Generate optimized recipe for training
 eidos recipe \
-  --snapshot examples/gb200.yaml \
+  --snapshot examples/snapshots/gb200.yaml \
   --intent training \
   --format yaml \
   --output my-recipe.yaml
 
 # 3. Compare with provided recipe
-diff my-recipe.yaml examples/recipe.yaml
+diff my-recipe.yaml examples/recipes/gb200-eks-ubuntu-training.yaml
 
 # 4. Generate deployment bundle
 eidos bundle \

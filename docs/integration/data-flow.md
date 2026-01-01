@@ -140,13 +140,13 @@ GPU/smi/model               → gpu (type)
 │  2. Match query to overlays                            │
 │     ├─ service=eks, os=ubuntu                          │
 │     ├─ service=eks, gpu=gb200                          │
-│     └─ gpu=gb200                                       │
+│     └─ service=eks, gpu=h100                           │
 │                                                        │
 │  3. Merge measurements                                 │
 │     ├─ Base values                                     │
 │     ├─ + Overlay 1 (augment/override)                  │
 │     ├─ + Overlay 2 (augment/override)                  │
-│     └─ + Overlay 3 (augment/override)                  │
+│     └─ + Overlay N (augment/override)                  │
 │                                                        │
 │  4. Strip context (if !context)                        │
 │     └─ Remove context maps from all subtypes           │

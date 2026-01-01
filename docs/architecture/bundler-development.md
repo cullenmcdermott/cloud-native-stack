@@ -457,7 +457,7 @@ make build
 
 # Test bundle generation (automatic registration via init())
 ./dist/eidos_*/eidos bundle \
-  --recipe examples/recipe.yaml \
+    --recipe examples/recipes/gb200-eks-ubuntu-training.yaml \
   --bundlers my-bundler \
   --output ./test-bundles
 
