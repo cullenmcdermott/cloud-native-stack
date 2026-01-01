@@ -2,7 +2,7 @@
 
 **Production-grade, validated configurations for GPU-accelerated Kubernetes at scale.**
 
-Cloud Native Stack (CNS) delivers **opinionated, battle-tested blueprints** for deploying AI workloads on GPU infrastructure. Rather than generic recommendations, CNS provides **validated configurations** proven in production environments, ensuring **reproducible outcomes** across diverse platforms (EKS, GKE, AKS, self-managed).
+Cloud Native Stack (CNS) delivers **opinionated, battle-tested blueprints** for deploying AI workloads on GPU infrastructure. Rather than generic recommendations, CNS provides **validated configurations** proven in production environments, ensuring **reproducible outcomes** across diverse platforms (EKS, GKE, AKS, OKE, and self-managed).
 
 ### Why Cloud Native Stack?
 
