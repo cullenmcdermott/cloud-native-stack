@@ -1,7 +1,7 @@
 kind: Recipe
 apiVersion: recipe.dgxc.io/v1
 metadata:
-  recipe-timestamp: "2026-01-01T15:35:36Z"
+  recipe-timestamp: "2026-01-01T15:38:46Z"
   recipe-version: v0.8.9-next
 request:
   os: ubuntu
@@ -13,27 +13,26 @@ request:
     major: 6
     minor: 8
     precision: 3
-    extras: -1028-aws
+    extras: -1024-aws
   service: eks
   k8s:
     major: 1
-    minor: 33
-    patch: 5
+    minor: 30
+    patch: 14
     precision: 3
     extras: -eks-3025e55
-  gpu: gb200
+  gpu: h100
   intent: training
   withContext: true
 matchedRules:
   - 'OS: ubuntu any, Kernel: any, Service: eks, K8s: any, GPU: any, Intent: any, Context: false'
-  - 'OS: any any, Kernel: any, Service: eks, K8s: any, GPU: gb200, Intent: any, Context: false'
+  - 'OS: any any, Kernel: any, Service: eks, K8s: any, GPU: h100, Intent: any, Context: false'
 measurements:
   - type: OS
     subtypes:
       - subtype: kmod
         data:
           ecc: true
-          efa: true
           gdrdrv: true
           gpu_sched: true
           ib_cm: true
@@ -51,7 +50,6 @@ measurements:
           ttm: true
         context:
           ecc: GPU error detection and correction
-          efa: AWS EFA support for GPU clusters
           gdrdrv: GPUDirect RDMA support enabled
           gpu_sched: GPU workload scheduling and resource management
           ib_cm: InfiniBand connection management for RDMA
@@ -69,30 +67,22 @@ measurements:
           ttm: Translation Table Manager for GPU memory management
       - subtype: grub
         data:
-          BOOT_IMAGE: /boot/vmlinuz-6.8.0-1028-aws
+          BOOT_IMAGE: /boot/vmlinuz-6.8.0-1024-aws
           apparmor: "1"
           audit: "1"
           audit_backlog_limit: "8192"
-          default_hugepagesz: 64K
           hugepages: "5128"
           hugepagesz: 2M
-          init_on_alloc: "0"
-          iommu.passthrough: "1"
           nokaslr: ""
-          numa_balancing: disable
           security: apparmor
         context:
-          BOOT_IMAGE: AWS-optimized kernel image version
+          BOOT_IMAGE: AWS-optimized kernel image version (H100 example)
           apparmor: Security module (minimal GPU impact)
           audit: System auditing (minimal GPU impact)
           audit_backlog_limit: Audit queue size (minimal GPU impact)
-          default_hugepagesz: 64KB hugepages optimized for GB200 memory access patterns
           hugepages: Pre-allocated large memory pages for reduced TLB misses
           hugepagesz: 2MB page size for efficient GPU memory operations
-          init_on_alloc: Disabled for faster GPU memory allocation
-          iommu.passthrough: Bypass IOMMU translation for direct GPU memory access (GB200 requirement)
           nokaslr: Deterministic kernel addressing for consistent GPU latency
-          numa_balancing: Disabled for predictable GPU memory locality
           security: Security framework (minimal GPU impact)
       - subtype: sysctl
         data:
@@ -100,7 +90,7 @@ measurements:
           /proc/sys/fs/file-max: "9223372036854775807"
           /proc/sys/fs/inotify/max_user_watches: "524288"
           /proc/sys/fs/nr_open: "1048576"
-          /proc/sys/kernel/numa_balancing: "0"
+          /proc/sys/kernel/numa_balancing: "1"
           /proc/sys/kernel/pid_max: "4194304"
           /proc/sys/kernel/sched_rt_period_us: "1000000"
           /proc/sys/kernel/sched_rt_runtime_us: "950000"
@@ -125,7 +115,7 @@ measurements:
           /proc/sys/fs/file-max: System-wide file descriptor limit for GPU container connections
           /proc/sys/fs/inotify/max_user_watches: File watch limit for container monitoring and checkpointing
           /proc/sys/fs/nr_open: Per-process file descriptor limit for GPU applications
-          /proc/sys/kernel/numa_balancing: Disable auto-migration for predictable GPU memory locality
+          /proc/sys/kernel/numa_balancing: Default NUMA balancing (H100 example snapshot)
           /proc/sys/kernel/pid_max: Maximum process IDs for containerized multi-GPU workloads
           /proc/sys/kernel/sched_rt_period_us: Real-time scheduling period for GPU driver threads
           /proc/sys/kernel/sched_rt_runtime_us: Real-time CPU budget for GPU kernel operations
@@ -182,9 +172,9 @@ measurements:
     subtypes:
       - subtype: server
         data:
-          version: v1.33.3
+          version: v1.30.14
         context:
-          version: Minimum AWS EKS Kubernetes version to support DRA for GB200 GPUs
+          version: Validated AWS EKS Kubernetes version for H100 clusters (example snapshot)
       - subtype: registry
         data:
           name: nvcr.io
@@ -196,19 +186,18 @@ measurements:
           uri: Full URI for accessing NVIDIA NGC registry
       - subtype: image
         data:
-          aws-efa-k8s-device-plugin: v0.5.3
           container-networking-plugins: v1.6.2
-          container-toolkit: v1.17.8
-          dcgm: 4.3.1-1
-          dcgm-exporter: 4.3.1
-          driver: 580.82.07
-          gdrdrv: v2.5.1
-          gpu-operator: v25.3.3
-          gpu-operator-validator: v25.3.3
-          k8s-device-plugin: v0.17.4
+          container-toolkit: v1.17.5
+          dcgm: 4.1.1-2
+          dcgm-exporter: 4.1.1
+          driver: 570.133.20
+          gdrdrv: v2.5
+          gpu-operator: v25.3.0
+          gpu-operator-validator: v25.3.0
+          k8s-device-plugin: v0.17.1
           k8s-dra-driver-gpu: v25.8.0
-          k8s-driver-manager: v0.8.1
-          k8s-mig-manager: v0.12.3
+          k8s-driver-manager: v0.8.0
+          k8s-mig-manager: v0.12.1
           mofed-driver: 25.04-0.6.1.0-2
           mpi-operator: "0.6"
           multus-cni: v4.1.0
@@ -219,7 +208,6 @@ measurements:
           training-operator: v1
           whereabouts-ipam: v0.7.0
         context:
-          aws-efa-k8s-device-plugin: EFA device plugin for high-speed GPU-to-GPU networking
           container-networking-plugins: Standard CNI plugins for container networking
           container-toolkit: NVIDIA container runtime for GPU access in containers
           dcgm: Data Center GPU Manager for GPU health monitoring and diagnostics
@@ -251,7 +239,7 @@ measurements:
           mig_strategy: single
           rdma: true
           secure_boot: false
-          use_open_kernel_module: true
+          use_open_kernel_module: false
           vgpu: false
         context:
           cdi: Container Device Interface enabled for GPU device injection
@@ -262,7 +250,7 @@ measurements:
           mig_strategy: single=uniform MIG across all GPUs, mixed=per-GPU MIG configuration for diverse workloads
           rdma: RDMA support enabled for high-speed GPU networking
           secure_boot: UEFI Secure Boot requires signed GPU drivers for security compliance
-          use_open_kernel_module: Use open-source EFA kernel module for compatibility with GB200 GPUs
+          use_open_kernel_module: Open-source NVIDIA kernel module for GPL compatibility
           vgpu: Virtual GPU technology for GPU sharing across virtual machines
       - subtype: network-config
         data:
@@ -277,13 +265,13 @@ measurements:
     subtypes:
       - subtype: smi
         data:
-          addressing-mode: ATS
-          cuda-version: "13.1"
+          addressing-mode: HMM
+          cuda-version: "12.8"
           display-active: Disabled
-          driver-version: 580.82.07
-          gsp-firmware-version: 580.82.07
+          driver-version: 570.133.20
+          gsp-firmware-version: 570.133.20
           persistence-mode: Disabled
-          vbios-version: 97.00.B9.00.69
+          vbios-version: 96.00.BC.00.01
         context:
           addressing-mode: Address Translation Services enables efficient GPU access to system memory via IOMMU
           cuda-version: CUDA toolkit version determining available GPU programming features and optimizations

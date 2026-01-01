@@ -40,26 +40,20 @@ base:
 
       - subtype: grub
         data:
-          BOOT_IMAGE: /boot/vmlinuz-6.8.0-1028
           apparmor: "1"
           audit: "1"
           audit_backlog_limit: "8192"
           hugepages: "5128"
           hugepagesz: 2M
-          init_on_alloc: "0"
           nokaslr: ""
-          numa_balancing: disable
           security: apparmor
         context:
-          BOOT_IMAGE: Kernel image version
           apparmor: Security module (minimal GPU impact)
           audit: System auditing (minimal GPU impact)
           audit_backlog_limit: Audit queue size (minimal GPU impact)
           hugepages: Pre-allocated large memory pages for reduced TLB misses
           hugepagesz: 2MB page size for efficient GPU memory operations
-          init_on_alloc: Disabled for faster memory allocation in GPU workflows
           nokaslr: Deterministic kernel addressing for consistent GPU latency
-          numa_balancing: Disable auto-migration for predictable GPU memory locality
           security: Security framework (minimal GPU impact)
 
       - subtype: sysctl
@@ -68,7 +62,6 @@ base:
           /proc/sys/fs/file-max: "9223372036854775807"
           /proc/sys/fs/inotify/max_user_watches: "524288"
           /proc/sys/fs/nr_open: "1048576"
-          /proc/sys/kernel/numa_balancing: "0"
           /proc/sys/kernel/pid_max: "4194304"
           /proc/sys/kernel/sched_rt_period_us: "1000000"
           /proc/sys/kernel/sched_rt_runtime_us: "950000"
@@ -93,7 +86,6 @@ base:
           /proc/sys/fs/file-max: System-wide file descriptor limit for GPU container connections
           /proc/sys/fs/inotify/max_user_watches: File watch limit for container monitoring and checkpointing
           /proc/sys/fs/nr_open: Per-process file descriptor limit for GPU applications
-          /proc/sys/kernel/numa_balancing: Disabled for predictable GPU memory locality and reduced latency
           /proc/sys/kernel/pid_max: Maximum process IDs for containerized multi-GPU workloads
           /proc/sys/kernel/sched_rt_period_us: Real-time scheduling period for GPU driver threads
           /proc/sys/kernel/sched_rt_runtime_us: Real-time CPU budget for GPU kernel operations
@@ -281,6 +273,7 @@ overlays:
               BOOT_IMAGE: /boot/vmlinuz-6.8.0-1028-aws
             context:
               BOOT_IMAGE: AWS-optimized kernel image version
+
   - key:
       #  ?service=eks&gpu=gb200
       service: eks
@@ -290,7 +283,7 @@ overlays:
         subtypes:
           - subtype: server
             data:
-              version: v1.33
+              version: v1.33.3
             context:
               version: Minimum AWS EKS Kubernetes version to support DRA for GB200 GPUs
           - subtype: image
@@ -305,17 +298,6 @@ overlays:
               use_open_kernel_module: Use open-source EFA kernel module for compatibility with GB200 GPUs
       - type: OS
         subtypes:
-          - subtype: kmod
-            data:
-              efa: true
-            context:
-              efa: AWS EFA support for GPU clusters
-  - key:
-      #  ?gpu=gb200
-      gpu: gb200
-    types:
-      - type: OS
-        subtypes:
           - subtype: grub
             data:
               iommu.passthrough: "1"
@@ -327,10 +309,59 @@ overlays:
               init_on_alloc: Disabled for faster GPU memory allocation
               numa_balancing: Disabled for predictable GPU memory locality
               default_hugepagesz: 64KB hugepages optimized for GB200 memory access patterns
+          - subtype: sysctl
+            data:
+              /proc/sys/kernel/numa_balancing: "0"
+            context:
+              /proc/sys/kernel/numa_balancing: Disable auto-migration for predictable GPU memory locality
+          - subtype: kmod
+            data:
+              efa: true
+            context:
+              efa: AWS EFA support for GPU clusters
+
+  - key:
+      #  ?service=eks&gpu=h100
+      service: eks
+      gpu: h100
+    types:
       - type: K8s
         subtypes:
-          - subtype: config
+          - subtype: server
             data:
-              use_open_kernel_module: true
+              version: v1.30.14
             context:
-              use_open_kernel_module: GB200 requires open-source kernel module for compatibility
+              version: Validated AWS EKS Kubernetes version for H100 clusters (example snapshot)
+          - subtype: image
+            data:
+              container-toolkit: v1.17.5
+              dcgm: 4.1.1-2
+              dcgm-exporter: "4.1.1"
+              driver: "570.133.20"
+              gdrdrv: v2.5
+              gpu-operator: v25.3.0
+              gpu-operator-validator: v25.3.0
+              k8s-device-plugin: v0.17.1
+              k8s-driver-manager: v0.8.0
+              k8s-mig-manager: v0.12.1
+      - type: OS
+        subtypes:
+          - subtype: grub
+            data:
+              BOOT_IMAGE: /boot/vmlinuz-6.8.0-1024-aws
+            context:
+              BOOT_IMAGE: AWS-optimized kernel image version (H100 example)
+          - subtype: sysctl
+            data:
+              /proc/sys/kernel/numa_balancing: "1"
+            context:
+              /proc/sys/kernel/numa_balancing: Default NUMA balancing (H100 example snapshot)
+      - type: GPU
+        subtypes:
+          - subtype: smi
+            data:
+              addressing-mode: HMM
+              cuda-version: "12.8"
+              driver-version: "570.133.20"
+              gsp-firmware-version: "570.133.20"
+              vbios-version: 96.00.BC.00.01

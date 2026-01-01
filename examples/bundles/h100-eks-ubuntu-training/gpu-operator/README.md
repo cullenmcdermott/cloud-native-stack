@@ -2,7 +2,7 @@
 
 ```shell
 Generated from Cloud Native Stack Recipe  
-Timestamp: 2026-01-01T15:36:50Z
+Timestamp: 2026-01-01T15:40:37Z
 Bundler Version: v0.8.9-next
 Recipe Bundler Version: v0.8.9-next
 ```
@@ -21,10 +21,10 @@ This bundle contains everything needed to deploy the NVIDIA GPU Operator on your
 
 ## Prerequisites
 
-- Kubernetes cluster (1.33.5)
+- Kubernetes cluster (1.30.14)
 - Helm 3
 - kubectl configured
-- GPU nodes with gb200 GPUs
+- GPU nodes with h100 GPUs
 
 ## Installation
 
@@ -84,7 +84,7 @@ kubectl run gpu-test --rm -it --restart=Never \
 ## Configuration
 
 ### Key Settings
-- **Driver Version**: 580.82.07
+- **Driver Version**: 570.133.20
 - **GPUDirect Storage**: Enabled
 - **CDI**: Enabled
 
@@ -143,5 +143,5 @@ kubectl describe clusterpolicy -n gpu-operator
 - OS: ubuntu
 - OS Version: 24.4
 - Service: eks
-- GPU: gb200
+- GPU: h100
 - Intent: training

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # GPU Operator Uninstallation Script
 # Generated from Cloud Native Stack Recipe
-# Timestamp: 2026-01-01T15:36:50Z
+# Timestamp: 2026-01-01T15:40:37Z
 # Bundler Version: v0.8.9-next
 # Recipe Bundler Version: v0.8.9-next
 

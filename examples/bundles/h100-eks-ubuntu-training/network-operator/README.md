@@ -2,7 +2,7 @@
 
 ```shell
 Generated from Cloud Native Stack Recipe
-Timestamp: 2026-01-01T15:36:50Z
+Timestamp: 2026-01-01T15:40:37Z
 Bundler Version: v0.8.9-next
 Recipe Bundler Version: v0.8.9-next
 ```
@@ -13,7 +13,7 @@ This bundle contains everything needed to deploy the NVIDIA Network Operator on 
 
 ## Prerequisites
 
-- Kubernetes cluster (version 1.33.5 or compatible)
+- Kubernetes cluster (version 1.30.14 or compatible)
 - kubectl configured with cluster access
 - Helm 3.x installed
 - Cluster admin permissions
