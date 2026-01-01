@@ -44,7 +44,7 @@ runs:
 
     - name: Get Auth Token
       id: auth
-      uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093 # v3
+      uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093  # v3
       with:
         token_format: access_token
         project_id: ${{ inputs.project_id }}
@@ -52,7 +52,7 @@ runs:
         service_account: ${{ inputs.service_account }}
 
     - name: Setup gcloud CLI
-      uses: google-github-actions/setup-gcloud@aa5489c8933f4cc7a4f7d45035b3b1440c9c10db # v3.0.1
+      uses: google-github-actions/setup-gcloud@aa5489c8933f4cc7a4f7d45035b3b1440c9c10db  # v3.0.1
 
     - name: Update Cloud Run service image
       shell: bash
