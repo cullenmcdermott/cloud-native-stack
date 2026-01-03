@@ -4,7 +4,7 @@ This guide covers installing and setting up Cloud Native Stack (Eidos) for your 
 
 ## Prerequisites
 
-- **Operating System**: Linux or macOS
+- **Operating System**: Linux, macOS, or Windows (via WSL)
 - **Kubernetes Cluster** (optional): For agent deployment or bundle generation testing
 - **GPU Hardware** (optional): NVIDIA GPUs for full system snapshot capabilities
 - **kubectl** (optional): For Kubernetes agent deployment
@@ -24,6 +24,8 @@ This script:
 - Downloads the appropriate binary from GitHub releases
 - Installs to `/usr/local/bin/eidos` (requires sudo)
 - Verifies the installation
+
+> **Supply Chain Security** – CNS includes SLSA Build Level 3 compliance with signed SBOMs and verifiable attestations (see [SECURITY](../SECURITY.md#supply-chain-security))
 
 ### Option 2: Manual Installation
 

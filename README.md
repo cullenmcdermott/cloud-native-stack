@@ -39,8 +39,6 @@ Get started with installing and using Cloud Native Stack:
 - **[CLI Reference](docs/user-guide/cli-reference.md)** – Complete command reference with examples
 - **[Agent Deployment](docs/user-guide/agent-deployment.md)** – Deploy the Kubernetes agent to get automated configuration snapshots
 
-> **Supply Chain Security** – CNS includes SLSA Build Level 3 compliance with signed SBOMs and verifiable attestations (see [SECURITY](SECURITY.md#supply-chain-security))
-
 ### For Developers
 
 You're a software engineer looking to contribute code, extend functionality, or understand CNS internals. You need development setup instructions, architecture documentation, and guidelines for adding new features like bundlers or collectors.
