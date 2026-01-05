@@ -10,6 +10,8 @@
 - [High Priority - Important features that must land before launch](#launch-blockers)
 - [Backlog](#backlog)
 
+> See the [Opens](#opens) section for list of still to be decided architectural decisions, implementation questions, and discussion topics. These items represent areas where community input, design trade-offs, or further exploration would be valuable.
+
 ---
 
 ## Next Release
