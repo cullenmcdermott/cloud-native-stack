@@ -1,8 +1,8 @@
 # Cloud Native Stack Roadmap
 
-> **Status**: This roadmap is under development and does not represent committed deliverables. Items may change based on community feedback and project priorities.
+> Note: roadmap is under development and does not represent committed deliverables. Items may change based on community feedback and project priorities.
 
-> **Project Scope**: Generate validated configurations for GPU-accelerated Kubernetes deployments. Configurations are tested against NVIDIA hardware (H100, GB200, A100, ...) and support managed Kubernetes offerings (e.g. Amazon EKS, Google GKE, Azure AKS, Oracle OKE, ...) as well as self-managed clusters. 
+**Project Scope**: Generate validated configurations for GPU-accelerated Kubernetes deployments. Configurations are tested against NVIDIA hardware (H100, GB200, A100, ...) and support managed Kubernetes offerings (e.g. Amazon EKS, Google GKE, Azure AKS, Oracle OKE, ...) as well as self-managed clusters. 
 
 ## Table of Contents
 
@@ -10,7 +10,7 @@
 - [High Priority - Important features that must land before launch](#launch-blockers)
 - [Backlog](#backlog)
 
-> See the [Opens](#opens) section for list of still to be decided architectural decisions, implementation questions, and discussion topics. These items represent areas where community input, design trade-offs, or further exploration would be valuable.
+See [Opens](#opens) section for list of still to be decided architectural decisions, implementation questions, and discussion topics. These items represent areas where community input, design trade-offs, or further exploration would be valuable.
 
 ---
 
