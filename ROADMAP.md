@@ -16,25 +16,6 @@ See [Opens](#opens) section for list of still to be decided architectural decisi
 
 ## Next Release
 
-### PVC-Based Agent Output
-
-**Current behavior**: Agent Job writes snapshot to a ConfigMap (`eidos-snapshot` in `gpu-operator` namespace). ConfigMap is overwritten on each Job run. Historical snapshots are not retained.
-
-**Proposed change**: Add optional PersistentVolumeClaim (PVC) output mode. When enabled, agent writes timestamped files to a persistent volume instead of ConfigMap.
-
-**Motivation**: Persistent storage enables historical snapshot retention and drift detection across multiple Job runs.
-
-**Acceptance Criteria**:
-- [ ] Create optional PVC manifest (in deployments/eidos-agent/1-deps.yaml) with RWO/RWX support
-- [ ] Update Job to use PVC when available (volume mount at `/data`)
-- [ ] Write files with timestamps: `snapshot-YYYYMMDD-HHMMSS.yaml`, `recipe-YYYYMMDD-HHMMSS.yaml`
-- [ ] Document access pattern: helper pod or kubectl cp alternative
-- [ ] Support both stdout (current) and PVC (new) modes
-- [ ] Add example multi-cluster auditing script using PVC
-- [ ] Storage class configurable (default: `standard`)
-
----
-
 ### Remote Snapshot from CLI
 
 **Current behavior**: Capturing snapshots from a remote cluster requires deploying the agent Job manually:
@@ -60,27 +41,19 @@ See [Opens](#opens) section for list of still to be decided architectural decisi
 
 ---
 
-## Launch Blockers
-
-### Differential Snapshots & Drift Detection
-
-**User Story**: As a compliance officer, I want to detect configuration drift between clusters, so I can ensure consistency across environments and catch unauthorized changes.
-
-**Acceptance Criteria**:
-- [ ] `eidos diff baseline.yaml current.yaml` command
-- [ ] Output formats: human-readable, JSON Patch (RFC 6902), table
-- [ ] Highlight critical differences (GPU driver, K8s version, security settings)
-- [ ] Exit code: 0=identical, 1=drifted
-- [ ] Integration examples for CI/CD drift detection
-- [ ] Ignore rules for expected differences (timestamps, unique IDs)
-
----
-
 ### Additional Bundlers
 
 **Current bundlers**: GPU Operator, Network Operator
 
 **Proposed bundlers** (not yet implemented):
+
+#### Skyhook
+
+**Scope**: Generate Helm values and manifests for Skyhook Operator deployment.
+
+**Acceptance Criteria**:
+- [ ] Bundler generates Skyhook Operator Helm values from recipe measurements
+- [ ] README documents deployment steps and configuration options
 
 #### NIM Operator Bundler
 
@@ -140,8 +113,6 @@ See [Opens](#opens) section for list of still to be decided architectural decisi
 - [ ] Elastic stack for log aggregation
 - [ ] Default passwords and access instructions
 
----
-
 ### Schema Validation
 
 **User Story**: As a CI/CD pipeline developer, I want to validate snapshots against API version schemas, so I can catch malformed data before downstream processing.
@@ -157,6 +128,38 @@ See [Opens](#opens) section for list of still to be decided architectural decisi
 ## Backlog
 
 ---
+
+### PVC-Based Agent Output
+
+**Current behavior**: Agent Job writes snapshot to a ConfigMap (`eidos-snapshot` in `gpu-operator` namespace). ConfigMap is overwritten on each Job run. Historical snapshots are not retained.
+
+**Proposed change**: Add optional PersistentVolumeClaim (PVC) output mode. When enabled, agent writes timestamped files to a persistent volume instead of ConfigMap.
+
+**Motivation**: Persistent storage enables historical snapshot retention and drift detection across multiple Job runs.
+
+**Acceptance Criteria**:
+- [ ] Create optional PVC manifest (in deployments/eidos-agent/1-deps.yaml) with RWO/RWX support
+- [ ] Update Job to use PVC when available (volume mount at `/data`)
+- [ ] Write files with timestamps: `snapshot-YYYYMMDD-HHMMSS.yaml`, `recipe-YYYYMMDD-HHMMSS.yaml`
+- [ ] Document access pattern: helper pod or kubectl cp alternative
+- [ ] Support both stdout (current) and PVC (new) modes
+- [ ] Add example multi-cluster auditing script using PVC
+- [ ] Storage class configurable (default: `standard`)
+
+## Launch Blockers
+
+### Differential Snapshots & Drift Detection
+
+**User Story**: As a compliance officer, I want to detect configuration drift between clusters, so I can ensure consistency across environments and catch unauthorized changes.
+
+**Acceptance Criteria**:
+- [ ] `eidos diff baseline.yaml current.yaml` command
+- [ ] Output formats: human-readable, JSON Patch (RFC 6902), table
+- [ ] Highlight critical differences (GPU driver, K8s version, security settings)
+- [ ] Exit code: 0=identical, 1=drifted
+- [ ] Integration examples for CI/CD drift detection
+- [ ] Ignore rules for expected differences (timestamps, unique IDs)
+
 
 ### Caching Layer
 
