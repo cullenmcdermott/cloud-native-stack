@@ -2,7 +2,7 @@
 
 NVIDIA Cloud Native Stack (CNS) is a suite of tooling designed to automate the complexity of deploying GPU-accelerated Kubernetes infrastructure. By moving away from static documentation and toward automated configuration generation, CNS ensures that AI/ML workloads run on infrastructure that is validated, optimized, and secure.
 
-## Why Cloud Native Stack?
+## Why CNS?
 
 Deploying high-performance AI infrastructure is historically complex. Administrators must navigate a "matrix" of dependencies, ensuring compatibility between the Operating System, Kubernetes version, GPU drivers, and container runtimes.
 
@@ -22,9 +22,7 @@ CNS replaces manual interpretation of documentation with a **automated approach*
 3.  **Speed:** Deployment preparation drops from hours of reading and configuration to minutes of automated generation.
 4.  **Supply Chain Security:** All artifacts are backed by SLSA Build Level 3 attestations and Software Bill of Materials (SBOMs), ensuring the software stack is secure and verifiable.
 
----
-
-## How CNS Helps Users
+## How CNS Works
 
 CNS simplifies operations through a logical three-stage workflow handled by the `eidos` command-line tool. This workflow transforms a raw system state into a deployable package.
 
@@ -49,9 +47,7 @@ Finally, CNS converts the abstract Recipe into concrete deployment files.
 *   **How it helps:** Users receive ready-to-run scripts and manifests. For example, it generates a custom `install.sh` script that pre-validates the environment before running Helm commands.
 *   **Parallel Execution:** Multiple "Bundlers" (e.g., GPU Operator, Network Operator) can run simultaneously to generate a full stack configuration in seconds.
 
----
-
-## Key Capabilities for Users
+## Key Capabilities
 
 ### Kubernetes-Native Integration
 CNS is designed to work natively within Kubernetes.
