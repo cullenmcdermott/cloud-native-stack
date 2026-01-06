@@ -6,6 +6,7 @@ import (
 	"io"
 	"log/slog"
 	"os"
+	"strings"
 )
 
 // ANSI color codes
@@ -36,9 +37,21 @@ func (h *CLIHandler) Enabled(_ context.Context, level slog.Level) bool {
 	return level >= h.level
 }
 
-// Handle formats and writes the log record.
+// Handle formats and writes the log record with attributes.
 func (h *CLIHandler) Handle(_ context.Context, r slog.Record) error {
 	msg := r.Message
+
+	// Append attributes as key=value pairs
+	if r.NumAttrs() > 0 {
+		var attrs []string
+		r.Attrs(func(a slog.Attr) bool {
+			attrs = append(attrs, fmt.Sprintf("%s=%v", a.Key, a.Value))
+			return true
+		})
+		if len(attrs) > 0 {
+			msg = msg + ": " + strings.Join(attrs, " ")
+		}
+	}
 
 	// Add color for error messages
 	if r.Level >= slog.LevelError {

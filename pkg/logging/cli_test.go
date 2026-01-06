@@ -139,7 +139,7 @@ func TestCLIHandler_LevelFiltering(t *testing.T) {
 	}
 }
 
-func TestCLIHandler_IgnoresAttributes(t *testing.T) {
+func TestCLIHandler_IncludesAttributes(t *testing.T) {
 	var buf bytes.Buffer
 	handler := NewCLIHandler(&buf, slog.LevelInfo)
 	logger := slog.New(handler)
@@ -149,14 +149,17 @@ func TestCLIHandler_IgnoresAttributes(t *testing.T) {
 
 	output := buf.String()
 
-	// Should contain just the message
+	// Should contain the message
 	if !strings.Contains(output, "test message") {
 		t.Errorf("output should contain message, got: %q", output)
 	}
 
-	// Should not contain attributes (CLI handler ignores them for simplicity)
-	if strings.Contains(output, "key1") || strings.Contains(output, "value1") {
-		t.Errorf("CLI handler should ignore attributes, got: %q", output)
+	// Should contain attributes as key=value pairs
+	if !strings.Contains(output, "key1=value1") {
+		t.Errorf("output should contain key1=value1, got: %q", output)
+	}
+	if !strings.Contains(output, "key2=value2") {
+		t.Errorf("output should contain key2=value2, got: %q", output)
 	}
 }
 
