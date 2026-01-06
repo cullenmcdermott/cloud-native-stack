@@ -1,5 +1,9 @@
 # NVIDIA Cloud Native Stack
 
+**Note**
+> This directory contains materials from the **prior version of Cloud Native Stack**.
+> These documents and artifacts are preserved for reference during the transition to the current Cloud Native Stack project. They reflect an earlier approach centered on manual installation guides, playbooks, and platform-specific documentation.
+
 ## Introduction
 
 NVIDIA Cloud Native Stack (CNS) is a collection of software to run cloud native workloads on NVIDIA GPUs. NVIDIA Cloud Native Stack is based on Ubuntu/RHEL, Kubernetes, Helm and the NVIDIA GPU and Network Operator.
