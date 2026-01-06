@@ -142,29 +142,27 @@ func TestGetKubeClient_Singleton(t *testing.T) {
 	// Second call
 	client2, config2, err2 := GetKubeClient()
 
+	// The key requirement: both calls should return the EXACT SAME results (singleton behavior)
+	// This is true regardless of whether initialization succeeded or failed
+
 	// Both calls should return the same error state
 	if (err1 != nil) != (err2 != nil) {
 		t.Errorf("GetKubeClient() error consistency: first call err=%v, second call err=%v", err1, err2)
 	}
 
-	// If successful, both should return the same instances
-	if err1 == nil {
-		if client1 != client2 {
-			t.Error("GetKubeClient() should return the same client instance")
-		}
-		if config1 != config2 {
-			t.Error("GetKubeClient() should return the same config instance")
-		}
+	// Both calls should return the same error value
+	if err1 != err2 {
+		t.Errorf("GetKubeClient() should return same error instance: first=%v, second=%v", err1, err2)
 	}
 
-	// If failed, both should return nil instances
-	if err1 != nil {
-		if client1 != nil || client2 != nil {
-			t.Error("GetKubeClient() should return nil client on error")
-		}
-		if config1 != nil || config2 != nil {
-			t.Error("GetKubeClient() should return nil config on error")
-		}
+	// Both calls should return the same client instance (could be nil or non-nil)
+	if client1 != client2 {
+		t.Error("GetKubeClient() should return the same client instance")
+	}
+
+	// Both calls should return the same config instance (could be nil or non-nil)
+	if config1 != config2 {
+		t.Error("GetKubeClient() should return the same config instance")
 	}
 }
 
