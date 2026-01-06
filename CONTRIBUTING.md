@@ -39,8 +39,8 @@ This project follows NVIDIA's commitment to fostering an open and welcoming envi
 
 - Fix typos, clarify instructions, or add examples
 - Update README.md for user-facing changes
-- Update installation guides in [docs/install-guides](docs/install-guides)
-- Enhance playbook documentation in [docs/playbooks](docs/playbooks)
+- Update installation guides in [~archive/cns-v1/install-guides](~archive/cns-v1/install-guides)
+- Enhance playbook documentation in [~archive/cns-v1/playbooks](~archive/cns-v1/playbooks)
 - Update API documentation when endpoints change
 
 ### Contributing Code
@@ -1756,11 +1756,11 @@ go tool pprof cpu.prof
 
 ### Project Documentation
 - [README.md](README.md) - User documentation and quick start
-- [docs/README.md](docs/README.md) - Comprehensive platform documentation
-- [docs/install-guides](docs/install-guides) - Platform-specific installation
-- [docs/playbooks](docs/playbooks) - Ansible automation guides
-- [docs/optimizations](docs/optimizations) - Performance tuning guides
-- [docs/troubleshooting](docs/troubleshooting) - Common issues and solutions
+- [docs/MIGRATION.md](docs/MIGRATION.md) - Migration guide from v1 to v2
+- [~archive/cns-v1/install-guides](~archive/cns-v1/install-guides) - Platform-specific installation (archived)
+- [~archive/cns-v1/playbooks](~archive/cns-v1/playbooks) - Ansible automation guides (archived)
+- [~archive/cns-v1/optimizations](~archive/cns-v1/optimizations) - Performance tuning guides (archived)
+- [~archive/cns-v1/troubleshooting](~archive/cns-v1/troubleshooting) - Common issues and solutions (archived)
 
 ### External Resources
 - [Go Documentation](https://golang.org/doc/)
