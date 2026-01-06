@@ -1,71 +1,111 @@
 # Cloud Native Stack
 
-Cloud Native Stack (CNS) provides validated configurations for deploying GPU-accelerated Kubernetes infrastructure. The project generates deployment artifacts from system configuration snapshots, ensuring consistent deployments for managed Kubernetes offerings like Amazon EKS, Google GKE, Azure AKS, Oracle OKE, as well as self-managed Kubernetes clusters.
+Cloud Native Stack (CNS) provides validated configuration guidance for deploying GPU-accelerated Kubernetes infrastructure. It captures known-good combinations of software, configuration, and system requirements and makes them consumable as documentation and generated deployment artifacts.
 
-## What Cloud Native Stack Does
+## Why We Built This
 
-CNS captures system state, generates configuration recipes based on hardware and software parameters, and produces deployment bundles. Configurations are derived from field deployments and tested against H100, GB200, A100, and other NVIDIA GPU hardware.
+Running NVIDIA-accelerated Kubernetes clusters reliably is hard. Small differences in kernel versions, drivers, container runtimes, operators, and Kubernetes releases can cause failures that are difficult to diagnose and expensive to reproduce.
 
-**Key characteristics:**
+Historically, this knowledge has lived in internal validation pipelines, playbooks, and tribal knowledge. Cloud Native Stack exists to externalize that experience. Its goal is to make validated configurations visible, repeatable, and reusable across environments.
 
-- **Prescriptive configurations**: Specific component versions and settings validated for GPU workloads
-- **Deterministic generation**: Same inputs produce identical outputs across environments  
-- **Hardware-aware**: Recipes adapt to GPU type, OS version, Kubernetes distribution, and workload intent (training or inference)
+## What Cloud Native Stack Is (and Is Not)
 
-**Three-stage workflow:**
+Cloud Native Stack is a **source of validated configuration knowledge** for NVIDIA-accelerated Kubernetes environments.
 
-1. **Snapshot**: Capture system configuration (operating system, kernel version, Kubernetes cluster state, GPU hardware)
-2. **Recipe**: Generate configuration recommendations based on captured state or query parameters
-3. **Bundle**: Create deployment artifacts including Helm values, Kubernetes manifests, and installation scripts
+It **is**:
+- A curated set of tested and validated component combinations
+- A reference for how NVIDIA-accelerated Kubernetes clusters are expected to be configured
+- A foundation for generating reproducible deployment artifacts
+- Designed to integrate with existing provisioning, CI/CD, and GitOps workflows
 
-## Components
+It **is not**:
+- A Kubernetes distribution
+- A cluster provisioning or lifecycle management system
+- A managed control plane or hosted service
+- A replacement for cloud provider or OEM platforms
 
-- **CLI (`eidos`)**: Command-line tool supporting all three workflow stages (snapshot, recipe, bundle)
-- **API Server**: HTTP REST API for recipe generation (query mode only). Production deployment: https://cns.dgxc.io
-- **Agent**: Kubernetes Job that captures cluster snapshots and writes output to ConfigMaps
+> **Note on previous versions**  
+> Earlier versions of Cloud Native Stack focused primarily on manual installation guides and playbooks. Those materials remain available under `docs/v1`. The current repository reflects a transition toward structured configuration data and generated artifacts.
 
-## Documentation
+## How It Works
 
-The documentation is organized by persona to help you find what you need quickly. Whether you're deploying GPU infrastructure, contributing code to the CNS project, or integrating CNS into your product or service, start with the section that matches your role.
+Cloud Native Stack separates **validated configuration knowledge** from **how that knowledge is consumed**.
 
-**Note**: Documentation for the previous version (manual installation guides, playbooks, and platform-specific optimizations) is located in [docs/v1](docs/v1).
+- Human-readable documentation lives under `docs/`.
+- Version-locked configuration definitions (“recipes”) capture known-good system states.
+- Those definitions can be rendered into concrete artifacts such as Helm values, Kubernetes manifests, or install scripts.
 
-### For Users
+This separation allows the same validated configuration to be applied consistently across different environments and automation systems.
 
-You are responsible for deploying and operating GPU-accelerated Kubernetes clusters. You need practical guides to get CNS running and validated configurations for your specific hardware and workload requirements.
+*For example, a configuration validated for H100 on Ubuntu 22.04 with Kubernetes 1.29 can be rendered into Helm values and manifests suitable for use in an existing GitOps pipeline.*
 
-Get started with installing and using Cloud Native Stack:
+## Get Started
 
+> Some tooling and APIs are under active development; documentation reflects current and near-term capabilities.
+
+### Quick Start
+
+Get started quickly with CNS:
+1. Review the documentation under `docs/` to understand supported platforms and required components.
+2. Identify your target environment:
+   - GPU architecture
+   - Operating system and kernel
+   - Kubernetes distribution and version
+   - Workload intent (for example, training or inference)
+3. Apply the validated configuration guidance using your existing tools (Helm, kubectl, CI/CD, or GitOps).
+4. Validate and iterate as platforms and workloads evolve.
+
+### Get Started by Use Case
+
+These use cases reflect common ways teams interact with Cloud Native Stack.
+
+#### Platform and Infrastructure Operators
+
+You are responsible for deploying and operating GPU-accelerated Kubernetes clusters. 
 - **[Installation Guide](docs/user-guide/installation.md)** – Install the eidos CLI (automated script, manual, or build from source)
 - **[CLI Reference](docs/user-guide/cli-reference.md)** – Complete command reference with examples
 - **[Agent Deployment](docs/user-guide/agent-deployment.md)** – Deploy the Kubernetes agent to get automated configuration snapshots
 
-### For Developers
+#### Developers and Contributors
 
-You're a software engineer looking to contribute code, extend functionality, or understand CNS internals. You need development setup instructions, architecture documentation, and guidelines for adding new features like bundlers or collectors.
-
-Learn how to contribute and understand the architecture:
+You are contributing code, extending functionality, or working on CNS internals. 
 
 - **[Contributing Guide](CONTRIBUTING.md)** – Development setup, testing, and PR process
 - **[Architecture Overview](docs/architecture/README.md)** – System design and components
 - **[Bundler Development](docs/architecture/bundler-development.md)** – How to create new bundlers
 - **[Data Architecture](docs/architecture/data.md)** – Recipe data model and query matching
 
-### For Integrators
+#### Integrators and Automation Engineers
 
-You are integrating CNS into CI/CD pipelines, GitOps workflows, or existing product or service. You need API documentation, data schemas, and patterns for programmatic interaction with CNS components.
-
-Integrate Cloud Native Stack into your infrastructure automation:
+You are integrating CNS into CI/CD pipelines, GitOps workflows, or a larger product or service. 
 
 - **[API Reference](docs/integration/api-reference.md)** – REST API endpoints and usage examples
 - **[Data Flow](docs/integration/data-flow.md)** – Understanding snapshots, recipes, and bundles
 - **[Automation Guide](docs/integration/automation.md)** – CI/CD integration patterns
 - **[Kubernetes Deployment](docs/integration/kubernetes-deployment.md)** – Self-hosted API server setup
 
-## Project Resources
 
+## Project Structure
+
+- `docs/` — User-facing documentation, guides, and examples
+- `recipes/` — Version-locked configuration definitions
+- `metadata/` — Structured configuration metadata
+- `bundles/` — Generated deployment artifacts
+- `benchmarks/` — Validation and performance evidence artifacts
+- `tools/` — Supporting tooling and utilities
+- `pipelines/` — CI and publishing workflows
+
+> Some directories are intentionally scaffolded and will be populated incrementally as the project evolves.
+
+## Documentation & Resources
+
+- **[Documentation](/docs)** – Documentation, guides, and examples.
 - **[Roadmap](ROADMAP.md)** – Feature priorities and development timeline
 - **[Transition](docs/MIGRATION.md)** - Migration to CLI/API-based bundle generation
 - **[Security](SECURITY.md)** - Security-related resources 
 - **[Releases](https://github.com/NVIDIA/cloud-native-stack/releases)** - Binaries, SBOMs, and other artifacts
 - **[Issues](https://github.com/NVIDIA/cloud-native-stack/issues)** - Bugs, feature requests, and questions
+
+## Contributing
+
+Contributions are welcome. See [contributing](/CONTRIBUTING.md) for development setup, contribution guidelines, and the pull request process.
