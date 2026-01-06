@@ -127,7 +127,7 @@ func TestGetKubeClient_Singleton(t *testing.T) {
 	cachedClient = nil
 	cachedConfig = nil
 	clientErr = nil
-	
+
 	defer func() {
 		// Reset singleton state after test
 		clientOnce = sync.Once{}
