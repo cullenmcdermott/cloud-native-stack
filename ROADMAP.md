@@ -16,25 +16,15 @@ See [Opens](#opens) section for list of still to be decided architectural decisi
 
 ## Next Release
 
-### Validate Current Bundlers
+### P0. Validate Current Bundlers
 
-**Scope**: Review the GPU Operator, Network Operator bundlers against known good deployments
-
-**Acceptance Criteria**:
-- [ ] GPU Operator and Network Operator bundlers generate valid deployments from recipe measurements
-- [ ] README documents deployment steps and configuration options
-
-### Additional Bundlers
-
-#### Skyhook
-
-**Scope**: Generate Helm values and manifests for Skyhook Operator deployment.
+**Scope**: Review the GPU Operator, Network Operator, Skyhook bundlers against known good deployments
 
 **Acceptance Criteria**:
-- [ ] Bundler generates Skyhook Operator Helm values from recipe measurements
-- [ ] README documents deployment steps and configuration options
+- [ ] All existing bundlers generate valid deployments from recipe measurements (reproduce know config)
+- [ ] Readme documents deployment steps and configuration options
 
-### Schema Validation
+### P1. Schema Validation
 
 **User Story**: As a CI/CD pipeline developer, I want to validate snapshots against API version schemas, so I can catch malformed data before downstream processing.
 
