@@ -32,10 +32,6 @@ flowchart LR
     E:::next
     F:::later
     G:::later
-
-    classDef now fill:#e6f3ff,stroke:#1f77b4,stroke-width:2px;
-    classDef next fill:#eef7ea,stroke:#2ca02c;
-    classDef later fill:#f8f8f8,stroke:#999;
 ```
 
 ## Scope & Principles
