@@ -1,0 +1,254 @@
+package recipe
+
+import (
+	"testing"
+)
+
+func TestRecipeMetadataSpecValidateDependencies(t *testing.T) {
+	tests := []struct {
+		name    string
+		spec    RecipeMetadataSpec
+		wantErr bool
+		errMsg  string
+	}{
+		{
+			name: "valid no dependencies",
+			spec: RecipeMetadataSpec{
+				ComponentRefs: []ComponentRef{
+					{Name: "cert-manager", Type: ComponentTypeHelm},
+					{Name: "gpu-operator", Type: ComponentTypeHelm},
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "valid with dependencies",
+			spec: RecipeMetadataSpec{
+				ComponentRefs: []ComponentRef{
+					{Name: "cert-manager", Type: ComponentTypeHelm},
+					{Name: "gpu-operator", Type: ComponentTypeHelm, DependencyRefs: []string{"cert-manager"}},
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "missing dependency",
+			spec: RecipeMetadataSpec{
+				ComponentRefs: []ComponentRef{
+					{Name: "gpu-operator", Type: ComponentTypeHelm, DependencyRefs: []string{"cert-manager"}},
+				},
+			},
+			wantErr: true,
+			errMsg:  "references unknown dependency",
+		},
+		{
+			name: "self-dependency (cycle)",
+			spec: RecipeMetadataSpec{
+				ComponentRefs: []ComponentRef{
+					{Name: "cert-manager", Type: ComponentTypeHelm, DependencyRefs: []string{"cert-manager"}},
+				},
+			},
+			wantErr: true,
+			errMsg:  "circular dependency",
+		},
+		{
+			name: "two-node cycle",
+			spec: RecipeMetadataSpec{
+				ComponentRefs: []ComponentRef{
+					{Name: "A", Type: ComponentTypeHelm, DependencyRefs: []string{"B"}},
+					{Name: "B", Type: ComponentTypeHelm, DependencyRefs: []string{"A"}},
+				},
+			},
+			wantErr: true,
+			errMsg:  "circular dependency",
+		},
+		{
+			name: "three-node cycle",
+			spec: RecipeMetadataSpec{
+				ComponentRefs: []ComponentRef{
+					{Name: "A", Type: ComponentTypeHelm, DependencyRefs: []string{"B"}},
+					{Name: "B", Type: ComponentTypeHelm, DependencyRefs: []string{"C"}},
+					{Name: "C", Type: ComponentTypeHelm, DependencyRefs: []string{"A"}},
+				},
+			},
+			wantErr: true,
+			errMsg:  "circular dependency",
+		},
+		{
+			name: "complex valid graph",
+			spec: RecipeMetadataSpec{
+				ComponentRefs: []ComponentRef{
+					{Name: "cert-manager", Type: ComponentTypeHelm},
+					{Name: "gpu-operator", Type: ComponentTypeHelm, DependencyRefs: []string{"cert-manager"}},
+					{Name: "network-operator", Type: ComponentTypeHelm, DependencyRefs: []string{"cert-manager"}},
+					{Name: "nvsentinel", Type: ComponentTypeHelm, DependencyRefs: []string{"cert-manager", "gpu-operator"}},
+				},
+			},
+			wantErr: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := tt.spec.ValidateDependencies()
+			if (err != nil) != tt.wantErr {
+				t.Errorf("ValidateDependencies() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if tt.wantErr && tt.errMsg != "" && err != nil {
+				if !containsString(err.Error(), tt.errMsg) {
+					t.Errorf("ValidateDependencies() error = %v, want error containing %q", err, tt.errMsg)
+				}
+			}
+		})
+	}
+}
+
+func TestRecipeMetadataSpecTopologicalSort(t *testing.T) {
+	tests := []struct {
+		name    string
+		spec    RecipeMetadataSpec
+		want    []string
+		wantErr bool
+	}{
+		{
+			name: "no dependencies",
+			spec: RecipeMetadataSpec{
+				ComponentRefs: []ComponentRef{
+					{Name: "cert-manager", Type: ComponentTypeHelm},
+					{Name: "gpu-operator", Type: ComponentTypeHelm},
+				},
+			},
+			want: []string{"cert-manager", "gpu-operator"},
+		},
+		{
+			name: "linear dependencies",
+			spec: RecipeMetadataSpec{
+				ComponentRefs: []ComponentRef{
+					{Name: "cert-manager", Type: ComponentTypeHelm},
+					{Name: "gpu-operator", Type: ComponentTypeHelm, DependencyRefs: []string{"cert-manager"}},
+				},
+			},
+			want: []string{"cert-manager", "gpu-operator"},
+		},
+		{
+			name: "diamond dependencies",
+			spec: RecipeMetadataSpec{
+				ComponentRefs: []ComponentRef{
+					{Name: "cert-manager", Type: ComponentTypeHelm},
+					{Name: "gpu-operator", Type: ComponentTypeHelm, DependencyRefs: []string{"cert-manager"}},
+					{Name: "network-operator", Type: ComponentTypeHelm, DependencyRefs: []string{"cert-manager"}},
+					{Name: "nvsentinel", Type: ComponentTypeHelm, DependencyRefs: []string{"gpu-operator", "network-operator"}},
+				},
+			},
+			// cert-manager first, then gpu-operator and network-operator (alphabetically), then nvsentinel
+			want: []string{"cert-manager", "gpu-operator", "network-operator", "nvsentinel"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := tt.spec.TopologicalSort()
+			if (err != nil) != tt.wantErr {
+				t.Errorf("TopologicalSort() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if tt.wantErr {
+				return
+			}
+			if len(got) != len(tt.want) {
+				t.Errorf("TopologicalSort() len = %d, want %d", len(got), len(tt.want))
+				return
+			}
+			for i := range got {
+				if got[i] != tt.want[i] {
+					t.Errorf("TopologicalSort()[%d] = %v, want %v", i, got[i], tt.want[i])
+				}
+			}
+		})
+	}
+}
+
+func TestRecipeMetadataSpecMerge(t *testing.T) {
+	tests := []struct {
+		name        string
+		base        RecipeMetadataSpec
+		overlay     RecipeMetadataSpec
+		wantCompCnt int
+		wantConCnt  int
+	}{
+		{
+			name: "merge disjoint components",
+			base: RecipeMetadataSpec{
+				ComponentRefs: []ComponentRef{
+					{Name: "cert-manager", Type: ComponentTypeHelm, Version: "v1.0.0"},
+				},
+			},
+			overlay: RecipeMetadataSpec{
+				ComponentRefs: []ComponentRef{
+					{Name: "gpu-operator", Type: ComponentTypeHelm, Version: "v2.0.0"},
+				},
+			},
+			wantCompCnt: 2,
+		},
+		{
+			name: "overlay overrides component",
+			base: RecipeMetadataSpec{
+				ComponentRefs: []ComponentRef{
+					{Name: "gpu-operator", Type: ComponentTypeHelm, Version: "v1.0.0"},
+				},
+			},
+			overlay: RecipeMetadataSpec{
+				ComponentRefs: []ComponentRef{
+					{Name: "gpu-operator", Type: ComponentTypeHelm, Version: "v2.0.0"},
+				},
+			},
+			wantCompCnt: 1,
+		},
+		{
+			name: "merge constraints",
+			base: RecipeMetadataSpec{
+				Constraints: []Constraint{
+					{Name: "k8s", Value: ">= 1.30"},
+				},
+			},
+			overlay: RecipeMetadataSpec{
+				Constraints: []Constraint{
+					{Name: "kernel", Value: ">= 6.8"},
+				},
+			},
+			wantConCnt: 2,
+		},
+		{
+			name: "overlay overrides constraint",
+			base: RecipeMetadataSpec{
+				Constraints: []Constraint{
+					{Name: "k8s", Value: ">= 1.30"},
+				},
+			},
+			overlay: RecipeMetadataSpec{
+				Constraints: []Constraint{
+					{Name: "k8s", Value: ">= 1.32"},
+				},
+			},
+			wantConCnt: 1,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tt.base.Merge(&tt.overlay)
+			if tt.wantCompCnt > 0 && len(tt.base.ComponentRefs) != tt.wantCompCnt {
+				t.Errorf("Merge() componentRefs count = %d, want %d", len(tt.base.ComponentRefs), tt.wantCompCnt)
+			}
+			if tt.wantConCnt > 0 && len(tt.base.Constraints) != tt.wantConCnt {
+				t.Errorf("Merge() constraints count = %d, want %d", len(tt.base.Constraints), tt.wantConCnt)
+			}
+		})
+	}
+}
+
+// Helper function
+func containsString(s, substr string) bool {
+	return len(s) >= len(substr) && (s == substr || len(s) > len(substr) && (s[:len(substr)] == substr || containsString(s[1:], substr)))
+}

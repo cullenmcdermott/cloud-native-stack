@@ -11,6 +11,8 @@ import (
 	"path/filepath"
 	"text/template"
 
+	"gopkg.in/yaml.v3"
+
 	"github.com/NVIDIA/cloud-native-stack/pkg/bundler/result"
 )
 
@@ -194,4 +196,17 @@ func (g *ChecksumGenerator) Generate(outputDir, title string) (string, error) {
 	}
 
 	return content.String(), nil
+}
+
+// MarshalYAML serializes a value to YAML format.
+func MarshalYAML(v interface{}) ([]byte, error) {
+	// Import yaml package inline to avoid adding it as a top-level dependency
+	// for packages that don't need it
+	var buf bytes.Buffer
+	encoder := yaml.NewEncoder(&buf)
+	encoder.SetIndent(2)
+	if err := encoder.Encode(v); err != nil {
+		return nil, fmt.Errorf("failed to marshal YAML: %w", err)
+	}
+	return buf.Bytes(), nil
 }

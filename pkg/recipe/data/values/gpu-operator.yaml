@@ -1,0 +1,36 @@
+# GPU Operator Helm values
+# Base configuration for all deployments
+
+operator:
+  defaultRuntime: containerd
+
+driver:
+  enabled: true
+  repository: nvcr.io/nvidia
+  image: driver
+  licensingConfig:
+    configMapName: ""
+
+toolkit:
+  enabled: true
+
+devicePlugin:
+  enabled: true
+
+dcgm:
+  enabled: true
+
+dcgmExporter:
+  enabled: true
+
+gfd:
+  enabled: true
+
+migManager:
+  enabled: false
+
+nodeStatusExporter:
+  enabled: true
+
+validator:
+  enabled: true

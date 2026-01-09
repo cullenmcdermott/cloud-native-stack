@@ -8,8 +8,6 @@ import (
 	"time"
 
 	cnserrors "github.com/NVIDIA/cloud-native-stack/pkg/errors"
-	"github.com/NVIDIA/cloud-native-stack/pkg/recipe/header"
-	"github.com/NVIDIA/cloud-native-stack/pkg/recipe/version"
 	"github.com/NVIDIA/cloud-native-stack/pkg/serializer"
 	"github.com/NVIDIA/cloud-native-stack/pkg/server"
 )
@@ -18,9 +16,9 @@ var (
 	recipeCacheTTLInSec = 600 // 10 minutes in seconds
 )
 
-// HandleRecipes processes recipe requests and returns recipes.
+// HandleRecipes processes recipe requests using the criteria-based system.
 // It supports GET requests with query parameters to specify recipe criteria.
-// The response is returned in JSON format with appropriate caching headers.
+// The response returns a RecipeResult with component references and constraints.
 // Errors are handled and returned in a structured format.
 func (b *Builder) HandleRecipes(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
@@ -36,55 +34,39 @@ func (b *Builder) HandleRecipes(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithTimeout(r.Context(), 30*time.Second)
 	defer cancel()
 
-	q, err := ParseQuery(r)
+	criteria, err := ParseCriteriaFromRequest(r)
 	if err != nil {
 		server.WriteError(w, r, http.StatusBadRequest, cnserrors.ErrCodeInvalidRequest,
-			"Invalid recipe query", false, map[string]interface{}{
+			"Invalid recipe criteria", false, map[string]interface{}{
 				"error": err.Error(),
 			})
 		return
 	}
 
-	if q == nil {
+	if criteria == nil {
 		server.WriteError(w, r, http.StatusBadRequest, cnserrors.ErrCodeInvalidRequest,
-			"Recipe query cannot be empty", false, nil)
+			"Recipe criteria cannot be empty", false, nil)
 		return
 	}
 
-	slog.Debug("query",
-		"os", q.Os.String(),
-		"os_version", versionString(q.OsVersion),
-		"kernel", versionString(q.Kernel),
-		"service", q.Service.String(),
-		"k8s", versionString(q.K8s),
-		"gpu", q.GPU.String(),
-		"intent", q.Intent.String(),
+	slog.Debug("criteria",
+		"service", criteria.Service,
+		"fabric", criteria.Fabric,
+		"accelerator", criteria.Accelerator,
+		"intent", criteria.Intent,
+		"worker", criteria.Worker,
+		"system", criteria.System,
+		"nodes", criteria.Nodes,
 	)
 
-	resp, err := b.BuildFromQuery(ctx, q)
+	result, err := b.BuildFromCriteria(ctx, criteria)
 	if err != nil {
 		server.WriteErrorFromErr(w, r, err, "Failed to build recipe", nil)
 		return
 	}
 
-	resp.Init(header.KindRecipe, b.Version)
-
-	if resp.Request.IsEmpty() {
-		slog.Debug("stripping empty request from recipe response")
-		resp.Request = nil
-	}
-
 	// Set caching headers
 	w.Header().Set("Cache-Control", fmt.Sprintf("public, max-age=%d", recipeCacheTTLInSec))
 
-	serializer.RespondJSON(w, http.StatusOK, resp)
-}
-
-// versionString returns the string representation of a version pointer,
-// or "nil" if the pointer is nil.
-func versionString(v *version.Version) string {
-	if v == nil {
-		return "nil"
-	}
-	return v.String()
+	serializer.RespondJSON(w, http.StatusOK, result)
 }

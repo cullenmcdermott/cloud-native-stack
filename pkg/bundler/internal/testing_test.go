@@ -14,12 +14,12 @@ import (
 
 // Mock bundler for testing
 type mockBundler struct {
-	makeFunc func(ctx context.Context, r *recipe.Recipe, outputDir string) (*result.Result, error)
+	makeFunc func(ctx context.Context, input recipe.RecipeInput, outputDir string) (*result.Result, error)
 }
 
-func (m *mockBundler) Make(ctx context.Context, r *recipe.Recipe, outputDir string) (*result.Result, error) {
+func (m *mockBundler) Make(ctx context.Context, input recipe.RecipeInput, outputDir string) (*result.Result, error) {
 	if m.makeFunc != nil {
-		return m.makeFunc(ctx, r, outputDir)
+		return m.makeFunc(ctx, input, outputDir)
 	}
 	res := result.New("mock")
 	res.AddFile(filepath.Join(outputDir, "mock", "test.txt"), 100)
@@ -62,7 +62,7 @@ func TestTestHarness_TestMake(t *testing.T) {
 
 	// Create mock bundler that creates expected files
 	mock := &mockBundler{
-		makeFunc: func(ctx context.Context, r *recipe.Recipe, outputDir string) (*result.Result, error) {
+		makeFunc: func(ctx context.Context, input recipe.RecipeInput, outputDir string) (*result.Result, error) {
 			bundleDir := filepath.Join(outputDir, "test-bundler")
 			os.MkdirAll(bundleDir, 0755)
 			os.WriteFile(filepath.Join(bundleDir, "test.txt"), []byte("test"), 0644)

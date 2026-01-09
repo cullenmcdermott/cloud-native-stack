@@ -18,7 +18,7 @@ type mockBundler struct {
 	validated bool
 }
 
-func (m *mockBundler) Make(ctx context.Context, recipe *recipe.Recipe, dir string) (*result.Result, error) {
+func (m *mockBundler) Make(ctx context.Context, input recipe.RecipeInput, dir string) (*result.Result, error) {
 	res := result.New(types.BundleType(m.name))
 	res.Success = true
 	return res, nil
@@ -29,9 +29,9 @@ type mockValidatableBundler struct {
 	mockBundler
 }
 
-func (m *mockValidatableBundler) Validate(ctx context.Context, recipe *recipe.Recipe) error {
+func (m *mockValidatableBundler) Validate(ctx context.Context, input recipe.RecipeInput) error {
 	m.validated = true
-	if recipe == nil {
+	if input == nil {
 		return fmt.Errorf("recipe is nil")
 	}
 	return nil

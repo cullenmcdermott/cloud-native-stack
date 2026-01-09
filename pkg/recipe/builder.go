@@ -2,11 +2,9 @@ package recipe
 
 import (
 	"context"
-	_ "embed"
 	"time"
 
 	cnserrors "github.com/NVIDIA/cloud-native-stack/pkg/errors"
-	"github.com/NVIDIA/cloud-native-stack/pkg/measurement"
 )
 
 // Option is a functional option for configuring Builder instances.
@@ -31,20 +29,19 @@ func NewBuilder(opts ...Option) *Builder {
 	return b
 }
 
-// Builder constructs Recipe payloads based on Query specifications.
-// It loads recommendation data, applies overlays based on query matching,
-// and generates tailored configuration recipes.
+// Builder constructs RecipeResult payloads based on Criteria specifications.
+// It loads recipe metadata, applies matching overlays, and generates
+// tailored configuration recipes.
 type Builder struct {
 	Version string
 }
 
-// Build creates a Recipe payload for the provided query.
-// It loads the recipe store, applies matching overlays, and returns
-// a Recipe with base measurements merged with overlay-specific configurations.
-// Context is included in the response only if Query.IncludeContext is true.
-func (b *Builder) BuildFromQuery(ctx context.Context, q *Query) (*Recipe, error) {
-	if q == nil {
-		return nil, cnserrors.New(cnserrors.ErrCodeInvalidRequest, "query cannot be nil")
+// BuildFromCriteria creates a RecipeResult payload for the provided criteria.
+// It loads the metadata store, applies matching overlays, and returns
+// a RecipeResult with merged components and computed deployment order.
+func (b *Builder) BuildFromCriteria(ctx context.Context, c *Criteria) (*RecipeResult, error) {
+	if c == nil {
+		return nil, cnserrors.New(cnserrors.ErrCodeInvalidRequest, "criteria cannot be nil")
 	}
 
 	// Check context before expensive operations
@@ -60,170 +57,15 @@ func (b *Builder) BuildFromQuery(ctx context.Context, q *Query) (*Recipe, error)
 		recipeBuiltDuration.Observe(time.Since(start).Seconds())
 	}()
 
-	store, err := loadStore(ctx)
+	store, err := loadMetadataStore(ctx)
 	if err != nil {
-		return nil, cnserrors.Wrap(cnserrors.ErrCodeInternal, "failed to load recipe store", err)
+		return nil, cnserrors.Wrap(cnserrors.ErrCodeInternal, "failed to load metadata store", err)
 	}
 
-	r := &Recipe{
-		Request:      q,
-		MatchedRules: make([]string, 0),
+	result, err := store.BuildRecipeResult(ctx, c)
+	if err != nil {
+		return nil, err
 	}
 
-	merged := cloneMeasurements(store.Base)
-	index := indexMeasurementsByType(merged)
-
-	for _, overlay := range store.Overlays {
-		// Check context in loops
-		select {
-		case <-ctx.Done():
-			return nil, cnserrors.Wrap(cnserrors.ErrCodeTimeout, "request context cancelled", ctx.Err())
-		default:
-		}
-
-		// overlays use Query as key, so matching queries inherit overlay-specific measurements
-		if overlay.Key.IsMatch(q) {
-			merged, index = mergeOverlayMeasurements(merged, index, overlay.Types)
-			r.MatchedRules = append(r.MatchedRules, overlay.Key.String())
-			recipeRuleMatchTotal.WithLabelValues("matched").Inc()
-		}
-	}
-
-	r.Measurements = merged
-
-	// Strip context if not requested
-	if !q.IncludeContext {
-		stripContext(r.Measurements)
-	}
-
-	return r, nil
-}
-
-// stripContext removes context metadata from all measurements
-func stripContext(measurements []*measurement.Measurement) {
-	for _, m := range measurements {
-		if m == nil {
-			continue
-		}
-		for i := range m.Subtypes {
-			m.Subtypes[i].Context = nil
-		}
-	}
-}
-
-// cloneMeasurements creates deep copies of all measurements so we never mutate
-// the shared store payload while tailoring responses.
-func cloneMeasurements(list []*measurement.Measurement) []*measurement.Measurement {
-	if len(list) == 0 {
-		return nil
-	}
-	cloned := make([]*measurement.Measurement, 0, len(list))
-	for _, m := range list {
-		if m == nil {
-			continue
-		}
-		cloned = append(cloned, cloneMeasurement(m))
-	}
-	return cloned
-}
-
-// cloneMeasurement duplicates a single measurement including all of its
-// subtypes to protect original data from in-place updates.
-func cloneMeasurement(m *measurement.Measurement) *measurement.Measurement {
-	if m == nil {
-		return nil
-	}
-	clone := &measurement.Measurement{
-		Type:     m.Type,
-		Subtypes: make([]measurement.Subtype, len(m.Subtypes)),
-	}
-	for i := range m.Subtypes {
-		clone.Subtypes[i] = cloneSubtype(m.Subtypes[i])
-	}
-	return clone
-}
-
-// cloneSubtype duplicates an individual subtype and its key/value readings.
-func cloneSubtype(st measurement.Subtype) measurement.Subtype {
-	cloned := measurement.Subtype{
-		Name: st.Name,
-	}
-	if len(st.Data) > 0 {
-		cloned.Data = make(map[string]measurement.Reading, len(st.Data))
-		for k, v := range st.Data {
-			cloned.Data[k] = v
-		}
-	}
-	if len(st.Context) > 0 {
-		cloned.Context = make(map[string]string, len(st.Context))
-		for k, v := range st.Context {
-			cloned.Context[k] = v
-		}
-	}
-	return cloned
-}
-
-// indexMeasurementsByType builds an index for O(1) lookup when merging
-// overlays by measurement type.
-func indexMeasurementsByType(measurements []*measurement.Measurement) map[measurement.Type]*measurement.Measurement {
-	index := make(map[measurement.Type]*measurement.Measurement, len(measurements))
-	for _, m := range measurements {
-		if m == nil {
-			continue
-		}
-		index[m.Type] = m
-	}
-	return index
-}
-
-// mergeOverlayMeasurements folds overlay measurements into the base slice,
-// appending new types and delegating to subtype merging when the type already exists.
-func mergeOverlayMeasurements(base []*measurement.Measurement, index map[measurement.Type]*measurement.Measurement, overlays []*measurement.Measurement) ([]*measurement.Measurement, map[measurement.Type]*measurement.Measurement) {
-	if len(overlays) == 0 {
-		return base, index
-	}
-	for _, overlay := range overlays {
-		if overlay == nil {
-			continue
-		}
-		if target, ok := index[overlay.Type]; ok {
-			mergeMeasurementSubtypes(target, overlay)
-			continue
-		}
-		cloned := cloneMeasurement(overlay)
-		base = append(base, cloned)
-		index[cloned.Type] = cloned
-	}
-	return base, index
-}
-
-// mergeMeasurementSubtypes walks all subtypes so overlay data augments or
-// overrides existing subtype readings. Now uses the built-in Merge() method
-// from the measurement package for consistency.
-func mergeMeasurementSubtypes(target, overlay *measurement.Measurement) {
-	if target == nil || overlay == nil {
-		return
-	}
-
-	// Use the built-in Merge method which handles data merging
-	if err := target.Merge(overlay); err != nil {
-		// This shouldn't happen in practice since we check types when building,
-		// but log it just in case
-		return
-	}
-
-	// Handle context merging (not part of Merge())
-	for _, overlaySubtype := range overlay.Subtypes {
-		targetSubtype := target.GetSubtype(overlaySubtype.Name)
-		if targetSubtype == nil {
-			continue
-		}
-		// Merge context fields
-		if targetSubtype.Context == nil && len(overlaySubtype.Context) > 0 {
-			targetSubtype.Context = make(map[string]string)
-		}
-		for key, value := range overlaySubtype.Context {
-			targetSubtype.Context[key] = value
-		}
-	}
+	return result, nil
 }

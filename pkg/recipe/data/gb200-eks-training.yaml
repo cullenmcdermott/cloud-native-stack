@@ -1,0 +1,38 @@
+kind: recipeMetadata
+apiVersion: cns.nvidia.com/v1alpha1
+metadata:
+  name: gb200-eks-training
+
+spec:
+  criteria:
+    service: eks
+    accelerator: gb200
+    intent: training
+
+  # Specific constraints for GB200 on EKS training workloads
+  constraints:
+    - name: k8s
+      value: ">= 1.32.4"
+    - name: worker-os
+      value: "ubuntu"
+    - name: worker-os-version
+      value: "24.04"
+    - name: kernel
+      value: ">= 6.8"
+
+  componentRefs:
+    - name: gpu-operator
+      type: Helm
+      source: https://helm.ngc.nvidia.com/nvidia
+      version: v25.3.3
+      valuesFile: values/gpu-operator-eks-gb200-training.yaml
+      dependencyRefs:
+        - cert-manager
+
+    - name: network-operator
+      type: Helm
+      source: https://helm.ngc.nvidia.com/nvidia
+      version: v25.4.0
+      valuesFile: values/network-operator-eks-gb200-training.yaml
+      dependencyRefs:
+        - cert-manager

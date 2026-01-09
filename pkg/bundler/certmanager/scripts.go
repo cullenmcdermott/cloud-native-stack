@@ -15,7 +15,7 @@ type ScriptData struct {
 	HelmChart        string
 	HelmChartVersion string
 	InstallCRDs      bool
-	Request          *recipe.Query
+	Request          *recipe.RequestInfo
 	Version          string
 	RecipeVersion    string
 }

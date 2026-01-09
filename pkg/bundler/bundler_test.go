@@ -31,7 +31,7 @@ type mockBundler struct {
 	shouldFail bool
 }
 
-func (m *mockBundler) Make(ctx context.Context, r *recipe.Recipe, outputDir string) (*result.Result, error) {
+func (m *mockBundler) Make(ctx context.Context, input recipe.RecipeInput, outputDir string) (*result.Result, error) {
 	res := result.New("mock")
 	if m.shouldFail {
 		return res, errors.New(errors.ErrCodeInternal, "mock bundler failed")
@@ -46,7 +46,7 @@ type mockConfigurableBundler struct {
 	config *config.Config
 }
 
-func (m *mockConfigurableBundler) Make(ctx context.Context, r *recipe.Recipe, outputDir string) (*result.Result, error) {
+func (m *mockConfigurableBundler) Make(ctx context.Context, input recipe.RecipeInput, outputDir string) (*result.Result, error) {
 	res := result.New("mock-configurable")
 	res.AddFile("test.txt", 100)
 	res.MarkSuccess()

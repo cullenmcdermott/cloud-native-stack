@@ -83,7 +83,7 @@ func bundleCmd() *cli.Command {
 				slog.Any("bundlerTypes", bundlerTypes),
 			)
 
-			rec, err := serializer.FromFile[recipe.Recipe](recipeFilePath)
+			rec, err := serializer.FromFile[recipe.RecipeResult](recipeFilePath)
 			if err != nil {
 				slog.Error("failed to load recipe file", "error", err, "path", recipeFilePath)
 				return err

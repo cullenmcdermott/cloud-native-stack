@@ -1,0 +1,46 @@
+kind: recipeMetadata
+apiVersion: cns.nvidia.com/v1alpha1
+metadata:
+  name: base
+
+spec:
+  # Basic assumptions - will create warning in pre-flight but not block deployment
+  constraints:
+    - name: k8s
+      value: ">= 1.30"
+
+  componentRefs:
+    - name: cert-manager
+      type: Helm
+      source: https://charts.jetstack.io
+      version: v1.17.2
+      valuesFile: values/cert-manager.yaml
+
+    - name: gpu-operator
+      type: Helm
+      source: https://helm.ngc.nvidia.com/nvidia
+      version: v25.3.3
+      valuesFile: values/gpu-operator.yaml
+      dependencyRefs:
+        - cert-manager
+
+    - name: network-operator
+      type: Helm
+      source: https://helm.ngc.nvidia.com/nvidia
+      version: v25.4.0
+      valuesFile: values/network-operator.yaml
+      dependencyRefs:
+        - cert-manager
+
+    - name: nvsentinel
+      type: Helm
+      source: oci://ghcr.io/nvidia/nvsentinel
+      version: v0.6.0
+      dependencyRefs:
+        - cert-manager
+
+    - name: skyhook
+      type: Helm
+      source: oci://ghcr.io/nvidia/skyhook
+      version: v0.4.0
+      valuesFile: values/skyhook.yaml

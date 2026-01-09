@@ -127,7 +127,7 @@ func TestRecipeEndpointMethods(t *testing.T) {
 	}
 }
 
-// TestRecipeEndpointWithValidQueryParams tests various valid query combinations
+// TestRecipeEndpointWithValidQueryParams tests various valid criteria combinations
 func TestRecipeEndpointWithValidQueryParams(t *testing.T) {
 	b := recipe.NewBuilder()
 
@@ -136,20 +136,16 @@ func TestRecipeEndpointWithValidQueryParams(t *testing.T) {
 		query string
 	}{
 		{
-			name:  "os ubuntu",
-			query: "?os=ubuntu",
+			name:  "accelerator h100",
+			query: "?accelerator=h100",
 		},
 		{
-			name:  "os cos",
-			query: "?os=cos",
+			name:  "accelerator gb200",
+			query: "?accelerator=gb200",
 		},
 		{
-			name:  "gpu h100",
+			name:  "gpu alias h100",
 			query: "?gpu=h100",
-		},
-		{
-			name:  "gpu gb200",
-			query: "?gpu=gb200",
 		},
 		{
 			name:  "service eks",
@@ -168,8 +164,20 @@ func TestRecipeEndpointWithValidQueryParams(t *testing.T) {
 			query: "?intent=inference",
 		},
 		{
+			name:  "fabric nvlink",
+			query: "?fabric=nvlink",
+		},
+		{
+			name:  "worker ubuntu",
+			query: "?worker=ubuntu",
+		},
+		{
+			name:  "nodes count",
+			query: "?nodes=4",
+		},
+		{
 			name:  "multiple params",
-			query: "?os=ubuntu&gpu=h100&service=eks",
+			query: "?accelerator=h100&service=eks&intent=training",
 		},
 		{
 			name:  "no params",
@@ -201,11 +209,11 @@ func TestRecipeEndpointWithInvalidQueryParams(t *testing.T) {
 		query string
 	}{
 		{
-			name:  "invalid os",
-			query: "?os=invalid-os",
+			name:  "invalid accelerator",
+			query: "?accelerator=invalid-accelerator",
 		},
 		{
-			name:  "invalid gpu",
+			name:  "invalid gpu alias",
 			query: "?gpu=invalid-gpu",
 		},
 		{
@@ -215,6 +223,22 @@ func TestRecipeEndpointWithInvalidQueryParams(t *testing.T) {
 		{
 			name:  "invalid intent",
 			query: "?intent=invalid-intent",
+		},
+		{
+			name:  "invalid fabric",
+			query: "?fabric=invalid-fabric",
+		},
+		{
+			name:  "invalid worker os",
+			query: "?worker=invalid-os",
+		},
+		{
+			name:  "invalid nodes negative",
+			query: "?nodes=-5",
+		},
+		{
+			name:  "invalid nodes non-numeric",
+			query: "?nodes=abc",
 		},
 	}
 

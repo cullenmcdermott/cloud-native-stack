@@ -15,7 +15,7 @@ import (
 
 // BundlerInterface defines the interface that bundlers must implement for testing.
 type BundlerInterface interface {
-	Make(ctx context.Context, r *recipe.Recipe, outputDir string) (*result.Result, error)
+	Make(ctx context.Context, input recipe.RecipeInput, outputDir string) (*result.Result, error)
 }
 
 // TestHarness provides common testing utilities for bundlers.

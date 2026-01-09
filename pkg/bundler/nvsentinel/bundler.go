@@ -33,7 +33,18 @@ func NewBundler(conf *config.Config) *Bundler {
 }
 
 // Make generates the NVSentinel bundle based on the provided recipe.
-func (b *Bundler) Make(ctx context.Context, r *recipe.Recipe, dir string) (*result.Result, error) {
+func (b *Bundler) Make(ctx context.Context, input recipe.RecipeInput, dir string) (*result.Result, error) {
+	// For v2 RecipeResult, use values file directly
+	if recipe.IsV2Recipe(input) {
+		return b.makeFromV2(ctx, input, dir)
+	}
+
+	// For v1 Recipe, use legacy measurement-based logic
+	r, ok := input.(*recipe.Recipe)
+	if !ok {
+		return nil, errors.New(errors.ErrCodeInvalidRequest, "unsupported recipe input type")
+	}
+
 	// Check for required measurements
 	if err := r.ValidateMeasurementExists(measurement.TypeK8s); err != nil {
 		return nil, errors.Wrap(errors.ErrCodeInvalidRequest,
@@ -88,6 +99,70 @@ func (b *Bundler) Make(ctx context.Context, r *recipe.Recipe, dir string) (*resu
 	b.Finalize(start)
 
 	slog.Debug("NVSentinel bundle generated",
+		"files", len(b.Result.Files),
+		"size_bytes", b.Result.Size,
+		"duration", b.Result.Duration.Round(time.Millisecond),
+	)
+
+	return b.Result, nil
+}
+
+// makeFromV2 generates the NVSentinel bundle from a v2 RecipeResult.
+func (b *Bundler) makeFromV2(ctx context.Context, input recipe.RecipeInput, dir string) (*result.Result, error) {
+	start := time.Now()
+
+	slog.Debug("generating NVSentinel bundle from v2 recipe",
+		"output_dir", dir,
+		"namespace", Name,
+	)
+
+	// Get component reference for nvsentinel
+	componentRef := input.GetComponentRef("nvsentinel")
+	if componentRef == nil {
+		return nil, errors.New(errors.ErrCodeInvalidRequest,
+			"nvsentinel component not found in recipe")
+	}
+
+	// Get values from embedded file
+	values, err := input.GetValuesForComponent("nvsentinel")
+	if err != nil {
+		return nil, errors.Wrap(errors.ErrCodeInternal,
+			"failed to get values for nvsentinel", err)
+	}
+
+	// Create bundle directory structure
+	dirs, err := b.CreateBundleDir(dir, Name)
+	if err != nil {
+		return b.Result, errors.Wrap(errors.ErrCodeInternal,
+			"failed to create bundle directory", err)
+	}
+
+	// Serialize values to YAML
+	valuesYAML, err := common.MarshalYAML(values)
+	if err != nil {
+		return b.Result, errors.Wrap(errors.ErrCodeInternal,
+			"failed to serialize values to YAML", err)
+	}
+
+	// Write values.yaml
+	valuesPath := filepath.Join(dirs.Root, "values.yaml")
+	if err := b.WriteFile(valuesPath, valuesYAML, 0644); err != nil {
+		return b.Result, errors.Wrap(errors.ErrCodeInternal,
+			"failed to write values file", err)
+	}
+
+	// Generate checksums file
+	if b.Config.IncludeChecksums() {
+		if err := b.GenerateChecksums(ctx, dirs.Root); err != nil {
+			return b.Result, errors.Wrap(errors.ErrCodeInternal,
+				"failed to generate checksums", err)
+		}
+	}
+
+	// Finalize bundle generation
+	b.Finalize(start)
+
+	slog.Debug("NVSentinel bundle generated from v2 recipe",
 		"files", len(b.Result.Files),
 		"size_bytes", b.Result.Size,
 		"duration", b.Result.Duration.Round(time.Millisecond),

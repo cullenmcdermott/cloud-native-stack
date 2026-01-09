@@ -131,16 +131,20 @@ func New(opts ...Option) *DefaultBundler {
 // It accepts various options to customize the bundling process.
 // Returns a result.Output summarizing the results of the bundling operation.
 // Errors encountered during the process are returned as well.
-func (b *DefaultBundler) Make(ctx context.Context, recipe *recipe.Recipe, dir string) (*result.Output, error) {
+// The input can be either a v1 Recipe (Measurements-based) or v2 RecipeResult (ComponentRefs-based).
+func (b *DefaultBundler) Make(ctx context.Context, input recipe.RecipeInput, dir string) (*result.Output, error) {
 	start := time.Now()
 
 	// Validate input
-	if recipe == nil {
-		return nil, errors.New(errors.ErrCodeInvalidRequest, "recipe cannot be nil")
+	if input == nil {
+		return nil, errors.New(errors.ErrCodeInvalidRequest, "recipe input cannot be nil")
 	}
 
-	if err := recipe.ValidateStructure(); err != nil {
-		return nil, errors.Wrap(errors.ErrCodeInvalidRequest, "recipe validation failed", err)
+	// For v1 Recipe, validate structure
+	if r, ok := input.(*recipe.Recipe); ok {
+		if err := r.ValidateStructure(); err != nil {
+			return nil, errors.Wrap(errors.ErrCodeInvalidRequest, "recipe validation failed", err)
+		}
 	}
 
 	// Validate configuration
@@ -175,7 +179,7 @@ func (b *DefaultBundler) Make(ctx context.Context, recipe *recipe.Recipe, dir st
 	)
 
 	// Generate bundles
-	output, err := b.makeParallel(ctx, recipe, dir, bundlers)
+	output, err := b.makeParallel(ctx, input, dir, bundlers)
 	if err != nil {
 		return output, err
 	}
@@ -190,7 +194,7 @@ func (b *DefaultBundler) Make(ctx context.Context, recipe *recipe.Recipe, dir st
 
 // makeParallel executes bundlers concurrently using buffered channels
 // and WaitGroup to prevent deadlocks.
-func (b *DefaultBundler) makeParallel(ctx context.Context, recipe *recipe.Recipe, dir string, bundlers map[types.BundleType]registry.Bundler) (*result.Output, error) {
+func (b *DefaultBundler) makeParallel(ctx context.Context, input recipe.RecipeInput, dir string, bundlers map[types.BundleType]registry.Bundler) (*result.Output, error) {
 	output := &result.Output{
 		Results: make([]*result.Result, 0, len(bundlers)),
 		Errors:  make([]result.BundleError, 0),
@@ -225,7 +229,7 @@ func (b *DefaultBundler) makeParallel(ctx context.Context, recipe *recipe.Recipe
 				}
 			}
 
-			res, err := b.executeBundler(ctx, bundlerType, bundler, recipe, dir)
+			res, err := b.executeBundler(ctx, bundlerType, bundler, input, dir)
 
 			// Non-blocking writes to buffered channels
 			resultChan <- res
@@ -280,14 +284,14 @@ func (b *DefaultBundler) makeParallel(ctx context.Context, recipe *recipe.Recipe
 
 // executeBundler executes a single bundler and records metrics.
 func (b *DefaultBundler) executeBundler(ctx context.Context, bundlerType types.BundleType, bundler registry.Bundler,
-	recipe *recipe.Recipe, dir string) (*result.Result, error) {
+	input recipe.RecipeInput, dir string) (*result.Result, error) {
 
 	start := time.Now()
 
 	// Check if bundler implements ValidatableBundler interface
 	// Type assertion is type-safe and 10-100x faster than reflection
 	if validator, ok := bundler.(registry.ValidatableBundler); ok {
-		if err := validator.Validate(ctx, recipe); err != nil {
+		if err := validator.Validate(ctx, input); err != nil {
 			recordValidationFailure(bundlerType)
 			return result.New(bundlerType), errors.Wrap(errors.ErrCodeInvalidRequest,
 				fmt.Sprintf("validation failed for bundler %s", bundlerType), err)
@@ -301,7 +305,7 @@ func (b *DefaultBundler) executeBundler(ctx context.Context, bundlerType types.B
 	)
 
 	// Execute the bundler
-	result, err := bundler.Make(ctx, recipe, dir)
+	result, err := bundler.Make(ctx, input, dir)
 	if err != nil {
 		recordBundleGenerated(bundlerType, false)
 		recordBundleError(bundlerType, "execution_error")

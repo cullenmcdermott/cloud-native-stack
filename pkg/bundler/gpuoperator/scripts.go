@@ -20,7 +20,7 @@ type ScriptData struct {
 	MIGStrategy      string
 	EnableGDS        bool
 	EnableCDI        bool
-	Request          *recipe.Query
+	Request          *recipe.RequestInfo
 	Version          string
 	RecipeVersion    string
 }
@@ -62,12 +62,10 @@ func GenerateScriptData(recipe *recipe.Recipe, config map[string]string) *Script
 		data.EnableCDI = val == strTrue || val == "1"
 	}
 
-	// Extract GPU type from request
+	// Extract GPU type and K8s version from request
 	if recipe.Request != nil {
-		data.GPUType = recipe.Request.GPU.String()
-		if recipe.Request.K8s != nil {
-			data.K8sVersion = recipe.Request.K8s.String()
-		}
+		data.GPUType = recipe.Request.GPU
+		data.K8sVersion = recipe.Request.K8s
 	}
 
 	return data

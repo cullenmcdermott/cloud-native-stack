@@ -6,7 +6,6 @@ import (
 
 	"github.com/NVIDIA/cloud-native-stack/pkg/measurement"
 	"github.com/NVIDIA/cloud-native-stack/pkg/recipe/header"
-	"github.com/NVIDIA/cloud-native-stack/pkg/snapshotter"
 )
 
 // Validator defines the interface for validating recipes before bundling.
@@ -20,30 +19,24 @@ const (
 	RecipeAPIVersion = "v1"
 )
 
-// Recommender defines the interface for generating recommendations based on snapshots and intent.
-type Recommender interface {
-	Recommend(ctx context.Context, intent IntentType, snap *snapshotter.Snapshot) (*Recipe, error)
+// RequestInfo holds simplified request metadata for documentation purposes.
+// This replaces the old Query type with just the fields needed for bundle documentation.
+type RequestInfo struct {
+	Os        string `json:"os,omitempty" yaml:"os,omitempty"`
+	OsVersion string `json:"osVersion,omitempty" yaml:"osVersion,omitempty"`
+	Service   string `json:"service,omitempty" yaml:"service,omitempty"`
+	K8s       string `json:"k8s,omitempty" yaml:"k8s,omitempty"`
+	GPU       string `json:"gpu,omitempty" yaml:"gpu,omitempty"`
+	Intent    string `json:"intent,omitempty" yaml:"intent,omitempty"`
 }
 
 // Recipe represents the recipe response structure.
 type Recipe struct {
 	header.Header `json:",inline" yaml:",inline"`
 
-	Request      *Query                     `json:"request,omitempty" yaml:"request,omitempty"`
+	Request      *RequestInfo               `json:"request,omitempty" yaml:"request,omitempty"`
 	MatchedRules []string                   `json:"matchedRules,omitempty" yaml:"matchedRules,omitempty"`
 	Measurements []*measurement.Measurement `json:"measurements" yaml:"measurements"`
-}
-
-// Store holds base measurements for recipes.
-type Store struct {
-	Base     []*measurement.Measurement `json:"base" yaml:"base"`
-	Overlays []*Overlay                 `json:"overlays" yaml:"overlays"`
-}
-
-// Overlay represents overlay measurements for specific scenarios.
-type Overlay struct {
-	Key   Query                      `json:"key" yaml:"key"`
-	Types []*measurement.Measurement `json:"types" yaml:"types"`
 }
 
 // Validate validates a recipe against all registered bundlers that implement Validator.

@@ -17,7 +17,7 @@ type ScriptData struct {
 	K8sVersion       string
 	EnableRDMA       bool
 	EnableSRIOV      bool
-	Request          *recipe.Query
+	Request          *recipe.RequestInfo
 	Version          string
 	RecipeVersion    string
 }
@@ -48,8 +48,8 @@ func GenerateScriptData(recipe *recipe.Recipe, config map[string]string) *Script
 	}
 
 	// Extract Kubernetes version from request
-	if recipe.Request != nil && recipe.Request.K8s != nil {
-		data.K8sVersion = recipe.Request.K8s.String()
+	if recipe.Request != nil {
+		data.K8sVersion = recipe.Request.K8s
 	}
 
 	return data

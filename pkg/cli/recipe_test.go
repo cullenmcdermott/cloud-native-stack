@@ -11,88 +11,25 @@ import (
 
 	"github.com/urfave/cli/v3"
 
+	"github.com/NVIDIA/cloud-native-stack/pkg/measurement"
 	"github.com/NVIDIA/cloud-native-stack/pkg/recipe"
+	"github.com/NVIDIA/cloud-native-stack/pkg/snapshotter"
 )
 
-func TestBuildQueryFromCmd(t *testing.T) {
+func TestBuildCriteriaFromCmd(t *testing.T) {
 	tests := []struct {
 		name      string
 		args      []string
 		wantError bool
 		errMsg    string
-		validate  func(*testing.T, *recipe.Query)
+		validate  func(*testing.T, *recipe.Criteria)
 	}{
-		{
-			name: "valid os",
-			args: []string{"cmd", "--os", "ubuntu"},
-			validate: func(t *testing.T, q *recipe.Query) {
-				if q.Os != recipe.OSUbuntu {
-					t.Errorf("Os = %v, want %v", q.Os, recipe.OSUbuntu)
-				}
-			},
-		},
-		{
-			name:      "invalid os",
-			args:      []string{"cmd", "--os", "invalid-os"},
-			wantError: true,
-			errMsg:    "supported values",
-		},
-		{
-			name: "valid os version",
-			args: []string{"cmd", "--osv", "22.04"},
-			validate: func(t *testing.T, q *recipe.Query) {
-				if q.OsVersion == nil {
-					t.Error("OsVersion should not be nil")
-					return
-				}
-				if q.OsVersion.Major != 22 || q.OsVersion.Minor != 4 {
-					t.Errorf("OsVersion = %v, want 22.4", q.OsVersion)
-				}
-			},
-		},
-		{
-			name:      "invalid os version",
-			args:      []string{"cmd", "--osv", "invalid"},
-			wantError: true,
-			errMsg:    "invalid os version",
-		},
-		{
-			name:      "negative os version",
-			args:      []string{"cmd", "--osv", "-1.0"},
-			wantError: true,
-			errMsg:    "cannot contain negative numbers",
-		},
-		{
-			name: "valid kernel version",
-			args: []string{"cmd", "--kernel", "5.15.0-1028-aws"},
-			validate: func(t *testing.T, q *recipe.Query) {
-				if q.Kernel == nil {
-					t.Error("Kernel should not be nil")
-					return
-				}
-				if q.Kernel.Major != 5 || q.Kernel.Minor != 15 || q.Kernel.Patch != 0 {
-					t.Errorf("Kernel = %v, want 5.15.0", q.Kernel)
-				}
-			},
-		},
-		{
-			name:      "invalid kernel version",
-			args:      []string{"cmd", "--kernel", "invalid"},
-			wantError: true,
-			errMsg:    "invalid kernel version",
-		},
-		{
-			name:      "negative kernel version",
-			args:      []string{"cmd", "--kernel", "5.-1.0"},
-			wantError: true,
-			errMsg:    "cannot contain negative numbers",
-		},
 		{
 			name: "valid service",
 			args: []string{"cmd", "--service", "eks"},
-			validate: func(t *testing.T, q *recipe.Query) {
-				if q.Service != recipe.ServiceEKS {
-					t.Errorf("Service = %v, want %v", q.Service, recipe.ServiceEKS)
+			validate: func(t *testing.T, c *recipe.Criteria) {
+				if c.Service != recipe.CriteriaServiceEKS {
+					t.Errorf("Service = %v, want %v", c.Service, recipe.CriteriaServiceEKS)
 				}
 			},
 		},
@@ -100,54 +37,53 @@ func TestBuildQueryFromCmd(t *testing.T) {
 			name:      "invalid service",
 			args:      []string{"cmd", "--service", "invalid-service"},
 			wantError: true,
-			errMsg:    "supported values",
+			errMsg:    "invalid service type",
 		},
 		{
-			name: "valid k8s version",
-			args: []string{"cmd", "--k8s", "v1.28.0-eks-3025e55"},
-			validate: func(t *testing.T, q *recipe.Query) {
-				if q.K8s == nil {
-					t.Error("K8s should not be nil")
-					return
-				}
-				if q.K8s.Major != 1 || q.K8s.Minor != 28 || q.K8s.Patch != 0 {
-					t.Errorf("K8s = %v, want 1.28.0", q.K8s)
+			name: "valid fabric",
+			args: []string{"cmd", "--fabric", "efa"},
+			validate: func(t *testing.T, c *recipe.Criteria) {
+				if c.Fabric != recipe.CriteriaFabricEFA {
+					t.Errorf("Fabric = %v, want %v", c.Fabric, recipe.CriteriaFabricEFA)
 				}
 			},
 		},
 		{
-			name:      "invalid k8s version",
-			args:      []string{"cmd", "--k8s", "invalid"},
+			name:      "invalid fabric",
+			args:      []string{"cmd", "--fabric", "invalid-fabric"},
 			wantError: true,
-			errMsg:    "invalid kubernetes version",
+			errMsg:    "invalid fabric type",
 		},
 		{
-			name:      "negative k8s version",
-			args:      []string{"cmd", "--k8s", "1.-28.0"},
-			wantError: true,
-			errMsg:    "cannot contain negative numbers",
-		},
-		{
-			name: "valid gpu",
-			args: []string{"cmd", "--gpu", "h100"},
-			validate: func(t *testing.T, q *recipe.Query) {
-				if q.GPU != recipe.GPUH100 {
-					t.Errorf("GPU = %v, want %v", q.GPU, recipe.GPUH100)
+			name: "valid accelerator",
+			args: []string{"cmd", "--accelerator", "h100"},
+			validate: func(t *testing.T, c *recipe.Criteria) {
+				if c.Accelerator != recipe.CriteriaAcceleratorH100 {
+					t.Errorf("Accelerator = %v, want %v", c.Accelerator, recipe.CriteriaAcceleratorH100)
 				}
 			},
 		},
 		{
-			name:      "invalid gpu",
-			args:      []string{"cmd", "--gpu", "invalid-gpu"},
+			name: "valid accelerator with gpu alias",
+			args: []string{"cmd", "--gpu", "gb200"},
+			validate: func(t *testing.T, c *recipe.Criteria) {
+				if c.Accelerator != recipe.CriteriaAcceleratorGB200 {
+					t.Errorf("Accelerator = %v, want %v", c.Accelerator, recipe.CriteriaAcceleratorGB200)
+				}
+			},
+		},
+		{
+			name:      "invalid accelerator",
+			args:      []string{"cmd", "--accelerator", "invalid-gpu"},
 			wantError: true,
-			errMsg:    "supported values",
+			errMsg:    "invalid accelerator type",
 		},
 		{
 			name: "valid intent",
 			args: []string{"cmd", "--intent", "training"},
-			validate: func(t *testing.T, q *recipe.Query) {
-				if q.Intent != recipe.IntentTraining {
-					t.Errorf("Intent = %v, want %v", q.Intent, recipe.IntentTraining)
+			validate: func(t *testing.T, c *recipe.Criteria) {
+				if c.Intent != recipe.CriteriaIntentTraining {
+					t.Errorf("Intent = %v, want %v", c.Intent, recipe.CriteriaIntentTraining)
 				}
 			},
 		},
@@ -155,45 +91,83 @@ func TestBuildQueryFromCmd(t *testing.T) {
 			name:      "invalid intent",
 			args:      []string{"cmd", "--intent", "invalid-intent"},
 			wantError: true,
-			errMsg:    "supported values",
+			errMsg:    "invalid intent type",
 		},
 		{
-			name: "context flag true",
-			args: []string{"cmd", "--context"},
-			validate: func(t *testing.T, q *recipe.Query) {
-				if !q.IncludeContext {
-					t.Error("IncludeContext should be true")
+			name: "valid worker os",
+			args: []string{"cmd", "--worker", "ubuntu"},
+			validate: func(t *testing.T, c *recipe.Criteria) {
+				if c.Worker != recipe.CriteriaOSUbuntu {
+					t.Errorf("Worker = %v, want %v", c.Worker, recipe.CriteriaOSUbuntu)
 				}
 			},
 		},
 		{
-			name: "complete query",
+			name:      "invalid worker os",
+			args:      []string{"cmd", "--worker", "invalid-os"},
+			wantError: true,
+			errMsg:    "invalid os type",
+		},
+		{
+			name: "valid system os",
+			args: []string{"cmd", "--system", "rhel"},
+			validate: func(t *testing.T, c *recipe.Criteria) {
+				if c.System != recipe.CriteriaOSRHEL {
+					t.Errorf("System = %v, want %v", c.System, recipe.CriteriaOSRHEL)
+				}
+			},
+		},
+		{
+			name: "valid nodes",
+			args: []string{"cmd", "--nodes", "8"},
+			validate: func(t *testing.T, c *recipe.Criteria) {
+				if c.Nodes != 8 {
+					t.Errorf("Nodes = %v, want 8", c.Nodes)
+				}
+			},
+		},
+		{
+			name: "complete criteria",
 			args: []string{
 				"cmd",
-				"--os", "ubuntu",
-				"--osv", "22.04",
-				"--kernel", "5.15.0",
-				"--service", "eks",
-				"--k8s", "v1.28.0",
-				"--gpu", "h100",
-				"--intent", "training",
-				"--context",
+				"--service", "gke",
+				"--fabric", "ib",
+				"--accelerator", "a100",
+				"--intent", "inference",
+				"--worker", "cos",
+				"--system", "ubuntu",
+				"--nodes", "16",
 			},
-			validate: func(t *testing.T, q *recipe.Query) {
-				if q.Os != recipe.OSUbuntu {
-					t.Errorf("Os = %v, want %v", q.Os, recipe.OSUbuntu)
+			validate: func(t *testing.T, c *recipe.Criteria) {
+				if c.Service != recipe.CriteriaServiceGKE {
+					t.Errorf("Service = %v, want %v", c.Service, recipe.CriteriaServiceGKE)
 				}
-				if q.Service != recipe.ServiceEKS {
-					t.Errorf("Service = %v, want %v", q.Service, recipe.ServiceEKS)
+				if c.Fabric != recipe.CriteriaFabricIB {
+					t.Errorf("Fabric = %v, want %v", c.Fabric, recipe.CriteriaFabricIB)
 				}
-				if q.GPU != recipe.GPUH100 {
-					t.Errorf("GPU = %v, want %v", q.GPU, recipe.GPUH100)
+				if c.Accelerator != recipe.CriteriaAcceleratorA100 {
+					t.Errorf("Accelerator = %v, want %v", c.Accelerator, recipe.CriteriaAcceleratorA100)
 				}
-				if q.Intent != recipe.IntentTraining {
-					t.Errorf("Intent = %v, want %v", q.Intent, recipe.IntentTraining)
+				if c.Intent != recipe.CriteriaIntentInference {
+					t.Errorf("Intent = %v, want %v", c.Intent, recipe.CriteriaIntentInference)
 				}
-				if !q.IncludeContext {
-					t.Error("IncludeContext should be true")
+				if c.Worker != recipe.CriteriaOSCOS {
+					t.Errorf("Worker = %v, want %v", c.Worker, recipe.CriteriaOSCOS)
+				}
+				if c.System != recipe.CriteriaOSUbuntu {
+					t.Errorf("System = %v, want %v", c.System, recipe.CriteriaOSUbuntu)
+				}
+				if c.Nodes != 16 {
+					t.Errorf("Nodes = %v, want 16", c.Nodes)
+				}
+			},
+		},
+		{
+			name: "empty criteria is valid",
+			args: []string{"cmd"},
+			validate: func(t *testing.T, c *recipe.Criteria) {
+				if c == nil {
+					t.Error("expected non-nil criteria")
 				}
 			},
 		},
@@ -201,23 +175,22 @@ func TestBuildQueryFromCmd(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			var capturedQuery *recipe.Query
+			var capturedCriteria *recipe.Criteria
 			var capturedErr error
 
 			testCmd := &cli.Command{
 				Name: "test",
 				Flags: []cli.Flag{
-					&cli.StringFlag{Name: "os"},
-					&cli.StringFlag{Name: "osv"},
-					&cli.StringFlag{Name: "kernel"},
 					&cli.StringFlag{Name: "service"},
-					&cli.StringFlag{Name: "k8s"},
-					&cli.StringFlag{Name: "gpu"},
+					&cli.StringFlag{Name: "fabric"},
+					&cli.StringFlag{Name: "accelerator", Aliases: []string{"gpu"}},
 					&cli.StringFlag{Name: "intent"},
-					&cli.BoolFlag{Name: "context"},
+					&cli.StringFlag{Name: "worker"},
+					&cli.StringFlag{Name: "system"},
+					&cli.IntFlag{Name: "nodes"},
 				},
 				Action: func(ctx context.Context, cmd *cli.Command) error {
-					capturedQuery, capturedErr = buildQueryFromCmd(cmd)
+					capturedCriteria, capturedErr = buildCriteriaFromCmd(cmd)
 					return capturedErr
 				},
 			}
@@ -249,13 +222,283 @@ func TestBuildQueryFromCmd(t *testing.T) {
 				return
 			}
 
-			if capturedQuery == nil {
-				t.Error("expected non-nil query")
+			if capturedCriteria == nil {
+				t.Error("expected non-nil criteria")
 				return
 			}
 
 			if tt.validate != nil {
-				tt.validate(t, capturedQuery)
+				tt.validate(t, capturedCriteria)
+			}
+		})
+	}
+}
+
+func TestExtractCriteriaFromSnapshot(t *testing.T) {
+	tests := []struct {
+		name     string
+		snapshot *snapshotter.Snapshot
+		validate func(*testing.T, *recipe.Criteria)
+	}{
+		{
+			name:     "nil snapshot",
+			snapshot: nil,
+			validate: func(t *testing.T, c *recipe.Criteria) {
+				if c == nil {
+					t.Error("expected non-nil criteria")
+				}
+			},
+		},
+		{
+			name: "empty snapshot",
+			snapshot: &snapshotter.Snapshot{
+				Measurements: nil,
+			},
+			validate: func(t *testing.T, c *recipe.Criteria) {
+				if c == nil {
+					t.Error("expected non-nil criteria")
+				}
+			},
+		},
+		{
+			name: "snapshot with K8s service",
+			snapshot: &snapshotter.Snapshot{
+				Measurements: []*measurement.Measurement{
+					{
+						Type: "K8s",
+						Subtypes: []measurement.Subtype{
+							{
+								Name: "server",
+								Data: map[string]measurement.Reading{
+									"service": measurement.Str("eks"),
+								},
+							},
+						},
+					},
+				},
+			},
+			validate: func(t *testing.T, c *recipe.Criteria) {
+				if c.Service != recipe.CriteriaServiceEKS {
+					t.Errorf("Service = %v, want %v", c.Service, recipe.CriteriaServiceEKS)
+				}
+			},
+		},
+		{
+			name: "snapshot with GPU H100",
+			snapshot: &snapshotter.Snapshot{
+				Measurements: []*measurement.Measurement{
+					{
+						Type: "GPU",
+						Subtypes: []measurement.Subtype{
+							{
+								Name: "device",
+								Data: map[string]measurement.Reading{
+									"model": measurement.Str("NVIDIA H100 80GB HBM3"),
+								},
+							},
+						},
+					},
+				},
+			},
+			validate: func(t *testing.T, c *recipe.Criteria) {
+				if c.Accelerator != recipe.CriteriaAcceleratorH100 {
+					t.Errorf("Accelerator = %v, want %v", c.Accelerator, recipe.CriteriaAcceleratorH100)
+				}
+			},
+		},
+		{
+			name: "snapshot with GB200",
+			snapshot: &snapshotter.Snapshot{
+				Measurements: []*measurement.Measurement{
+					{
+						Type: "GPU",
+						Subtypes: []measurement.Subtype{
+							{
+								Name: "device",
+								Data: map[string]measurement.Reading{
+									"model": measurement.Str("NVIDIA GB200"),
+								},
+							},
+						},
+					},
+				},
+			},
+			validate: func(t *testing.T, c *recipe.Criteria) {
+				if c.Accelerator != recipe.CriteriaAcceleratorGB200 {
+					t.Errorf("Accelerator = %v, want %v", c.Accelerator, recipe.CriteriaAcceleratorGB200)
+				}
+			},
+		},
+		{
+			name: "snapshot with OS ubuntu",
+			snapshot: &snapshotter.Snapshot{
+				Measurements: []*measurement.Measurement{
+					{
+						Type: "OS",
+						Subtypes: []measurement.Subtype{
+							{
+								Name: "release",
+								Data: map[string]measurement.Reading{
+									"ID": measurement.Str("ubuntu"),
+								},
+							},
+						},
+					},
+				},
+			},
+			validate: func(t *testing.T, c *recipe.Criteria) {
+				if c.Worker != recipe.CriteriaOSUbuntu {
+					t.Errorf("Worker = %v, want %v", c.Worker, recipe.CriteriaOSUbuntu)
+				}
+			},
+		},
+		{
+			name: "complete snapshot",
+			snapshot: &snapshotter.Snapshot{
+				Measurements: []*measurement.Measurement{
+					{
+						Type: "K8s",
+						Subtypes: []measurement.Subtype{
+							{
+								Name: "server",
+								Data: map[string]measurement.Reading{
+									"service": measurement.Str("gke"),
+								},
+							},
+						},
+					},
+					{
+						Type: "GPU",
+						Subtypes: []measurement.Subtype{
+							{
+								Name: "device",
+								Data: map[string]measurement.Reading{
+									"model": measurement.Str("A100-SXM4-80GB"),
+								},
+							},
+						},
+					},
+					{
+						Type: "OS",
+						Subtypes: []measurement.Subtype{
+							{
+								Name: "release",
+								Data: map[string]measurement.Reading{
+									"ID": measurement.Str("rhel"),
+								},
+							},
+						},
+					},
+				},
+			},
+			validate: func(t *testing.T, c *recipe.Criteria) {
+				if c.Service != recipe.CriteriaServiceGKE {
+					t.Errorf("Service = %v, want %v", c.Service, recipe.CriteriaServiceGKE)
+				}
+				if c.Accelerator != recipe.CriteriaAcceleratorA100 {
+					t.Errorf("Accelerator = %v, want %v", c.Accelerator, recipe.CriteriaAcceleratorA100)
+				}
+				if c.Worker != recipe.CriteriaOSRHEL {
+					t.Errorf("Worker = %v, want %v", c.Worker, recipe.CriteriaOSRHEL)
+				}
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			criteria := extractCriteriaFromSnapshot(tt.snapshot)
+
+			if tt.validate != nil {
+				tt.validate(t, criteria)
+			}
+		})
+	}
+}
+
+func TestApplyCriteriaOverrides(t *testing.T) {
+	tests := []struct {
+		name     string
+		args     []string
+		initial  *recipe.Criteria
+		validate func(*testing.T, *recipe.Criteria)
+		wantErr  bool
+	}{
+		{
+			name:    "override service",
+			args:    []string{"cmd", "--service", "aks"},
+			initial: &recipe.Criteria{Service: recipe.CriteriaServiceEKS},
+			validate: func(t *testing.T, c *recipe.Criteria) {
+				if c.Service != recipe.CriteriaServiceAKS {
+					t.Errorf("Service = %v, want %v", c.Service, recipe.CriteriaServiceAKS)
+				}
+			},
+		},
+		{
+			name:    "override accelerator",
+			args:    []string{"cmd", "--accelerator", "l40"},
+			initial: &recipe.Criteria{Accelerator: recipe.CriteriaAcceleratorH100},
+			validate: func(t *testing.T, c *recipe.Criteria) {
+				if c.Accelerator != recipe.CriteriaAcceleratorL40 {
+					t.Errorf("Accelerator = %v, want %v", c.Accelerator, recipe.CriteriaAcceleratorL40)
+				}
+			},
+		},
+		{
+			name:    "no overrides preserves existing",
+			args:    []string{"cmd"},
+			initial: &recipe.Criteria{Service: recipe.CriteriaServiceGKE, Accelerator: recipe.CriteriaAcceleratorGB200},
+			validate: func(t *testing.T, c *recipe.Criteria) {
+				if c.Service != recipe.CriteriaServiceGKE {
+					t.Errorf("Service = %v, want %v", c.Service, recipe.CriteriaServiceGKE)
+				}
+				if c.Accelerator != recipe.CriteriaAcceleratorGB200 {
+					t.Errorf("Accelerator = %v, want %v", c.Accelerator, recipe.CriteriaAcceleratorGB200)
+				}
+			},
+		},
+		{
+			name:    "invalid override returns error",
+			args:    []string{"cmd", "--service", "invalid"},
+			initial: &recipe.Criteria{},
+			wantErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			testCmd := &cli.Command{
+				Name: "test",
+				Flags: []cli.Flag{
+					&cli.StringFlag{Name: "service"},
+					&cli.StringFlag{Name: "fabric"},
+					&cli.StringFlag{Name: "accelerator", Aliases: []string{"gpu"}},
+					&cli.StringFlag{Name: "intent"},
+					&cli.StringFlag{Name: "worker"},
+					&cli.StringFlag{Name: "system"},
+					&cli.IntFlag{Name: "nodes"},
+				},
+				Action: func(ctx context.Context, cmd *cli.Command) error {
+					return applyCriteriaOverrides(cmd, tt.initial)
+				},
+			}
+
+			err := testCmd.Run(context.Background(), tt.args)
+
+			if tt.wantErr {
+				if err == nil {
+					t.Error("expected error but got nil")
+				}
+				return
+			}
+
+			if err != nil {
+				t.Errorf("unexpected error: %v", err)
+				return
+			}
+
+			if tt.validate != nil {
+				tt.validate(t, tt.initial)
 			}
 		})
 	}
@@ -276,7 +519,7 @@ func TestRecipeCmd_CommandStructure(t *testing.T) {
 		t.Error("Description should not be empty")
 	}
 
-	requiredFlags := []string{"os", "osv", "kernel", "service", "k8s", "gpu", "intent", "context", "snapshot", "output", "format"}
+	requiredFlags := []string{"service", "fabric", "accelerator", "intent", "worker", "system", "nodes", "snapshot", "output", "format"}
 	for _, flagName := range requiredFlags {
 		found := false
 		for _, flag := range cmd.Flags {
@@ -344,6 +587,33 @@ func TestCommandLister(_ *testing.T) {
 		},
 	}
 	commandLister(context.Background(), rootCmd)
+}
+
+func TestContainsIgnoreCase(t *testing.T) {
+	tests := []struct {
+		s      string
+		substr string
+		want   bool
+	}{
+		{"NVIDIA H100", "h100", true},
+		{"h100", "H100", true},
+		{"GB200", "gb200", true},
+		{"NVIDIA A100-SXM4-80GB", "a100", true},
+		{"L40S", "l40", true},
+		{"H100", "gb200", false},
+		{"", "h100", false},
+		{"h100", "", true}, // empty substr matches anything
+		{"", "", true},     // empty matches empty
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.s+"_"+tt.substr, func(t *testing.T) {
+			got := containsIgnoreCase(tt.s, tt.substr)
+			if got != tt.want {
+				t.Errorf("containsIgnoreCase(%q, %q) = %v, want %v", tt.s, tt.substr, got, tt.want)
+			}
+		})
+	}
 }
 
 func hasName(flag cli.Flag, name string) bool {

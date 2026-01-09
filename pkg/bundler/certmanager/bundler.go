@@ -33,9 +33,20 @@ func NewBundler(cfg *config.Config) *Bundler {
 }
 
 // Make generates a cert-manager bundle from a recipe.
-func (b *Bundler) Make(ctx context.Context, r *recipe.Recipe, outputDir string) (*result.Result, error) {
+func (b *Bundler) Make(ctx context.Context, input recipe.RecipeInput, outputDir string) (*result.Result, error) {
 	if err := ctx.Err(); err != nil {
 		return nil, errors.Wrap(errors.ErrCodeTimeout, "context cancelled", err)
+	}
+
+	// For v2 RecipeResult, use values file directly
+	if recipe.IsV2Recipe(input) {
+		return b.makeFromV2(ctx, input, outputDir)
+	}
+
+	// For v1 Recipe, use legacy measurement-based logic
+	r, ok := input.(*recipe.Recipe)
+	if !ok {
+		return nil, errors.New(errors.ErrCodeInvalidRequest, "unsupported recipe input type")
 	}
 
 	// Validate recipe (cert-manager doesn't strictly require K8s measurements, but it's recommended)
@@ -95,6 +106,70 @@ func (b *Bundler) Make(ctx context.Context, r *recipe.Recipe, outputDir string) 
 		"output_dir", outputDir,
 		"files", len(b.Result.Files),
 		"duration", time.Since(start),
+	)
+
+	return b.Result, nil
+}
+
+// makeFromV2 generates the cert-manager bundle from a v2 RecipeResult.
+func (b *Bundler) makeFromV2(ctx context.Context, input recipe.RecipeInput, outputDir string) (*result.Result, error) {
+	start := time.Now()
+
+	slog.Debug("generating cert-manager bundle from v2 recipe",
+		"output_dir", outputDir,
+		"namespace", Name,
+	)
+
+	// Get component reference for cert-manager
+	componentRef := input.GetComponentRef("cert-manager")
+	if componentRef == nil {
+		return nil, errors.New(errors.ErrCodeInvalidRequest,
+			"cert-manager component not found in recipe")
+	}
+
+	// Get values from embedded file
+	values, err := input.GetValuesForComponent("cert-manager")
+	if err != nil {
+		return nil, errors.Wrap(errors.ErrCodeInternal,
+			"failed to get values for cert-manager", err)
+	}
+
+	// Create bundle directory structure
+	dirs, err := b.CreateBundleDir(outputDir, Name)
+	if err != nil {
+		return b.Result, errors.Wrap(errors.ErrCodeInternal,
+			"failed to create bundle directory", err)
+	}
+
+	// Serialize values to YAML
+	valuesYAML, err := internal.MarshalYAML(values)
+	if err != nil {
+		return b.Result, errors.Wrap(errors.ErrCodeInternal,
+			"failed to serialize values to YAML", err)
+	}
+
+	// Write values.yaml
+	valuesPath := filepath.Join(dirs.Root, "values.yaml")
+	if err := b.WriteFile(valuesPath, valuesYAML, 0644); err != nil {
+		return b.Result, errors.Wrap(errors.ErrCodeInternal,
+			"failed to write values file", err)
+	}
+
+	// Generate checksums file
+	if b.Config.IncludeChecksums() {
+		if err := b.GenerateChecksums(ctx, dirs.Root); err != nil {
+			return b.Result, errors.Wrap(errors.ErrCodeInternal,
+				"failed to generate checksums", err)
+		}
+	}
+
+	// Finalize bundle generation
+	b.Finalize(start)
+
+	slog.Debug("cert-manager bundle generated from v2 recipe",
+		"files", len(b.Result.Files),
+		"size_bytes", b.Result.Size,
+		"duration", b.Result.Duration.Round(time.Millisecond),
 	)
 
 	return b.Result, nil

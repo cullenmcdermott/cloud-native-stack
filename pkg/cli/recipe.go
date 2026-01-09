@@ -6,14 +6,14 @@ package cli
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"log/slog"
+	"strings"
 
 	"github.com/urfave/cli/v3"
 
+	"github.com/NVIDIA/cloud-native-stack/pkg/measurement"
 	"github.com/NVIDIA/cloud-native-stack/pkg/recipe"
-	ver "github.com/NVIDIA/cloud-native-stack/pkg/recipe/version"
 	"github.com/NVIDIA/cloud-native-stack/pkg/serializer"
 	"github.com/NVIDIA/cloud-native-stack/pkg/snapshotter"
 )
@@ -24,58 +24,52 @@ func recipeCmd() *cli.Command {
 		EnableShellCompletion: true,
 		Usage:                 "Generate configuration recipe for a given environment",
 		Description: `Generate configuration recipe based on specified environment parameters including:
-  - Operating system and version
-  - Kernel version
-  - Managed service context
-  - Kubernetes cluster version
-  - GPU type
-  - Workload intent
+  - Kubernetes service type (eks, gke, aks, oke, self-managed)
+  - Network fabric type (efa, ib)
+  - Accelerator type (h100, gb200, a100, l40)
+  - Workload intent (training, inference)
+  - Worker node OS (ubuntu, rhel, cos, amazonlinux)
+  - System node OS (ubuntu, rhel, cos, amazonlinux)
+  - Number of nodes
 
-The recipe can be output in JSON, YAML, or table format.`,
+The recipe returns a list of components with deployment order based on dependencies.
+Output can be in JSON or YAML format.`,
 		Flags: []cli.Flag{
 			&cli.StringFlag{
-				Name: "os",
-				Usage: fmt.Sprintf("Operating system family (supported values: %s)",
-					recipe.SupportedOSFamilies()),
+				Name:  "service",
+				Usage: fmt.Sprintf("Kubernetes service type (e.g. %s)", strings.Join(recipe.GetCriteriaServiceTypes(), ", ")),
 			},
 			&cli.StringFlag{
-				Name:  "osv",
-				Usage: "Operating system version (e.g., 22.04)",
+				Name:  "fabric",
+				Usage: fmt.Sprintf("Network fabric type (e.g. %s)", strings.Join(recipe.GetCriteriaFabricTypes(), ", ")),
 			},
 			&cli.StringFlag{
-				Name:  "kernel",
-				Usage: "Running kernel version (e.g., 5.15.0)",
-			},
-			&cli.StringFlag{
-				Name: "service",
-				Usage: fmt.Sprintf("Managed Kubernetes service type (supported values: %s)",
-					recipe.SupportedServiceTypes()),
-			},
-			&cli.StringFlag{
-				Name:  "k8s",
-				Usage: "Kubernetes cluster version (e.g., v1.25.4)",
-			},
-			&cli.StringFlag{
-				Name: "gpu",
-				Usage: fmt.Sprintf("GPU type (supported values: %s)",
-					recipe.SupportedGPUTypes()),
+				Name:    "accelerator",
+				Aliases: []string{"gpu"},
+				Usage:   fmt.Sprintf("Accelerator/GPU type (e.g. %s)", strings.Join(recipe.GetCriteriaAcceleratorTypes(), ", ")),
 			},
 			&cli.StringFlag{
 				Name:  "intent",
-				Value: recipe.IntentTraining.String(),
-				Usage: fmt.Sprintf("Workload intent for a given configuration (supported values: %s)",
-					recipe.SupportedIntentTypes()),
+				Usage: fmt.Sprintf("Workload intent (e.g. %s)", strings.Join(recipe.GetCriteriaIntentTypes(), ", ")),
 			},
-			&cli.BoolFlag{
-				Name:  "context",
-				Usage: "Includes configuration metadata in the response",
+			&cli.StringFlag{
+				Name:  "worker",
+				Usage: fmt.Sprintf("Worker node OS type (e.g. %s)", strings.Join(recipe.GetCriteriaOSTypes(), ", ")),
+			},
+			&cli.StringFlag{
+				Name:  "system",
+				Usage: fmt.Sprintf("System/control-plane node OS type (e.g. %s)", strings.Join(recipe.GetCriteriaOSTypes(), ", ")),
+			},
+			&cli.IntFlag{
+				Name:  "nodes",
+				Usage: "Number of worker nodes",
 			},
 			&cli.StringFlag{
 				Name:    "snapshot",
 				Aliases: []string{"f"},
-				Usage: `Path/URI to previously generated configuration snapshot from which to build the recipe.
+				Usage: `Path/URI to previously generated configuration snapshot.
 	Supports: file paths, HTTP/HTTPS URLs, or ConfigMap URIs (cm://namespace/name).
-	If provided, all other query flags with the exception of intent are ignored.`,
+	If provided, criteria are extracted from the snapshot.`,
 			},
 			outputFlag,
 			formatFlag,
@@ -88,46 +82,49 @@ The recipe can be output in JSON, YAML, or table format.`,
 				return fmt.Errorf("unknown output format: %q", outFormat)
 			}
 
-			// Parse intent
-			intentStr := cmd.String("intent")
-			intent := recipe.IntentType(intentStr)
-			if !intent.IsValid() {
-				return fmt.Errorf("invalid intent type: %q", intentStr)
-			}
-
-			var rec *recipe.Recipe
-
 			// Create builder
 			builder := recipe.NewBuilder(
 				recipe.WithVersion(version),
 			)
 
-			// Load snapshot
+			var result *recipe.RecipeResult
+			var err error
+
+			// Check if using snapshot
 			snapFilePath := cmd.String("snapshot")
 			if snapFilePath != "" {
 				slog.Info("loading snapshot from", "uri", snapFilePath)
-				snap, err := serializer.FromFileWithKubeconfig[snapshotter.Snapshot](snapFilePath, cmd.String("kubeconfig"))
-				if err != nil {
-					return fmt.Errorf("failed to load snapshot from %q: %w", snapFilePath, err)
+				snap, loadErr := serializer.FromFileWithKubeconfig[snapshotter.Snapshot](snapFilePath, cmd.String("kubeconfig"))
+				if loadErr != nil {
+					return fmt.Errorf("failed to load snapshot from %q: %w", snapFilePath, loadErr)
 				}
 
-				rec, err = builder.BuildFromSnapshot(ctx, intent, snap)
-				if err != nil {
-					return fmt.Errorf("error building recipe from snapshot: %w", err)
+				// Extract criteria from snapshot
+				criteria := extractCriteriaFromSnapshot(snap)
+
+				// Apply CLI overrides
+				if applyErr := applyCriteriaOverrides(cmd, criteria); applyErr != nil {
+					return applyErr
 				}
+
+				slog.Info("building recipe from snapshot", "criteria", criteria.String())
+				result, err = builder.BuildFromCriteria(ctx, criteria)
 			} else {
-				slog.Info("building snapshot from query")
-				q, err := buildQueryFromCmd(cmd)
-				if err != nil {
-					return fmt.Errorf("error parsing recipe input parameter: %w", err)
+				// Build criteria from CLI flags
+				criteria, buildErr := buildCriteriaFromCmd(cmd)
+				if buildErr != nil {
+					return fmt.Errorf("error parsing criteria: %w", buildErr)
 				}
 
-				rec, err = builder.BuildFromQuery(ctx, q)
-				if err != nil {
-					return fmt.Errorf("error building recipe from query: %w", err)
-				}
+				slog.Info("building recipe from criteria", "criteria", criteria.String())
+				result, err = builder.BuildFromCriteria(ctx, criteria)
 			}
 
+			if err != nil {
+				return fmt.Errorf("error building recipe: %w", err)
+			}
+
+			// Serialize output
 			output := cmd.String("output")
 			ser := serializer.NewFileWriterOrStdout(outFormat, output)
 			defer func() {
@@ -138,78 +135,173 @@ The recipe can be output in JSON, YAML, or table format.`,
 				}
 			}()
 
-			if err := ser.Serialize(rec); err != nil {
+			if err := ser.Serialize(result); err != nil {
 				return fmt.Errorf("failed to serialize recipe: %w", err)
 			}
 
-			slog.Info("recipe generation completed", "output", output)
+			slog.Info("recipe generation completed",
+				"output", output,
+				"components", len(result.ComponentRefs),
+				"overlays", len(result.Metadata.AppliedOverlays))
 
 			return nil
 		},
 	}
 }
 
-// buildQueryFromCmd constructs a recipe.Query from CLI command.
-func buildQueryFromCmd(cmd *cli.Command) (*recipe.Query, error) {
-	q := &recipe.Query{}
+// buildCriteriaFromCmd constructs a recipe.Criteria from CLI command flags.
+func buildCriteriaFromCmd(cmd *cli.Command) (*recipe.Criteria, error) {
+	var opts []recipe.CriteriaOption
 
-	if recOs := cmd.String("os"); recOs != "" {
-		q.Os = recipe.OsFamily(recOs)
-		if !q.Os.IsValid() {
-			return nil, fmt.Errorf("os: %q, supported values: %v", recOs, recipe.SupportedOSFamilies())
-		}
+	if s := cmd.String("service"); s != "" {
+		opts = append(opts, recipe.WithCriteriaService(s))
 	}
-	if recOsVersion := cmd.String("osv"); recOsVersion != "" {
-		v, err := ver.ParseVersion(recOsVersion)
-		if err != nil {
-			if errors.Is(err, ver.ErrNegativeComponent) {
-				return nil, fmt.Errorf("os version cannot contain negative numbers: %s", recOsVersion)
+	if s := cmd.String("fabric"); s != "" {
+		opts = append(opts, recipe.WithCriteriaFabric(s))
+	}
+	if s := cmd.String("accelerator"); s != "" {
+		opts = append(opts, recipe.WithCriteriaAccelerator(s))
+	}
+	if s := cmd.String("intent"); s != "" {
+		opts = append(opts, recipe.WithCriteriaIntent(s))
+	}
+	if s := cmd.String("worker"); s != "" {
+		opts = append(opts, recipe.WithCriteriaWorker(s))
+	}
+	if s := cmd.String("system"); s != "" {
+		opts = append(opts, recipe.WithCriteriaSystem(s))
+	}
+	if n := cmd.Int("nodes"); n > 0 {
+		opts = append(opts, recipe.WithCriteriaNodes(n))
+	}
+
+	return recipe.BuildCriteria(opts...)
+}
+
+// extractCriteriaFromSnapshot extracts criteria from a snapshot.
+// This maps snapshot measurements to criteria fields.
+func extractCriteriaFromSnapshot(snap *snapshotter.Snapshot) *recipe.Criteria {
+	criteria := recipe.NewCriteria()
+
+	if snap == nil {
+		return criteria
+	}
+
+	// Extract from K8s measurements
+	for _, m := range snap.Measurements {
+		if m == nil {
+			continue
+		}
+
+		switch m.Type {
+		case measurement.TypeK8s:
+			// Look for service type in server subtype
+			for _, st := range m.Subtypes {
+				if st.Name == "server" {
+					if svcType, ok := st.Data["service"]; ok {
+						if parsed, err := recipe.ParseCriteriaServiceType(svcType.String()); err == nil {
+							criteria.Service = parsed
+						}
+					}
+				}
 			}
-			return nil, fmt.Errorf("invalid os version %q: %w", recOsVersion, err)
-		}
-		q.OsVersion = &v
-	}
-	if recKernel := cmd.String("kernel"); recKernel != "" {
-		v, err := ver.ParseVersion(recKernel)
-		if err != nil {
-			if errors.Is(err, ver.ErrNegativeComponent) {
-				return nil, fmt.Errorf("kernel version cannot contain negative numbers: %s", recKernel)
+
+		case measurement.TypeGPU:
+			// Look for GPU/accelerator type
+			for _, st := range m.Subtypes {
+				if st.Name == "device" {
+					if model, ok := st.Data["model"]; ok {
+						modelStr := model.String()
+						// Map model names to accelerator types
+						switch {
+						case containsIgnoreCase(modelStr, "h100"):
+							criteria.Accelerator = recipe.CriteriaAcceleratorH100
+						case containsIgnoreCase(modelStr, "gb200"):
+							criteria.Accelerator = recipe.CriteriaAcceleratorGB200
+						case containsIgnoreCase(modelStr, "a100"):
+							criteria.Accelerator = recipe.CriteriaAcceleratorA100
+						case containsIgnoreCase(modelStr, "l40"):
+							criteria.Accelerator = recipe.CriteriaAcceleratorL40
+						}
+					}
+				}
 			}
-			return nil, fmt.Errorf("invalid kernel version %q: %w", recKernel, err)
-		}
-		q.Kernel = &v
-	}
-	if recService := cmd.String("service"); recService != "" {
-		q.Service = recipe.ServiceType(recService)
-		if !q.Service.IsValid() {
-			return nil, fmt.Errorf("service: %q, supported values: %v", recService, recipe.SupportedServiceTypes())
-		}
-	}
 
-	if recK8s := cmd.String("k8s"); recK8s != "" {
-		v, err := ver.ParseVersion(recK8s)
-		if err != nil {
-			if errors.Is(err, ver.ErrNegativeComponent) {
-				return nil, fmt.Errorf("kubernetes version cannot contain negative numbers: %s", recK8s)
+		case measurement.TypeOS:
+			// Look for OS type in release subtype
+			for _, st := range m.Subtypes {
+				if st.Name == "release" {
+					if osID, ok := st.Data["ID"]; ok {
+						if parsed, err := recipe.ParseCriteriaOSType(osID.String()); err == nil {
+							criteria.Worker = parsed
+						}
+					}
+				}
 			}
-			return nil, fmt.Errorf("invalid kubernetes version %q: %w", recK8s, err)
-		}
-		q.K8s = &v
-	}
-	if recGPU := cmd.String("gpu"); recGPU != "" {
-		q.GPU = recipe.GPUType(recGPU)
-		if !q.GPU.IsValid() {
-			return nil, fmt.Errorf("gpu: %q, supported values: %v", recGPU, recipe.SupportedGPUTypes())
-		}
-	}
-	if recIntent := cmd.String("intent"); recIntent != "" {
-		q.Intent = recipe.IntentType(recIntent)
-		if !q.Intent.IsValid() {
-			return nil, fmt.Errorf("intent: %q, supported values: %v", recIntent, recipe.SupportedIntentTypes())
+
+		case measurement.TypeSystemD:
+			// SystemD measurements not used for criteria extraction
+			continue
 		}
 	}
 
-	q.IncludeContext = cmd.Bool("context")
+	return criteria
+}
 
-	return q, nil
+// applyCriteriaOverrides applies CLI flag overrides to criteria.
+func applyCriteriaOverrides(cmd *cli.Command, criteria *recipe.Criteria) error {
+	if s := cmd.String("service"); s != "" {
+		parsed, err := recipe.ParseCriteriaServiceType(s)
+		if err != nil {
+			return err
+		}
+		criteria.Service = parsed
+	}
+	if s := cmd.String("fabric"); s != "" {
+		parsed, err := recipe.ParseCriteriaFabricType(s)
+		if err != nil {
+			return err
+		}
+		criteria.Fabric = parsed
+	}
+	if s := cmd.String("accelerator"); s != "" {
+		parsed, err := recipe.ParseCriteriaAcceleratorType(s)
+		if err != nil {
+			return err
+		}
+		criteria.Accelerator = parsed
+	}
+	if s := cmd.String("intent"); s != "" {
+		parsed, err := recipe.ParseCriteriaIntentType(s)
+		if err != nil {
+			return err
+		}
+		criteria.Intent = parsed
+	}
+	if s := cmd.String("worker"); s != "" {
+		parsed, err := recipe.ParseCriteriaOSType(s)
+		if err != nil {
+			return err
+		}
+		criteria.Worker = parsed
+	}
+	if s := cmd.String("system"); s != "" {
+		parsed, err := recipe.ParseCriteriaOSType(s)
+		if err != nil {
+			return err
+		}
+		criteria.System = parsed
+	}
+	if n := cmd.Int("nodes"); n > 0 {
+		criteria.Nodes = n
+	}
+	return nil
+}
+
+// containsIgnoreCase checks if s contains substr (case-insensitive).
+func containsIgnoreCase(s, substr string) bool {
+	return len(s) >= len(substr) && (s == substr ||
+		len(s) > 0 && len(substr) > 0 &&
+			(s[0]|0x20 == substr[0]|0x20) && containsIgnoreCase(s[1:], substr[1:]) ||
+		len(s) > 0 && containsIgnoreCase(s[1:], substr))
 }

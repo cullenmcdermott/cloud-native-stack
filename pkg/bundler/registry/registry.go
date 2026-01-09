@@ -13,8 +13,10 @@ import (
 
 // Bundler defines the interface for creating application bundles.
 // Implementations generate deployment artifacts from recipes.
+// The RecipeInput interface allows bundlers to work with both
+// v1 recipes (Measurements-based) and v2 recipes (ComponentRefs-based).
 type Bundler interface {
-	Make(ctx context.Context, recipe *recipe.Recipe, dir string) (*result.Result, error)
+	Make(ctx context.Context, input recipe.RecipeInput, dir string) (*result.Result, error)
 }
 
 // Factory is a function that creates a new Bundler instance.
@@ -26,7 +28,7 @@ type Factory func(cfg *config.Config) Bundler
 // without reflection.
 type ValidatableBundler interface {
 	Bundler
-	Validate(ctx context.Context, recipe *recipe.Recipe) error
+	Validate(ctx context.Context, input recipe.RecipeInput) error
 }
 
 // Global registry for bundler factories.

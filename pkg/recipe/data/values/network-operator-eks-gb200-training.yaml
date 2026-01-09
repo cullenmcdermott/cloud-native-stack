@@ -1,0 +1,27 @@
+# Network Operator Helm values
+# EKS GB200 Training configuration
+
+deployCR: true
+
+nfd:
+  enabled: false
+
+sriovNetworkOperator:
+  enabled: true
+
+nvIpam:
+  enabled: true
+
+secondaryNetwork:
+  deploy: true
+
+nicClusterPolicy:
+  enabled: true
+
+# EFA support for GB200 training on EKS
+rdmaSharedDevicePlugin:
+  deploy: true
+
+# High-performance networking for training
+nvPeerMem:
+  deploy: true
