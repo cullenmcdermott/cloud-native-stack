@@ -396,3 +396,26 @@ func TestWriter_SerializeTable_NilValues(t *testing.T) {
 		t.Error("Expected 'Name' field in output")
 	}
 }
+
+func TestSupportedFormats(t *testing.T) {
+	formats := SupportedFormats()
+
+	// Verify we have expected formats
+	expected := []string{string(FormatJSON), string(FormatYAML), string(FormatTable)}
+	if len(formats) != len(expected) {
+		t.Errorf("SupportedFormats() len = %d, want %d", len(formats), len(expected))
+	}
+
+	for _, exp := range expected {
+		found := false
+		for _, f := range formats {
+			if f == exp {
+				found = true
+				break
+			}
+		}
+		if !found {
+			t.Errorf("SupportedFormats() missing %v", exp)
+		}
+	}
+}

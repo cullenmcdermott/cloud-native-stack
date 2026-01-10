@@ -9,19 +9,6 @@ import (
 	"github.com/NVIDIA/cloud-native-stack/pkg/recipe"
 )
 
-const (
-	strTrue  = "true"
-	strFalse = "false"
-)
-
-// boolToString converts a boolean to "true" or "false" string.
-func boolToString(b bool) string {
-	if b {
-		return strTrue
-	}
-	return strFalse
-}
-
 // HelmValues represents the data structure for GPU Operator Helm values.
 type HelmValues struct {
 	Timestamp                     string
@@ -145,21 +132,13 @@ func (v *HelmValues) extractK8sSettings(m *measurement.Measurement) {
 			// UseOpenKernelModule (camelCase in recipe)
 			if val, ok := st.Data["useOpenKernelModule"]; ok {
 				if b, ok := val.Any().(bool); ok {
-					if b {
-						v.UseOpenKernelModule = strTrue
-					} else {
-						v.UseOpenKernelModule = strFalse
-					}
+					v.UseOpenKernelModule = common.BoolToString(b)
 				}
 			}
 			// RDMA support (affects GDS)
 			if val, ok := st.Data["rdma"]; ok {
 				if b, ok := val.Any().(bool); ok {
-					if b {
-						v.EnableGDS = strTrue
-					} else {
-						v.EnableGDS = "false"
-					}
+					v.EnableGDS = common.BoolToString(b)
 				}
 			}
 		}
@@ -195,11 +174,7 @@ func (v *HelmValues) applyConfigOverrides(config map[string]string) {
 		v.MIGStrategy = val
 	}
 	if val, ok := config["enable_gds"]; ok {
-		if val == strTrue {
-			v.EnableGDS = strTrue
-		} else {
-			v.EnableGDS = "false"
-		}
+		v.EnableGDS = common.BoolToString(common.ParseBoolString(val))
 	}
 	if val, ok := config["vgpu_license_server"]; ok && val != "" {
 		v.VGPULicenseServer = val
@@ -227,13 +202,13 @@ func (v *HelmValues) applyValueOverrides(overrides map[string]string) {
 	for path, value := range overrides {
 		switch path {
 		case "gds.enabled":
-			v.EnableGDS = boolToString(value == strTrue || value == "1")
+			v.EnableGDS = common.BoolToString(common.ParseBoolString(value))
 		case "driver.enabled":
-			v.EnableDriver = boolToString(value == strTrue || value == "1")
+			v.EnableDriver = common.BoolToString(common.ParseBoolString(value))
 		case "driver.version":
 			v.DriverVersion = value
 		case "driver.useOpenKernelModules":
-			v.UseOpenKernelModule = boolToString(value == strTrue || value == "1")
+			v.UseOpenKernelModule = common.BoolToString(common.ParseBoolString(value))
 		case "driver.repository", "operator.repository":
 			v.DriverRegistry = value
 		case "operator.version":
@@ -251,7 +226,7 @@ func (v *HelmValues) applyValueOverrides(overrides map[string]string) {
 		case "vgpuManager.licenseServerURL":
 			v.VGPULicenseServer = value
 		case "sandboxWorkloads.enabled":
-			v.EnableSecureBoot = boolToString(value == strTrue || value == "1")
+			v.EnableSecureBoot = common.BoolToString(common.ParseBoolString(value))
 		case "namespace":
 			v.Namespace = value
 		default:

@@ -189,21 +189,3 @@ func HasComponentRefs(input RecipeInput) bool {
 	_, ok := input.(*RecipeResult)
 	return ok
 }
-
-// ToRecipeResult converts a RecipeInput to RecipeResult if possible.
-// Returns nil if the input is a legacy measurements-based Recipe.
-func ToRecipeResult(input RecipeInput) *RecipeResult {
-	if result, ok := input.(*RecipeResult); ok {
-		return result
-	}
-	return nil
-}
-
-// ToRecipe converts a RecipeInput to Recipe if possible.
-// Returns nil if the input is a RecipeResult with component references.
-func ToRecipe(input RecipeInput) *Recipe {
-	if recipe, ok := input.(*Recipe); ok {
-		return recipe
-	}
-	return nil
-}

@@ -243,3 +243,24 @@ func ExtractCustomAnnotations(config map[string]string) map[string]string {
 	}
 	return annotations
 }
+
+// Common string constants for boolean values in Helm templates.
+const (
+	StrTrue  = "true"
+	StrFalse = "false"
+)
+
+// BoolToString converts a boolean to "true" or "false" string.
+// Use this for Helm values that require string booleans.
+func BoolToString(b bool) string {
+	if b {
+		return StrTrue
+	}
+	return StrFalse
+}
+
+// ParseBoolString parses a string boolean value.
+// Returns true if the value is "true" or "1", false otherwise.
+func ParseBoolString(s string) bool {
+	return s == StrTrue || s == "1"
+}

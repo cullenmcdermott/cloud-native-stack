@@ -52,11 +52,11 @@ func GenerateManifestData(recipe *recipe.Recipe, config map[string]string) *Mani
 	helmValues := GenerateHelmValues(recipe, config, nil)
 
 	// Convert helm values to manifest data - HelmValues now uses strings
-	data.EnableRDMA = helmValues.EnableRDMA == strTrue
-	data.EnableSRIOV = helmValues.EnableSRIOV == strTrue
-	data.EnableHostDevice = helmValues.EnableHostDevice == strTrue
-	data.EnableIPAM = helmValues.EnableIPAM == strTrue
-	data.DeployOFED = helmValues.DeployOFED == strTrue
+	data.EnableRDMA = helmValues.EnableRDMA == common.StrTrue
+	data.EnableSRIOV = helmValues.EnableSRIOV == common.StrTrue
+	data.EnableHostDevice = helmValues.EnableHostDevice == common.StrTrue
+	data.EnableIPAM = helmValues.EnableIPAM == common.StrTrue
+	data.DeployOFED = helmValues.DeployOFED == common.StrTrue
 	data.OFEDVersion = helmValues.OFEDVersion
 	data.NicType = helmValues.NicType
 	data.ContainerRuntimeSocket = helmValues.ContainerRuntimeSocket

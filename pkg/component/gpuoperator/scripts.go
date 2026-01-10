@@ -54,12 +54,12 @@ func GenerateScriptData(recipe *recipe.Recipe, config map[string]string) *Script
 
 	// Extract GDS enabled flag
 	if val, ok := config["enable_gds"]; ok {
-		data.EnableGDS = val == strTrue || val == "1"
+		data.EnableGDS = common.ParseBoolString(val)
 	}
 
 	// Extract CDI enabled flag
 	if val, ok := config["enable_cdi"]; ok {
-		data.EnableCDI = val == strTrue || val == "1"
+		data.EnableCDI = common.ParseBoolString(val)
 	}
 
 	// Extract GPU type and K8s version from request

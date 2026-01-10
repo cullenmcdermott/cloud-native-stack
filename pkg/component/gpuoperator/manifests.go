@@ -47,9 +47,9 @@ func GenerateManifestData(recipe *recipe.Recipe, config map[string]string, overr
 
 	// Copy helm values to manifest data
 	data.DriverVersion = helmValues.DriverVersion
-	data.UseOpenKernelModule = helmValues.UseOpenKernelModule == strTrue
+	data.UseOpenKernelModule = helmValues.UseOpenKernelModule == common.StrTrue
 	data.MIGStrategy = helmValues.MIGStrategy
-	data.EnableGDS = helmValues.EnableGDS == strTrue
+	data.EnableGDS = helmValues.EnableGDS == common.StrTrue
 	data.CustomLabels = helmValues.CustomLabels
 
 	// Extract CDI setting from K8s config subtype
@@ -69,13 +69,13 @@ func GenerateManifestData(recipe *recipe.Recipe, config map[string]string, overr
 
 	// Apply config-specific manifest settings (overrides)
 	if val, ok := config["enable_vgpu"]; ok {
-		data.EnableVGPU = val == strTrue
+		data.EnableVGPU = common.ParseBoolString(val)
 	}
 	if val, ok := config["vgpu_license_server"]; ok && val != "" {
 		data.VGPULicenseServer = val
 	}
 	if val, ok := config["enable_cdi"]; ok {
-		data.EnableCDI = val == strTrue
+		data.EnableCDI = common.ParseBoolString(val)
 	}
 
 	return data
@@ -98,9 +98,9 @@ func GenerateManifestDataFromValues(helmValues *HelmValues) *ManifestData {
 
 	// Copy helm values to manifest data
 	data.DriverVersion = helmValues.DriverVersion
-	data.UseOpenKernelModule = helmValues.UseOpenKernelModule == strTrue
+	data.UseOpenKernelModule = helmValues.UseOpenKernelModule == common.StrTrue
 	data.MIGStrategy = helmValues.MIGStrategy
-	data.EnableGDS = helmValues.EnableGDS == strTrue
+	data.EnableGDS = helmValues.EnableGDS == common.StrTrue
 
 	return data
 }

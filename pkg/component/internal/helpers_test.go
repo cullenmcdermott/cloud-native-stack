@@ -471,3 +471,103 @@ func TestExtractCustomAnnotations(t *testing.T) {
 		})
 	}
 }
+
+func TestMarshalYAML(t *testing.T) {
+	tests := []struct {
+		name    string
+		value   interface{}
+		want    string
+		wantErr bool
+	}{
+		{
+			name:    "simple string",
+			value:   "hello",
+			want:    "hello\n",
+			wantErr: false,
+		},
+		{
+			name:    "simple map",
+			value:   map[string]string{"key": "value"},
+			want:    "key: value\n",
+			wantErr: false,
+		},
+		{
+			name: "nested struct",
+			value: struct {
+				Name    string `yaml:"name"`
+				Version string `yaml:"version"`
+			}{Name: "test", Version: "v1.0.0"},
+			want:    "name: test\nversion: v1.0.0\n",
+			wantErr: false,
+		},
+		{
+			name:    "slice",
+			value:   []string{"a", "b", "c"},
+			want:    "- a\n- b\n- c\n",
+			wantErr: false,
+		},
+		{
+			name:    "nil value",
+			value:   nil,
+			want:    "null\n",
+			wantErr: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := MarshalYAML(tt.value)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("MarshalYAML() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if !tt.wantErr && string(got) != tt.want {
+				t.Errorf("MarshalYAML() = %q, want %q", string(got), tt.want)
+			}
+		})
+	}
+}
+
+func TestBoolToString(t *testing.T) {
+	tests := []struct {
+		name  string
+		value bool
+		want  string
+	}{
+		{"true value", true, StrTrue},
+		{"false value", false, StrFalse},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := BoolToString(tt.value)
+			if got != tt.want {
+				t.Errorf("BoolToString(%v) = %v, want %v", tt.value, got, tt.want)
+			}
+		})
+	}
+}
+
+func TestParseBoolString(t *testing.T) {
+	tests := []struct {
+		name  string
+		value string
+		want  bool
+	}{
+		{"true string", "true", true},
+		{"false string", "false", false},
+		{"1 value", "1", true},
+		{"0 value", "0", false},
+		{"empty string", "", false},
+		{"other string", "yes", false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := ParseBoolString(tt.value)
+			if got != tt.want {
+				t.Errorf("ParseBoolString(%q) = %v, want %v", tt.value, got, tt.want)
+			}
+		})
+	}
+}

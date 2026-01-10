@@ -519,3 +519,125 @@ func TestBaseBundler_GenerateFileFromTemplate(t *testing.T) {
 func contains(s, substr string) bool {
 	return len(s) >= len(substr) && (s == substr || len(s) > len(substr) && (s[:len(substr)] == substr || contains(s[1:], substr)))
 }
+
+func TestGetBundlerVersion(t *testing.T) {
+	tests := []struct {
+		name   string
+		config map[string]string
+		want   string
+	}{
+		{
+			name:   "version exists",
+			config: map[string]string{bundlerVersionKey: "v1.2.3"},
+			want:   "v1.2.3",
+		},
+		{
+			name:   "version missing",
+			config: map[string]string{},
+			want:   "unknown",
+		},
+		{
+			name:   "empty version",
+			config: map[string]string{bundlerVersionKey: ""},
+			want:   "",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := GetBundlerVersion(tt.config)
+			if got != tt.want {
+				t.Errorf("GetBundlerVersion() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestGetRecipeBundlerVersion(t *testing.T) {
+	tests := []struct {
+		name   string
+		config map[string]string
+		want   string
+	}{
+		{
+			name:   "version exists",
+			config: map[string]string{recipeBundlerVersionKey: "v2.0.0"},
+			want:   "v2.0.0",
+		},
+		{
+			name:   "version missing",
+			config: map[string]string{},
+			want:   "unknown",
+		},
+		{
+			name:   "with other keys",
+			config: map[string]string{"other": "value", recipeBundlerVersionKey: "v1.0.0"},
+			want:   "v1.0.0",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := GetRecipeBundlerVersion(tt.config)
+			if got != tt.want {
+				t.Errorf("GetRecipeBundlerVersion() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+// mockRecipeInput implements the interface for BuildConfigMapFromInput.
+type mockRecipeInput struct {
+	version string
+}
+
+func (m *mockRecipeInput) GetVersion() string {
+	return m.version
+}
+
+func TestBaseBundler_BuildConfigMapFromInput(t *testing.T) {
+	cfg := config.NewConfig(
+		config.WithNamespace("test-ns"),
+		config.WithHelmRepository("https://charts.example.com"),
+		config.WithHelmChartVersion("v1.0.0"),
+		config.WithVersion("bundler-v1.2.3"),
+		config.WithCustomLabels(map[string]string{"env": "test"}),
+	)
+
+	b := NewBaseBundler(cfg, types.BundleTypeGpuOperator)
+
+	tests := []struct {
+		name    string
+		input   *mockRecipeInput
+		wantKey string
+		wantVal string
+	}{
+		{
+			name:    "includes recipe version",
+			input:   &mockRecipeInput{version: "recipe-v1.0.0"},
+			wantKey: recipeBundlerVersionKey,
+			wantVal: "recipe-v1.0.0",
+		},
+		{
+			name:    "includes namespace",
+			input:   &mockRecipeInput{version: "v1.0.0"},
+			wantKey: "namespace",
+			wantVal: "test-ns",
+		},
+		{
+			name:    "includes bundler version",
+			input:   &mockRecipeInput{version: "v1.0.0"},
+			wantKey: bundlerVersionKey,
+			wantVal: "bundler-v1.2.3",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := b.BuildConfigMapFromInput(tt.input)
+			if got[tt.wantKey] != tt.wantVal {
+				t.Errorf("BuildConfigMapFromInput()[%s] = %v, want %v", tt.wantKey, got[tt.wantKey], tt.wantVal)
+			}
+		})
+	}
+}

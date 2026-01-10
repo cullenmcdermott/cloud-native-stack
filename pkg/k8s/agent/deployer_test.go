@@ -397,6 +397,164 @@ func TestDeployer_Cleanup(t *testing.T) {
 	}
 }
 
+func TestParseConfigMapName(t *testing.T) {
+	tests := []struct {
+		name          string
+		uri           string
+		wantNamespace string
+		wantName      string
+		wantErr       bool
+	}{
+		{
+			name:          "valid URI",
+			uri:           "cm://gpu-operator/eidos-snapshot",
+			wantNamespace: "gpu-operator",
+			wantName:      "eidos-snapshot",
+			wantErr:       false,
+		},
+		{
+			name:          "valid URI with hyphens",
+			uri:           "cm://my-namespace/my-configmap",
+			wantNamespace: "my-namespace",
+			wantName:      "my-configmap",
+			wantErr:       false,
+		},
+		{
+			name:    "invalid prefix",
+			uri:     "configmap://namespace/name",
+			wantErr: true,
+		},
+		{
+			name:    "missing namespace",
+			uri:     "cm:///name",
+			wantErr: true,
+		},
+		{
+			name:    "missing name",
+			uri:     "cm://namespace/",
+			wantErr: true,
+		},
+		{
+			name:    "no slashes",
+			uri:     "cm://",
+			wantErr: true,
+		},
+		{
+			name:    "empty string",
+			uri:     "",
+			wantErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			namespace, name, err := parseConfigMapName(tt.uri)
+
+			if (err != nil) != tt.wantErr {
+				t.Errorf("parseConfigMapName() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+
+			if !tt.wantErr {
+				if namespace != tt.wantNamespace {
+					t.Errorf("namespace = %q, want %q", namespace, tt.wantNamespace)
+				}
+				if name != tt.wantName {
+					t.Errorf("name = %q, want %q", name, tt.wantName)
+				}
+			}
+		})
+	}
+}
+
+func TestDeployer_GetSnapshot(t *testing.T) {
+	// Create ConfigMap with snapshot data
+	snapshotYAML := `apiVersion: cns.nvidia.com/v1alpha1
+kind: Snapshot
+metadata:
+  created: "2025-01-15T10:30:00Z"
+measurements:
+  - type: os
+    subtypes:
+      - name: release
+        data:
+          ID: ubuntu
+`
+	cm := &corev1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "eidos-snapshot",
+			Namespace: "test-namespace",
+		},
+		Data: map[string]string{
+			"snapshot.yaml": snapshotYAML,
+		},
+	}
+
+	clientset := fake.NewClientset(cm)
+	config := Config{
+		Namespace: "test-namespace",
+		JobName:   testName,
+		Output:    "cm://test-namespace/eidos-snapshot",
+	}
+	deployer := NewDeployer(clientset, config)
+	ctx := context.Background()
+
+	// Get snapshot
+	data, err := deployer.GetSnapshot(ctx)
+	if err != nil {
+		t.Fatalf("GetSnapshot() failed: %v", err)
+	}
+
+	if string(data) != snapshotYAML {
+		t.Errorf("GetSnapshot() = %q, want %q", string(data), snapshotYAML)
+	}
+}
+
+func TestDeployer_GetSnapshot_NotFound(t *testing.T) {
+	clientset := fake.NewClientset()
+	config := Config{
+		Namespace: "test-namespace",
+		JobName:   testName,
+		Output:    "cm://test-namespace/eidos-snapshot",
+	}
+	deployer := NewDeployer(clientset, config)
+	ctx := context.Background()
+
+	// Should fail because ConfigMap doesn't exist
+	_, err := deployer.GetSnapshot(ctx)
+	if err == nil {
+		t.Error("GetSnapshot() should fail when ConfigMap doesn't exist")
+	}
+}
+
+func TestDeployer_GetSnapshot_MissingKey(t *testing.T) {
+	// Create ConfigMap without snapshot.yaml key
+	cm := &corev1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "eidos-snapshot",
+			Namespace: "test-namespace",
+		},
+		Data: map[string]string{
+			"wrong-key": "some data",
+		},
+	}
+
+	clientset := fake.NewClientset(cm)
+	config := Config{
+		Namespace: "test-namespace",
+		JobName:   testName,
+		Output:    "cm://test-namespace/eidos-snapshot",
+	}
+	deployer := NewDeployer(clientset, config)
+	ctx := context.Background()
+
+	// Should fail because key doesn't exist
+	_, err := deployer.GetSnapshot(ctx)
+	if err == nil {
+		t.Error("GetSnapshot() should fail when snapshot.yaml key is missing")
+	}
+}
+
 // Helper function
 func containsVerb(verbs []string, verb string) bool {
 	for _, v := range verbs {

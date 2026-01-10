@@ -9,19 +9,6 @@ import (
 	"github.com/NVIDIA/cloud-native-stack/pkg/recipe"
 )
 
-const (
-	strTrue  = "true"
-	strFalse = "false"
-)
-
-// boolToString converts a boolean to its string representation.
-func boolToString(b bool) string {
-	if b {
-		return strTrue
-	}
-	return strFalse
-}
-
 // HelmValues represents the data structure for Network Operator Helm values.
 type HelmValues struct {
 	Timestamp              string
@@ -48,13 +35,13 @@ func GenerateHelmValues(recipe *recipe.Recipe, config map[string]string, overrid
 	values := &HelmValues{
 		Timestamp:              time.Now().UTC().Format(time.RFC3339),
 		DriverRegistry:         common.GetConfigValue(config, "driver_registry", "nvcr.io/nvidia"),
-		EnableRDMA:             strFalse,
-		EnableSRIOV:            strFalse,
-		EnableHostDevice:       strTrue,
-		EnableIPAM:             strTrue,
-		EnableMultus:           strTrue,
-		EnableWhereabouts:      strTrue,
-		DeployOFED:             strFalse,
+		EnableRDMA:             common.StrFalse,
+		EnableSRIOV:            common.StrFalse,
+		EnableHostDevice:       common.StrTrue,
+		EnableIPAM:             common.StrTrue,
+		EnableMultus:           common.StrTrue,
+		EnableWhereabouts:      common.StrTrue,
+		DeployOFED:             common.StrFalse,
 		NicType:                "ConnectX",
 		ContainerRuntimeSocket: "/var/run/containerd/containerd.sock",
 		CustomLabels:           common.ExtractCustomLabels(config),
@@ -86,9 +73,9 @@ func GenerateHelmValues(recipe *recipe.Recipe, config map[string]string, overrid
 func GenerateHelmValuesFromMap(config map[string]string) *HelmValues {
 	helmValues := &HelmValues{
 		Timestamp:        time.Now().UTC().Format(time.RFC3339),
-		EnableRDMA:       strFalse,
-		EnableSRIOV:      strFalse,
-		EnableHostDevice: strFalse,
+		EnableRDMA:       common.StrFalse,
+		EnableSRIOV:      common.StrFalse,
+		EnableHostDevice: common.StrFalse,
 		Namespace:        common.GetConfigValue(config, "namespace", Name),
 		Version:          common.GetBundlerVersion(config),
 		RecipeVersion:    common.GetRecipeBundlerVersion(config),
@@ -119,43 +106,43 @@ func (v *HelmValues) extractK8sSettings(m *measurement.Measurement) {
 			// RDMA configuration
 			if val, ok := st.Data["rdma"]; ok {
 				if b, ok := val.Any().(bool); ok {
-					v.EnableRDMA = boolToString(b)
+					v.EnableRDMA = common.BoolToString(b)
 				}
 			}
 			// SR-IOV configuration
 			if val, ok := st.Data["sr-iov"]; ok {
 				if b, ok := val.Any().(bool); ok {
-					v.EnableSRIOV = boolToString(b)
+					v.EnableSRIOV = common.BoolToString(b)
 				}
 			}
 			// OFED deployment
 			if val, ok := st.Data["deploy-ofed"]; ok {
 				if b, ok := val.Any().(bool); ok {
-					v.DeployOFED = boolToString(b)
+					v.DeployOFED = common.BoolToString(b)
 				}
 			}
 			// Host device plugin
 			if val, ok := st.Data["host-device"]; ok {
 				if b, ok := val.Any().(bool); ok {
-					v.EnableHostDevice = boolToString(b)
+					v.EnableHostDevice = common.BoolToString(b)
 				}
 			}
 			// IPAM plugin
 			if val, ok := st.Data["ipam"]; ok {
 				if b, ok := val.Any().(bool); ok {
-					v.EnableIPAM = boolToString(b)
+					v.EnableIPAM = common.BoolToString(b)
 				}
 			}
 			// Multus CNI
 			if val, ok := st.Data["multus"]; ok {
 				if b, ok := val.Any().(bool); ok {
-					v.EnableMultus = boolToString(b)
+					v.EnableMultus = common.BoolToString(b)
 				}
 			}
 			// Whereabouts IPAM
 			if val, ok := st.Data["whereabouts"]; ok {
 				if b, ok := val.Any().(bool); ok {
-					v.EnableWhereabouts = boolToString(b)
+					v.EnableWhereabouts = common.BoolToString(b)
 				}
 			}
 			// NIC type
@@ -197,25 +184,25 @@ func (v *HelmValues) applyConfigOverrides(config map[string]string) {
 		v.OFEDVersion = val
 	}
 	if val, ok := config["enable_rdma"]; ok {
-		v.EnableRDMA = boolToString(val == strTrue)
+		v.EnableRDMA = common.BoolToString(common.ParseBoolString(val))
 	}
 	if val, ok := config["enable_sriov"]; ok {
-		v.EnableSRIOV = boolToString(val == strTrue)
+		v.EnableSRIOV = common.BoolToString(common.ParseBoolString(val))
 	}
 	if val, ok := config["deploy_ofed"]; ok {
-		v.DeployOFED = boolToString(val == strTrue)
+		v.DeployOFED = common.BoolToString(common.ParseBoolString(val))
 	}
 	if val, ok := config["enable_host_device"]; ok {
-		v.EnableHostDevice = boolToString(val == strTrue)
+		v.EnableHostDevice = common.BoolToString(common.ParseBoolString(val))
 	}
 	if val, ok := config["enable_ipam"]; ok {
-		v.EnableIPAM = boolToString(val == strTrue)
+		v.EnableIPAM = common.BoolToString(common.ParseBoolString(val))
 	}
 	if val, ok := config["enable_multus"]; ok {
-		v.EnableMultus = boolToString(val == strTrue)
+		v.EnableMultus = common.BoolToString(common.ParseBoolString(val))
 	}
 	if val, ok := config["enable_whereabouts"]; ok {
-		v.EnableWhereabouts = boolToString(val == strTrue)
+		v.EnableWhereabouts = common.BoolToString(common.ParseBoolString(val))
 	}
 	if val, ok := config["nic_type"]; ok && val != "" {
 		v.NicType = val
@@ -246,19 +233,19 @@ func (v *HelmValues) applyValueOverrides(overrides map[string]string) {
 		case "ofed.version":
 			v.OFEDVersion = value
 		case "rdma.enabled":
-			v.EnableRDMA = boolToString(value == strTrue)
+			v.EnableRDMA = common.BoolToString(common.ParseBoolString(value))
 		case "sriov.enabled":
-			v.EnableSRIOV = boolToString(value == strTrue)
+			v.EnableSRIOV = common.BoolToString(common.ParseBoolString(value))
 		case "hostDevice.enabled":
-			v.EnableHostDevice = boolToString(value == strTrue)
+			v.EnableHostDevice = common.BoolToString(common.ParseBoolString(value))
 		case "ipam.enabled":
-			v.EnableIPAM = boolToString(value == strTrue)
+			v.EnableIPAM = common.BoolToString(common.ParseBoolString(value))
 		case "multus.enabled":
-			v.EnableMultus = boolToString(value == strTrue)
+			v.EnableMultus = common.BoolToString(common.ParseBoolString(value))
 		case "whereabouts.enabled":
-			v.EnableWhereabouts = boolToString(value == strTrue)
+			v.EnableWhereabouts = common.BoolToString(common.ParseBoolString(value))
 		case "ofed.deploy":
-			v.DeployOFED = boolToString(value == strTrue)
+			v.DeployOFED = common.BoolToString(common.ParseBoolString(value))
 		case "nic.type":
 			v.NicType = value
 		case "containerRuntime.socket":

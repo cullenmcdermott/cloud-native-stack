@@ -2,6 +2,8 @@ package config
 
 import "testing"
 
+const testValue = "value"
+
 func TestConfigImmutability(t *testing.T) {
 	cfg := NewConfig()
 
@@ -48,7 +50,7 @@ func TestConfigMapGetters(t *testing.T) {
 	}
 
 	// Modify the returned map
-	labels["test"] = "value"
+	labels["test"] = testValue
 
 	// Verify the original config was not affected
 	newLabels := cfg.CustomLabels()
@@ -62,7 +64,7 @@ func TestConfigMapGetters(t *testing.T) {
 		t.Fatal("CustomAnnotations() returned nil")
 	}
 
-	annotations["test"] = "value"
+	annotations["test"] = testValue
 
 	newAnnotations := cfg.CustomAnnotations()
 	if _, exists := newAnnotations["test"]; exists {
@@ -317,6 +319,86 @@ func TestEmptyStringGetters(t *testing.T) {
 	}
 	if cfg.HelmRepository() != "" {
 		t.Errorf("HelmRepository() = %s, want empty string", cfg.HelmRepository())
+	}
+}
+
+func TestVersionOption(t *testing.T) {
+	// Test WithVersion sets the version
+	cfg := NewConfig(WithVersion("v1.2.3"))
+	if cfg.Version() != "v1.2.3" {
+		t.Errorf("Version() = %s, want v1.2.3", cfg.Version())
+	}
+
+	// Test default version
+	cfgDefault := NewConfig()
+	if cfgDefault.Version() != "dev" {
+		t.Errorf("default Version() = %s, want dev", cfgDefault.Version())
+	}
+}
+
+func TestValueOverridesOption(t *testing.T) {
+	overrides := map[string]map[string]string{
+		"gpuoperator": {
+			"gds.enabled":    "true",
+			"driver.version": "570.86.16",
+		},
+		"networkoperator": {
+			"rdma.enabled": "true",
+		},
+	}
+
+	cfg := NewConfig(WithValueOverrides(overrides))
+
+	// Verify overrides were set
+	got := cfg.ValueOverrides()
+	if got == nil {
+		t.Fatal("ValueOverrides() returned nil")
+	}
+
+	// Verify gpuoperator overrides
+	if got["gpuoperator"]["gds.enabled"] != "true" {
+		t.Errorf("gpuoperator gds.enabled = %s, want true", got["gpuoperator"]["gds.enabled"])
+	}
+	if got["gpuoperator"]["driver.version"] != "570.86.16" {
+		t.Errorf("gpuoperator driver.version = %s, want 570.86.16", got["gpuoperator"]["driver.version"])
+	}
+
+	// Verify networkoperator overrides
+	if got["networkoperator"]["rdma.enabled"] != "true" {
+		t.Errorf("networkoperator rdma.enabled = %s, want true", got["networkoperator"]["rdma.enabled"])
+	}
+}
+
+func TestValueOverridesImmutability(t *testing.T) {
+	overrides := map[string]map[string]string{
+		"gpuoperator": {"key": "value"},
+	}
+
+	cfg := NewConfig(WithValueOverrides(overrides))
+
+	// Get and modify returned map
+	got := cfg.ValueOverrides()
+	got["gpuoperator"]["key"] = "modified"
+	got["gpuoperator"]["new"] = "added"
+
+	// Verify original config unchanged
+	fresh := cfg.ValueOverrides()
+	if fresh["gpuoperator"]["key"] != "value" {
+		t.Error("modifying returned map affected config - not immutable")
+	}
+	if _, exists := fresh["gpuoperator"]["new"]; exists {
+		t.Error("adding key to returned map affected config - not immutable")
+	}
+}
+
+func TestValueOverridesNil(t *testing.T) {
+	// WithValueOverrides with nil should not panic
+	cfg := NewConfig(WithValueOverrides(nil))
+
+	// ValueOverrides on empty config should return nil
+	got := cfg.ValueOverrides()
+	if len(got) > 0 {
+		t.Errorf("ValueOverrides() = %v, want nil or empty", got)
 	}
 }
 

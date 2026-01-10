@@ -143,7 +143,7 @@ func TestBundler_buildConfigMap_MIGEnabled(t *testing.T) {
 	configMap := b.buildConfigMap(rec)
 
 	// Verify MIG is enabled
-	if got := configMap["enable_mig"]; got != strTrue {
+	if got := configMap["enable_mig"]; got != internal.StrTrue {
 		t.Errorf("enable_mig = %s, want true", got)
 	}
 
