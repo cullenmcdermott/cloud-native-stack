@@ -8,9 +8,9 @@ import (
 	"time"
 
 	"github.com/NVIDIA/cloud-native-stack/pkg/bundler/config"
-	common "github.com/NVIDIA/cloud-native-stack/pkg/bundler/internal"
 	"github.com/NVIDIA/cloud-native-stack/pkg/bundler/result"
 	"github.com/NVIDIA/cloud-native-stack/pkg/bundler/types"
+	common "github.com/NVIDIA/cloud-native-stack/pkg/component/internal"
 	"github.com/NVIDIA/cloud-native-stack/pkg/errors"
 	"github.com/NVIDIA/cloud-native-stack/pkg/measurement"
 	"github.com/NVIDIA/cloud-native-stack/pkg/recipe"

@@ -4,7 +4,7 @@ import (
 	"testing"
 
 	"github.com/NVIDIA/cloud-native-stack/pkg/bundler/config"
-	"github.com/NVIDIA/cloud-native-stack/pkg/bundler/internal"
+	"github.com/NVIDIA/cloud-native-stack/pkg/component/internal"
 	"github.com/NVIDIA/cloud-native-stack/pkg/measurement"
 )
 

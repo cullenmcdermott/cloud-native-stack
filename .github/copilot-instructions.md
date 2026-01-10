@@ -593,7 +593,7 @@ import (
     "embed"
     
     "github.com/NVIDIA/cloud-native-stack/pkg/bundler"
-    "github.com/NVIDIA/cloud-native-stack/pkg/bundler/internal"
+    "github.com/NVIDIA/cloud-native-stack/pkg/component/internal"
     "github.com/NVIDIA/cloud-native-stack/pkg/recipe"
 )
 
@@ -659,7 +659,7 @@ func (b *Bundler) Make(ctx context.Context, r *recipe.Recipe,
 
 **2. Create templates directory:**
 ```
-pkg/bundler/networkoperator/templates/
+pkg/component/networkoperator/templates/
 ├── values.yaml.tmpl               # Helm chart values
 ├── nicclusterpolicy.yaml.tmpl     # NICClusterPolicy CR
 ├── install.sh.tmpl                # Installation script
@@ -696,7 +696,7 @@ package networkoperator
 import (
     "testing"
     
-    "github.com/NVIDIA/cloud-native-stack/pkg/bundler/internal"
+    "github.com/NVIDIA/cloud-native-stack/pkg/component/internal"
     "github.com/NVIDIA/cloud-native-stack/pkg/measurement"
     "github.com/NVIDIA/cloud-native-stack/pkg/recipe"
 )

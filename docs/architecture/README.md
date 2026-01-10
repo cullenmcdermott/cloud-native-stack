@@ -863,7 +863,7 @@ package main
 import (
     "context"
     "github.com/NVIDIA/cloud-native-stack/pkg/bundler"
-    _ "github.com/NVIDIA/cloud-native-stack/pkg/bundler/gpuoperator"  // Auto-registers via init()
+    _ "github.com/NVIDIA/cloud-native-stack/pkg/component/gpuoperator"  // Auto-registers via init()
 )
 
 func main() {
@@ -893,10 +893,10 @@ func main() {
 ```
 
 **Auto-Registration via init()**:
-When you import a bundler package (e.g., `_ "github.com/NVIDIA/cloud-native-stack/pkg/bundler/gpuoperator"`), its `init()` function automatically registers the bundler with `MustRegister()`. No manual registration needed.
+When you import a component package (e.g., `_ "github.com/NVIDIA/cloud-native-stack/pkg/component/gpuoperator"`), its `init()` function automatically registers the bundler with `MustRegister()`. No manual registration needed.
 
 **Parallel Execution by Default**:
-When `WithBundlerTypes` is omitted or empty, **all registered bundlers execute in parallel**. This enables automatic discovery - just import bundler packages and they're available.
+When `WithBundlerTypes` is omitted or empty, **all registered bundlers execute in parallel**. This enables automatic discovery - just import component packages and they're available.
 
 
 ### Metrics and Observability

@@ -17,11 +17,11 @@ import (
 	"github.com/NVIDIA/cloud-native-stack/pkg/recipe"
 
 	// Import bundler packages for auto-registration via init()
-	_ "github.com/NVIDIA/cloud-native-stack/pkg/bundler/certmanager"
-	_ "github.com/NVIDIA/cloud-native-stack/pkg/bundler/gpuoperator"
-	_ "github.com/NVIDIA/cloud-native-stack/pkg/bundler/networkoperator"
-	_ "github.com/NVIDIA/cloud-native-stack/pkg/bundler/nvsentinel"
-	_ "github.com/NVIDIA/cloud-native-stack/pkg/bundler/skyhook"
+	_ "github.com/NVIDIA/cloud-native-stack/pkg/component/certmanager"
+	_ "github.com/NVIDIA/cloud-native-stack/pkg/component/gpuoperator"
+	_ "github.com/NVIDIA/cloud-native-stack/pkg/component/networkoperator"
+	_ "github.com/NVIDIA/cloud-native-stack/pkg/component/nvsentinel"
+	_ "github.com/NVIDIA/cloud-native-stack/pkg/component/skyhook"
 )
 
 // DefaultBundler provides default options for bundling operations.

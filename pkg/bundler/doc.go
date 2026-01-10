@@ -1,34 +1,41 @@
 /*
-Package bundler provides a framework for generating deployment bundles from recipes.
+Package bundler provides orchestration for generating deployment bundles from recipes.
 
-The bundler framework transforms recipe configurations (system measurements and
-recommendations) into deployment-ready artifacts including Helm values, Kubernetes
-manifests, installation scripts, and documentation.
+The bundler package coordinates parallel execution of component implementations to transform
+recipe configurations (system measurements and recommendations) into deployment-ready artifacts
+including Helm values, Kubernetes manifests, installation scripts, and documentation.
 
 # Architecture
 
 The package uses these design patterns:
 
-  - Registry Pattern: Thread-safe bundler registry with sync.RWMutex
-  - Factory Pattern: DefaultBundler orchestrates bundle generation
+  - Registry Pattern: Thread-safe component registry with sync.RWMutex
+  - Factory Pattern: DefaultBundler orchestrates parallel bundle generation
   - Functional Options: Configuration via WithBundlerTypes, WithConfig, etc.
   - Builder Pattern: result.Result for constructing bundler outputs
-  - Helper Pattern: BaseBundler reduces boilerplate in bundler implementations
+
+Component implementations are in pkg/component, which provides:
+
+  - BaseBundler: Helper that reduces boilerplate in component implementations
+  - internal: Shared utilities (template rendering, file writing, subtype extraction)
+  - Component packages: gpuoperator, networkoperator, certmanager, nvsentinel, skyhook
 
 # Core Components
 
-  - DefaultBundler: Main orchestrator for bundle generation
-  - BaseBundler: Helper for bundler implementations (reduces boilerplate)
-  - Registry: Thread-safe storage for bundler implementations
-  - bundle.Bundler: Interface that all bundlers must implement
-  - result.Result: Individual bundler execution result
-  - result.Output: Aggregated results from all bundlers
-  - config.Config: Configuration options for bundlers
-  - internal: Internal utilities (template rendering, file writing, etc.)
+  - DefaultBundler: Main orchestrator for parallel bundle generation
+  - Registry: Thread-safe storage for component implementations
+  - types.Bundler: Interface that all components must implement
+  - result.Result: Individual component execution result
+  - result.Output: Aggregated results from all components
+  - config.Config: Configuration options for components
 
 # Quick Start
 
-Basic usage with default settings (generates GPU Operator bundle):
+Basic usage with default settings (generates all registered components):
+
+	import (
+		_ "github.com/NVIDIA/cloud-native-stack/pkg/component/gpuoperator"  // Auto-registers
+	)
 
 	b := bundler.New()
 	output, err := b.Make(ctx, recipe, "./bundles")
@@ -53,52 +60,13 @@ Use custom configuration:
 
 	b := bundler.New(bundler.WithConfig(cfg))
 
-# Creating a New Bundler
+# Component Implementation
 
-Use BaseBundler to reduce boilerplate:
+Component implementations are in pkg/component. See pkg/component/doc.go and
+pkg/component/gpuoperator for complete examples of implementing new components.
 
-	type MyBundler struct {
-		base *bundler.BaseBundler
-	}
-
-	func NewMyBundler(cfg *config.Config) *MyBundler {
-		return &MyBundler{
-			base: bundler.NewBaseBundler(cfg, types.BundleTypeMyOperator),
-		}
-	}
-
-	func (b *MyBundler) Make(ctx context.Context, r *recipe.Recipe, outputDir string) (*result.Result, error) {
-		start := time.Now()
-
-		// Create bundle directory structure
-		dirs, err := b.base.CreateBundleDir(outputDir, "my-operator")
-		if err != nil {
-			return nil, err
-		}
-
-		// Generate files using BaseBundler helpers
-		content, _ := b.base.RenderTemplate(template, "values.yaml", data)
-		if err := b.base.WriteFileString(filepath.Join(dirs.Root, "values.yaml"), content, 0644); err != nil {
-			return nil, err
-		}
-
-		// Generate checksums
-		if b.base.Config.IncludeChecksums() {
-			b.base.GenerateChecksums(ctx, dirs.Root)
-		}
-
-		// Finalize (records metrics, marks success)
-		b.base.Finalize(start)
-		return b.base.Result, nil
-	}
-
-Register in init():
-
-	func init() {
-		registry.MustRegister(types.BundleTypeMyOperator, func(cfg *config.Config) registry.Bundler {
-			return NewMyBundler(cfg)
-		})
-	}
+Components use BaseBundler from pkg/component/internal to reduce boilerplate (~75% less code).
+Self-registration via init() enables automatic discovery without manual registration.
 
 # Bundle Types
 

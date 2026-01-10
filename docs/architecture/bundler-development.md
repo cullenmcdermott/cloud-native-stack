@@ -11,7 +11,7 @@ Bundlers convert recipes into deployment artifacts. Artifacts include Helm value
 - **BaseBundler**: Helper struct providing common operations (directory creation, file writing, template rendering, checksum generation)
 - **Self-registration**: Bundlers register themselves via `init()` function using `bundler.MustRegister()`
 - **Parallel execution**: Multiple bundlers run concurrently via goroutines with errgroup context cancellation
-- **Recipe parsing**: `pkg/bundler/internal` package provides helper functions for extracting recipe measurements
+- **Recipe parsing**: `pkg/component/internal` package provides helper functions for extracting recipe measurements
 - **Template system**: Bundlers embed templates using `go:embed` directive
 - **Value overrides**: CLI `--set` flag allows runtime customization of bundle values
 - **Test infrastructure**: `TestHarness` struct standardizes bundler testing
@@ -30,7 +30,7 @@ Bundlers convert recipes into deployment artifacts. Artifacts include Helm value
 ### Minimal Bundler Implementation
 
 ```go
-// pkg/bundler/mybundler/bundler.go
+// pkg/component/mybundler/bundler.go
 package mybundler
 
 import (
@@ -39,7 +39,7 @@ import (
     "path/filepath"
     
     "github.com/NVIDIA/cloud-native-stack/pkg/bundler"
-    "github.com/NVIDIA/cloud-native-stack/pkg/bundler/internal"
+    "github.com/NVIDIA/cloud-native-stack/pkg/component/internal"
     "github.com/NVIDIA/cloud-native-stack/pkg/recipe"
 )
 
@@ -168,7 +168,7 @@ import (
     "path/filepath"
     
     "github.com/NVIDIA/cloud-native-stack/pkg/bundler"
-    "github.com/NVIDIA/cloud-native-stack/pkg/bundler/internal"
+    "github.com/NVIDIA/cloud-native-stack/pkg/component/internal"
     "github.com/NVIDIA/cloud-native-stack/pkg/recipe"
 )
 
@@ -248,7 +248,7 @@ package mybundler
 
 import (
     "github.com/NVIDIA/cloud-native-stack/pkg/bundler/common"
-    "github.com/NVIDIA/cloud-native-stack/pkg/bundler/internal"
+    "github.com/NVIDIA/cloud-native-stack/pkg/component/internal"
     "github.com/NVIDIA/cloud-native-stack/pkg/recipe"
 )
 
@@ -391,7 +391,7 @@ package mybundler
 import (
     "testing"
     
-    "github.com/NVIDIA/cloud-native-stack/pkg/bundler/internal"
+    "github.com/NVIDIA/cloud-native-stack/pkg/component/internal"
     "github.com/NVIDIA/cloud-native-stack/pkg/measurement"
     "github.com/NVIDIA/cloud-native-stack/pkg/recipe"
 )
@@ -481,7 +481,7 @@ tree test-bundles/my-bundler/
 
 ### Internal Package Utilities
 
-The `pkg/bundler/internal` package provides:
+The `pkg/component/internal` package provides:
 
 **Recipe extraction:**
 ```go
@@ -779,8 +779,8 @@ if helmValues.EnableFeatureX.Value == "true" {
 - [CONTRIBUTING.md](../../CONTRIBUTING.md) - General contribution guidelines
 - [Architecture: Data](data.md) - Recipe data architecture
 - [CLI Reference: Bundle](../user-guide/cli-reference.md#eidos-bundle) - Bundle command and --set flag reference
-- [pkg/bundler/gpuoperator](../../pkg/bundler/gpuoperator/) - GPU Operator bundler example
-- [pkg/bundler/networkoperator](../../pkg/bundler/networkoperator/) - Network Operator bundler example
-- [pkg/bundler/certmanager](../../pkg/bundler/certmanager/) - Cert-Manager bundler example
-- [pkg/bundler/skyhook](../../pkg/bundler/skyhook/) - Skyhook bundler example
+- [pkg/component/gpuoperator](../../pkg/component/gpuoperator/) - GPU Operator bundler example
+- [pkg/component/networkoperator](../../pkg/component/networkoperator/) - Network Operator bundler example
+- [pkg/component/certmanager](../../pkg/component/certmanager/) - Cert-Manager bundler example
+- [pkg/component/skyhook](../../pkg/component/skyhook/) - Skyhook bundler example
 - [Testing Guide](../../CONTRIBUTING.md#testing-requirements) - Testing standards

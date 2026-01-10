@@ -1,13 +1,13 @@
-package gpuoperator
+package networkoperator
 
 import (
 	"time"
 
-	common "github.com/NVIDIA/cloud-native-stack/pkg/bundler/internal"
+	common "github.com/NVIDIA/cloud-native-stack/pkg/component/internal"
 	"github.com/NVIDIA/cloud-native-stack/pkg/recipe"
 )
 
-// ScriptData represents data for generating installation scripts and documentation.
+// ScriptData represents data for generating installation scripts.
 type ScriptData struct {
 	Timestamp        string
 	Namespace        string
@@ -15,11 +15,8 @@ type ScriptData struct {
 	HelmChart        string
 	HelmChartVersion string
 	K8sVersion       string
-	GPUType          string
-	DriverVersion    string
-	MIGStrategy      string
-	EnableGDS        bool
-	EnableCDI        bool
+	EnableRDMA       bool
+	EnableSRIOV      bool
 	Request          *recipe.RequestInfo
 	Version          string
 	RecipeVersion    string
@@ -29,9 +26,9 @@ type ScriptData struct {
 func GenerateScriptData(recipe *recipe.Recipe, config map[string]string) *ScriptData {
 	data := &ScriptData{
 		Timestamp:      time.Now().UTC().Format(time.RFC3339),
-		Namespace:      common.GetConfigValue(config, "namespace", "gpu-operator"),
+		Namespace:      common.GetConfigValue(config, "namespace", "nvidia-network-operator"),
 		HelmRepository: common.GetConfigValue(config, "helm_repository", "https://helm.ngc.nvidia.com/nvidia"),
-		HelmChart:      "nvidia/gpu-operator",
+		HelmChart:      "nvidia/network-operator",
 		Request:        recipe.Request,
 		Version:        common.GetBundlerVersion(config),
 		RecipeVersion:  common.GetRecipeBundlerVersion(recipe.Metadata),
@@ -42,29 +39,16 @@ func GenerateScriptData(recipe *recipe.Recipe, config map[string]string) *Script
 		data.HelmChartVersion = val
 	}
 
-	// Extract driver version
-	if val, ok := config["driver_version"]; ok && val != "" {
-		data.DriverVersion = val
+	// Extract feature flags
+	if val, ok := config["enable_rdma"]; ok {
+		data.EnableRDMA = val == strTrue
+	}
+	if val, ok := config["enable_sriov"]; ok {
+		data.EnableSRIOV = val == strTrue
 	}
 
-	// Extract MIG strategy
-	if val, ok := config["mig_strategy"]; ok && val != "" {
-		data.MIGStrategy = val
-	}
-
-	// Extract GDS enabled flag
-	if val, ok := config["enable_gds"]; ok {
-		data.EnableGDS = val == strTrue || val == "1"
-	}
-
-	// Extract CDI enabled flag
-	if val, ok := config["enable_cdi"]; ok {
-		data.EnableCDI = val == strTrue || val == "1"
-	}
-
-	// Extract GPU type and K8s version from request
+	// Extract Kubernetes version from request
 	if recipe.Request != nil {
-		data.GPUType = recipe.Request.GPU
 		data.K8sVersion = recipe.Request.K8s
 	}
 

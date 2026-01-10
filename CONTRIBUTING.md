@@ -842,7 +842,7 @@ The bundler framework uses **BaseBundler** - a helper that reduces boilerplate b
 
 1. Create bundler package in `pkg/bundler/<bundler-name>/`:
 ```go
-// pkg/bundler/networkoperator/bundler.go
+// pkg/component/networkoperator/bundler.go
 package networkoperator
 
 import (
@@ -850,7 +850,7 @@ import (
     "embed"
     
     "github.com/NVIDIA/cloud-native-stack/pkg/bundler"
-    "github.com/NVIDIA/cloud-native-stack/pkg/bundler/internal"
+    "github.com/NVIDIA/cloud-native-stack/pkg/component/internal"
     "github.com/NVIDIA/cloud-native-stack/pkg/recipe"
 )
 
@@ -938,13 +938,13 @@ func (b *Bundler) Make(ctx context.Context, r *recipe.Recipe,
 
 **Key principle**: Pass Go structs directly to templates (no map conversion)
 
-**Internal helpers in `pkg/bundler/internal`:**
+**Internal helpers in `pkg/component/internal`:**
 - `BuildBaseConfigMap(recipe, additional)` – Extracts configuration strings from recipe
 - `ExtractK8sImageSubtype(recipe)` – Gets Kubernetes image measurements
 - `ExtractGPUDeviceSubtype(recipe)` – Gets GPU device measurements  
 - Plus 12 more measurement extraction helpers
 
-**Data generation functions** (in each bundler package):
+**Data generation functions** (in each component package):
 - `GenerateHelmValues(recipe, config)` – Creates typed HelmValues struct
 - `GenerateManifestData(recipe, config)` – Creates typed ManifestData struct
 - `GenerateScriptData(recipe, config)` – Creates typed ScriptData struct
@@ -988,13 +988,13 @@ config:
 
 3. Write tests using TestHarness (reduces test code by 34%):
 ```go
-// pkg/bundler/networkoperator/bundler_test.go
+// pkg/component/networkoperator/bundler_test.go
 package networkoperator
 
 import (
     "testing"
     
-    "github.com/NVIDIA/cloud-native-stack/pkg/bundler/internal"
+    "github.com/NVIDIA/cloud-native-stack/pkg/component/internal"
     "github.com/NVIDIA/cloud-native-stack/pkg/measurement"
     "github.com/NVIDIA/cloud-native-stack/pkg/recipe"
 )

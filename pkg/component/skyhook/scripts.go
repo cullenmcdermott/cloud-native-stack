@@ -3,7 +3,7 @@ package skyhook
 import (
 	"time"
 
-	common "github.com/NVIDIA/cloud-native-stack/pkg/bundler/internal"
+	common "github.com/NVIDIA/cloud-native-stack/pkg/component/internal"
 	"github.com/NVIDIA/cloud-native-stack/pkg/recipe"
 )
 
