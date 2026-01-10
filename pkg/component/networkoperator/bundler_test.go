@@ -2,10 +2,13 @@ package networkoperator
 
 import (
 	"context"
+	"os"
+	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/NVIDIA/cloud-native-stack/pkg/bundler/config"
-	"github.com/NVIDIA/cloud-native-stack/pkg/component/internal"
+	"github.com/NVIDIA/cloud-native-stack/pkg/recipe"
 )
 
 func TestNewBundler(t *testing.T) {
@@ -40,20 +43,70 @@ func TestNewBundler(t *testing.T) {
 
 func TestBundler_Make(t *testing.T) {
 	tests := []struct {
-		name         string
-		recipeFunc   func() *internal.RecipeBuilder
-		wantErr      bool
-		validateFunc func(*testing.T, string)
+		name       string
+		recipe     *recipe.RecipeResult
+		wantErr    bool
+		verifyFunc func(t *testing.T, outputDir string)
 	}{
 		{
-			name:       "valid recipe",
-			recipeFunc: createTestRecipe,
-			wantErr:    false,
+			name:    "valid recipe with network-operator component",
+			recipe:  createTestRecipeResult(),
+			wantErr: false,
+			verifyFunc: func(t *testing.T, outputDir string) {
+				bundleDir := filepath.Join(outputDir, "network-operator")
+
+				// Verify values.yaml exists
+				valuesPath := filepath.Join(bundleDir, "values.yaml")
+				if _, err := os.Stat(valuesPath); os.IsNotExist(err) {
+					t.Errorf("Expected values.yaml not found")
+				}
+
+				// Verify install script
+				installPath := filepath.Join(bundleDir, "scripts/install.sh")
+				if _, err := os.Stat(installPath); os.IsNotExist(err) {
+					t.Errorf("Expected scripts/install.sh not found")
+				}
+
+				// Verify README
+				readmePath := filepath.Join(bundleDir, "README.md")
+				if _, err := os.Stat(readmePath); os.IsNotExist(err) {
+					t.Errorf("Expected README.md not found")
+				}
+
+				// Verify checksums.txt
+				checksumPath := filepath.Join(bundleDir, "checksums.txt")
+				if _, err := os.Stat(checksumPath); os.IsNotExist(err) {
+					t.Errorf("Expected checksums.txt not found")
+				}
+			},
 		},
 		{
-			name:       "invalid recipe",
-			recipeFunc: internal.NewRecipeBuilder, // Empty recipe
-			wantErr:    true,
+			name: "recipe with inline overrides",
+			recipe: createTestRecipeResultWithOverrides(map[string]interface{}{
+				"driver": map[string]interface{}{
+					"version": "585.0.0",
+				},
+			}),
+			wantErr: false,
+			verifyFunc: func(t *testing.T, outputDir string) {
+				bundleDir := filepath.Join(outputDir, "network-operator")
+				valuesPath := filepath.Join(bundleDir, "values.yaml")
+
+				data, err := os.ReadFile(valuesPath)
+				if err != nil {
+					t.Fatalf("Failed to read values.yaml: %v", err)
+				}
+
+				content := string(data)
+				if !strings.Contains(content, "585.0.0") {
+					t.Error("Expected overridden driver version 585.0.0 not found")
+				}
+			},
+		},
+		{
+			name:    "missing network-operator component",
+			recipe:  createRecipeResultWithoutGPUOperator(),
+			wantErr: true,
 		},
 	}
 
@@ -63,8 +116,7 @@ func TestBundler_Make(t *testing.T) {
 			b := NewBundler(nil)
 			ctx := context.Background()
 
-			rec := tt.recipeFunc().Build()
-			result, err := b.Make(ctx, rec, tmpDir)
+			result, err := b.Make(ctx, tt.recipe, tmpDir)
 
 			if (err != nil) != tt.wantErr {
 				t.Errorf("Make() error = %v, wantErr %v", err, tt.wantErr)
@@ -80,8 +132,8 @@ func TestBundler_Make(t *testing.T) {
 					t.Error("Make() returned no files")
 				}
 
-				if tt.validateFunc != nil {
-					tt.validateFunc(t, tmpDir)
+				if tt.verifyFunc != nil {
+					tt.verifyFunc(t, tmpDir)
 				}
 			}
 		})
@@ -89,51 +141,115 @@ func TestBundler_Make(t *testing.T) {
 }
 
 func TestGetTemplate(t *testing.T) {
-	internal.TestTemplateGetter(t, GetTemplate, []string{
+	expectedTemplates := []string{
 		"values.yaml",
-		"nicclusterpolicy",
 		"install.sh",
 		"uninstall.sh",
 		"README.md",
+	}
+
+	for _, name := range expectedTemplates {
+		t.Run(name, func(t *testing.T) {
+			tmpl, ok := GetTemplate(name)
+			if !ok {
+				t.Errorf("GetTemplate(%s) not found", name)
+			}
+			if tmpl == "" {
+				t.Errorf("GetTemplate(%s) returned empty template", name)
+			}
+		})
+	}
+
+	// Test non-existent template
+	t.Run("nonexistent", func(t *testing.T) {
+		_, ok := GetTemplate("nonexistent")
+		if ok {
+			t.Error("GetTemplate() should return false for non-existent template")
+		}
 	})
 }
 
-func TestBundler_validateRecipe(t *testing.T) {
-	b := NewBundler(nil)
-	internal.TestValidateRecipe(t, b.validateRecipe)
+// Helper function to create a test RecipeResult
+func createTestRecipeResult() *recipe.RecipeResult {
+	return &recipe.RecipeResult{
+		Kind:       "recipeResult",
+		APIVersion: recipe.FullAPIVersion,
+		ComponentRefs: []recipe.ComponentRef{
+			{
+				Name:    "network-operator",
+				Type:    "Helm",
+				Source:  "https://helm.ngc.nvidia.com/nvidia",
+				Version: "v25.3.4",
+				// Use inline overrides instead of ValuesFile for testing
+				Overrides: map[string]interface{}{
+					"operator": map[string]interface{}{
+						"version": "v25.3.4",
+					},
+					"driver": map[string]interface{}{
+						"version": "580.0.0",
+					},
+					"mig": map[string]interface{}{
+						"strategy": "mixed",
+					},
+					"gds": map[string]interface{}{
+						"enabled": false,
+					},
+				},
+			},
+		},
+	}
 }
 
-func TestBundler_buildConfigMap(t *testing.T) {
-	b := NewBundler(nil)
-	rec := createTestRecipe().Build()
-
-	configMap := b.buildConfigMap(rec)
-
-	// Verify namespace is set
-	if configMap["namespace"] != Name {
-		t.Errorf("namespace = %s, want %s", configMap["namespace"], Name)
+// Helper function to create a test RecipeResult with overrides
+func createTestRecipeResultWithOverrides(overrides map[string]interface{}) *recipe.RecipeResult {
+	// Start with base values including required fields
+	baseValues := map[string]interface{}{
+		"operator": map[string]interface{}{
+			"version": "v25.3.4",
+		},
+		"driver": map[string]interface{}{
+			"version": "580.0.0",
+		},
+		"mig": map[string]interface{}{
+			"strategy": "mixed",
+		},
+		"gds": map[string]interface{}{
+			"enabled": false,
+		},
 	}
 
-	// Verify driver registry is extracted from registry subtype
-	if got := configMap["driver_registry"]; got != "nvcr.io/nvidia" {
-		t.Errorf("driver_registry = %s, want nvcr.io/nvidia", got)
+	// Merge overrides into base
+	for k, v := range overrides {
+		baseValues[k] = v
+	}
+
+	return &recipe.RecipeResult{
+		Kind:       "recipeResult",
+		APIVersion: recipe.FullAPIVersion,
+		ComponentRefs: []recipe.ComponentRef{
+			{
+				Name:    "network-operator",
+				Type:    "Helm",
+				Source:  "https://helm.ngc.nvidia.com/nvidia",
+				Version: "v25.3.4",
+				// Use inline overrides for testing
+				Overrides: baseValues,
+			},
+		},
 	}
 }
 
-// Helper function to create a test recipe
-func createTestRecipe() *internal.RecipeBuilder {
-	return internal.NewRecipeBuilder().
-		WithK8sMeasurement(
-			internal.RegistrySubtype(map[string]string{
-				"name": "nvcr.io",
-				"repo": "nvidia",
-				"uri":  "nvcr.io/nvidia",
-			}),
-			internal.ConfigSubtype(map[string]interface{}{
-				"rdma-enabled":             true,
-				"sr-iov-enabled":           true,
-				"ofed-version":             "24.07",
-				"network-operator-version": "25.4.0",
-			}),
-		)
+// Helper function to create a RecipeResult without network-operator
+func createRecipeResultWithoutGPUOperator() *recipe.RecipeResult {
+	return &recipe.RecipeResult{
+		Kind:       "recipeResult",
+		APIVersion: recipe.FullAPIVersion,
+		ComponentRefs: []recipe.ComponentRef{
+			{
+				Name:    "other-component",
+				Type:    "Helm",
+				Version: "v1.0.0",
+			},
+		},
+	}
 }

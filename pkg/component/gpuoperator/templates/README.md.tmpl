@@ -21,12 +21,10 @@ This bundle contains everything needed to deploy the NVIDIA GPU Operator on your
 
 ## Prerequisites
 
-- Kubernetes cluster ({{ if .Script.K8sVersion }}{{ .Script.K8sVersion }}{{ else }}1.21+{{ end }})
+- Kubernetes cluster (1.21+)
 - Helm 3
 - kubectl configured
-{{- if .Script.GPUType }}
-- GPU nodes with {{ .Script.GPUType }} GPUs
-{{- end }}
+- GPU nodes with NVIDIA GPUs
 
 ## Installation
 
@@ -45,11 +43,11 @@ helm repo add nvidia {{ .Script.HelmRepository }}
 helm repo update
 
 # Create namespace
-kubectl create namespace {{ .Helm.Namespace }}
+kubectl create namespace {{ .Script.Namespace }}
 
 # Install GPU Operator
 helm upgrade --install gpu-operator nvidia/gpu-operator \
-  --namespace {{ .Helm.Namespace }} \
+  --namespace {{ .Script.Namespace }} \
   {{- if .Script.HelmChartVersion }}
   --version {{ .Script.HelmChartVersion }} \
   {{- end }}
@@ -68,7 +66,7 @@ kubectl apply -f clusterpolicy.yaml
 Check the GPU Operator pods:
 
 ```bash
-kubectl get pods -n {{ .Helm.Namespace }}
+kubectl get pods -n {{ .Script.Namespace }}
 ```
 
 Verify GPU nodes:
@@ -87,21 +85,6 @@ kubectl run gpu-test --rm -it --restart=Never \
 ```
 
 ## Configuration
-
-### Key Settings
-
-{{- if .Script.DriverVersion }}
-- **Driver Version**: {{ .Script.DriverVersion }}
-{{- end }}
-{{- if .Script.MIGStrategy }}
-- **MIG Strategy**: {{ .Script.MIGStrategy }}
-{{- end }}
-{{- if .Script.EnableGDS }}
-- **GPUDirect Storage**: Enabled
-{{- end }}
-{{- if .Script.EnableCDI }}
-- **CDI**: Enabled
-{{- end }}
 
 ### Customization
 
@@ -124,7 +107,7 @@ chmod +x scripts/uninstall.sh
 Or manually:
 
 ```bash
-helm uninstall gpu-operator -n {{ .Helm.Namespace }}
+helm uninstall gpu-operator -n {{ .Script.Namespace }}
 kubectl delete crd clusterpolicies.nvidia.com
 ```
 
@@ -133,13 +116,13 @@ kubectl delete crd clusterpolicies.nvidia.com
 ### Check GPU Operator logs
 
 ```bash
-kubectl logs -n {{ .Helm.Namespace }} -l app=nvidia-driver-daemonset
+kubectl logs -n {{ .Script.Namespace }} -l app=nvidia-driver-daemonset
 ```
 
 ### Check ClusterPolicy status
 
 ```bash
-kubectl describe clusterpolicy -n {{ .Helm.Namespace }}
+kubectl describe clusterpolicy -n {{ .Script.Namespace }}
 ```
 
 ### Common Issues
@@ -152,22 +135,3 @@ kubectl describe clusterpolicy -n {{ .Helm.Namespace }}
 
 - [GPU Operator Documentation](https://docs.nvidia.com/datacenter/cloud-native/gpu-operator/)
 - [Cloud Native Stack Repository](https://github.com/NVIDIA/cloud-native-stack)
-
-## Generated Configuration
-
-{{- if .Script.Request }}
-**Recipe Query:**
-- OS: {{ .Script.Request.Os }}
-{{- if .Script.Request.OsVersion }}
-- OS Version: {{ .Script.Request.OsVersion }}
-{{- end }}
-{{- if .Script.Request.Service }}
-- Service: {{ .Script.Request.Service }}
-{{- end }}
-{{- if .Script.Request.GPU }}
-- GPU: {{ .Script.Request.GPU }}
-{{- end }}
-{{- if .Script.Request.Intent }}
-- Intent: {{ .Script.Request.Intent }}
-{{- end }}
-{{- end }}

@@ -1,141 +1,255 @@
 package certmanager
 
 import (
+	"context"
+	"os"
+	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/NVIDIA/cloud-native-stack/pkg/bundler/config"
-	"github.com/NVIDIA/cloud-native-stack/pkg/component/internal"
+	"github.com/NVIDIA/cloud-native-stack/pkg/recipe"
 )
 
-const trueValue = "true"
+func TestNewBundler(t *testing.T) {
+	tests := []struct {
+		name string
+		cfg  *config.Config
+	}{
+		{
+			name: "with nil config",
+			cfg:  nil,
+		},
+		{
+			name: "with valid config",
+			cfg: config.NewConfig(
+				config.WithNamespace("test-namespace"),
+			),
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			b := NewBundler(tt.cfg)
+			if b == nil {
+				t.Fatal("NewBundler() returned nil")
+			}
+			if b.Config == nil {
+				t.Error("Bundler config should not be nil")
+			}
+		})
+	}
+}
 
 func TestBundler_Make(t *testing.T) {
-	harness := internal.NewTestHarness(t, "cert-manager").
-		WithExpectedFiles([]string{
-			"values.yaml",
-			"scripts/install.sh",
-			"scripts/uninstall.sh",
-			"README.md",
-			"checksums.txt",
-		}).
-		WithRecipeBuilder(createTestRecipe)
+	tests := []struct {
+		name       string
+		recipe     *recipe.RecipeResult
+		wantErr    bool
+		verifyFunc func(t *testing.T, outputDir string)
+	}{
+		{
+			name:    "valid recipe with cert-manager component",
+			recipe:  createTestRecipeResult(),
+			wantErr: false,
+			verifyFunc: func(t *testing.T, outputDir string) {
+				bundleDir := filepath.Join(outputDir, "cert-manager")
 
-	b := NewBundler(config.NewConfig())
-	harness.TestMake(b)
-}
+				// Verify values.yaml exists
+				valuesPath := filepath.Join(bundleDir, "values.yaml")
+				if _, err := os.Stat(valuesPath); os.IsNotExist(err) {
+					t.Errorf("Expected values.yaml not found")
+				}
 
-func TestBundler_Configure(t *testing.T) {
-	cfg := config.NewConfig()
-	b := NewBundler(cfg)
+				// Verify install script
+				installPath := filepath.Join(bundleDir, "scripts/install.sh")
+				if _, err := os.Stat(installPath); os.IsNotExist(err) {
+					t.Errorf("Expected scripts/install.sh not found")
+				}
 
-	// Verify default values
-	if b.Config.Namespace() != "default" {
-		t.Errorf("Configure() namespace = %s, want default", b.Config.Namespace())
+				// Verify README
+				readmePath := filepath.Join(bundleDir, "README.md")
+				if _, err := os.Stat(readmePath); os.IsNotExist(err) {
+					t.Errorf("Expected README.md not found")
+				}
+
+				// Verify checksums.txt
+				checksumPath := filepath.Join(bundleDir, "checksums.txt")
+				if _, err := os.Stat(checksumPath); os.IsNotExist(err) {
+					t.Errorf("Expected checksums.txt not found")
+				}
+			},
+		},
+		{
+			name: "recipe with inline overrides",
+			recipe: createTestRecipeResultWithOverrides(map[string]interface{}{
+				"driver": map[string]interface{}{
+					"version": "585.0.0",
+				},
+			}),
+			wantErr: false,
+			verifyFunc: func(t *testing.T, outputDir string) {
+				bundleDir := filepath.Join(outputDir, "cert-manager")
+				valuesPath := filepath.Join(bundleDir, "values.yaml")
+
+				data, err := os.ReadFile(valuesPath)
+				if err != nil {
+					t.Fatalf("Failed to read values.yaml: %v", err)
+				}
+
+				content := string(data)
+				if !strings.Contains(content, "585.0.0") {
+					t.Error("Expected overridden driver version 585.0.0 not found")
+				}
+			},
+		},
+		{
+			name:    "missing cert-manager component",
+			recipe:  createRecipeResultWithoutGPUOperator(),
+			wantErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tmpDir := t.TempDir()
+			b := NewBundler(nil)
+			ctx := context.Background()
+
+			result, err := b.Make(ctx, tt.recipe, tmpDir)
+
+			if (err != nil) != tt.wantErr {
+				t.Errorf("Make() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+
+			if !tt.wantErr {
+				if result == nil {
+					t.Error("Make() returned nil result")
+					return
+				}
+				if len(result.Files) == 0 {
+					t.Error("Make() returned no files")
+				}
+
+				if tt.verifyFunc != nil {
+					tt.verifyFunc(t, tmpDir)
+				}
+			}
+		})
 	}
 }
 
-func TestBundler_buildConfigMap(t *testing.T) {
-	b := NewBundler(config.NewConfig())
-	rec := createTestRecipe().Build()
-
-	configMap := b.buildConfigMap(rec)
-
-	// Verify namespace is set
-	if configMap["namespace"] != Name {
-		t.Errorf("namespace = %s, want %s", configMap["namespace"], Name)
+func TestGetTemplate(t *testing.T) {
+	expectedTemplates := []string{
+		"values.yaml",
+		"install.sh",
+		"uninstall.sh",
+		"README.md",
 	}
 
-	// Verify cert-manager version is extracted (if present in recipe)
-	if val, ok := configMap["cert_manager_version"]; ok {
-		if val != "v1.19.1" {
-			t.Errorf("cert_manager_version = %s, want v1.19.1", val)
+	for _, name := range expectedTemplates {
+		t.Run(name, func(t *testing.T) {
+			tmpl, ok := GetTemplate(name)
+			if !ok {
+				t.Errorf("GetTemplate(%s) not found", name)
+			}
+			if tmpl == "" {
+				t.Errorf("GetTemplate(%s) returned empty template", name)
+			}
+		})
+	}
+
+	// Test non-existent template
+	t.Run("nonexistent", func(t *testing.T) {
+		_, ok := GetTemplate("nonexistent")
+		if ok {
+			t.Error("GetTemplate() should return false for non-existent template")
 		}
+	})
+}
+
+// Helper function to create a test RecipeResult
+func createTestRecipeResult() *recipe.RecipeResult {
+	return &recipe.RecipeResult{
+		Kind:       "recipeResult",
+		APIVersion: recipe.FullAPIVersion,
+		ComponentRefs: []recipe.ComponentRef{
+			{
+				Name:    "cert-manager",
+				Type:    "Helm",
+				Source:  "https://helm.ngc.nvidia.com/nvidia",
+				Version: "v25.3.4",
+				// Use inline overrides instead of ValuesFile for testing
+				Overrides: map[string]interface{}{
+					"operator": map[string]interface{}{
+						"version": "v25.3.4",
+					},
+					"driver": map[string]interface{}{
+						"version": "580.0.0",
+					},
+					"mig": map[string]interface{}{
+						"strategy": "mixed",
+					},
+					"gds": map[string]interface{}{
+						"enabled": false,
+					},
+				},
+			},
+		},
 	}
 }
 
-func TestGenerateHelmValues(t *testing.T) {
-	rec := createTestRecipe().Build()
-	configMap := map[string]string{
-		"namespace":            Name,
-		"cert_manager_version": "v1.19.1",
-		"install_crds":         "true",
-		"enable_webhook":       "true",
-		"replica_count":        "1",
+// Helper function to create a test RecipeResult with overrides
+func createTestRecipeResultWithOverrides(overrides map[string]interface{}) *recipe.RecipeResult {
+	// Start with base values including required fields
+	baseValues := map[string]interface{}{
+		"operator": map[string]interface{}{
+			"version": "v25.3.4",
+		},
+		"driver": map[string]interface{}{
+			"version": "580.0.0",
+		},
+		"mig": map[string]interface{}{
+			"strategy": "mixed",
+		},
+		"gds": map[string]interface{}{
+			"enabled": false,
+		},
 	}
 
-	helmValues := GenerateHelmValues(rec, configMap, nil)
-
-	// Verify basic fields
-	if helmValues.Namespace != Name {
-		t.Errorf("Namespace = %s, want %s", helmValues.Namespace, Name)
+	// Merge overrides into base
+	for k, v := range overrides {
+		baseValues[k] = v
 	}
 
-	if helmValues.InstallCRDs != trueValue {
-		t.Errorf("InstallCRDs = %s, want true", helmValues.InstallCRDs)
-	}
-
-	if helmValues.EnablePrometheus != trueValue {
-		t.Errorf("EnablePrometheus = %v, want true", helmValues.EnablePrometheus)
-	}
-
-	// Verify controller resources
-	if helmValues.ControllerCPURequest != "50m" {
-		t.Errorf("ControllerCPURequest = %v, want 50m", helmValues.ControllerCPURequest)
-	}
-
-	if helmValues.ControllerMemoryRequest != "90Mi" {
-		t.Errorf("ControllerMemoryRequest = %v, want 90Mi", helmValues.ControllerMemoryRequest)
-	}
-
-	// Verify scheduling
-	if helmValues.TolerationKey != "dedicated" {
-		t.Errorf("TolerationKey = %v, want dedicated", helmValues.TolerationKey)
-	}
-
-	if helmValues.NodeSelectorValue != "system-cpu" {
-		t.Errorf("NodeSelectorValue = %v, want system-cpu", helmValues.NodeSelectorValue)
+	return &recipe.RecipeResult{
+		Kind:       "recipeResult",
+		APIVersion: recipe.FullAPIVersion,
+		ComponentRefs: []recipe.ComponentRef{
+			{
+				Name:    "cert-manager",
+				Type:    "Helm",
+				Source:  "https://helm.ngc.nvidia.com/nvidia",
+				Version: "v25.3.4",
+				// Use inline overrides for testing
+				Overrides: baseValues,
+			},
+		},
 	}
 }
 
-func TestGenerateScriptData(t *testing.T) {
-	rec := createTestRecipe().Build()
-	configMap := map[string]string{
-		"namespace":            Name,
-		"helm_repository":      "https://charts.jetstack.io",
-		"cert_manager_version": "v1.19.1",
-		"install_crds":         "true",
+// Helper function to create a RecipeResult without cert-manager
+func createRecipeResultWithoutGPUOperator() *recipe.RecipeResult {
+	return &recipe.RecipeResult{
+		Kind:       "recipeResult",
+		APIVersion: recipe.FullAPIVersion,
+		ComponentRefs: []recipe.ComponentRef{
+			{
+				Name:    "other-component",
+				Type:    "Helm",
+				Version: "v1.0.0",
+			},
+		},
 	}
-
-	scriptData := GenerateScriptData(rec, configMap)
-
-	// Verify basic fields
-	if scriptData.Namespace != Name {
-		t.Errorf("Namespace = %s, want %s", scriptData.Namespace, Name)
-	}
-
-	if scriptData.HelmRepository != "https://charts.jetstack.io" {
-		t.Errorf("HelmRepository = %s, want https://charts.jetstack.io", scriptData.HelmRepository)
-	}
-
-	if scriptData.HelmChart != "jetstack/cert-manager" {
-		t.Errorf("HelmChart = %s, want jetstack/cert-manager", scriptData.HelmChart)
-	}
-
-	if !scriptData.InstallCRDs {
-		t.Errorf("InstallCRDs = %v, want true", scriptData.InstallCRDs)
-	}
-}
-
-func createTestRecipe() *internal.RecipeBuilder {
-	return internal.NewRecipeBuilder().
-		WithK8sMeasurement(
-			internal.ImageSubtype(map[string]string{
-				"cert-manager": "v1.19.1",
-			}),
-			internal.ConfigSubtype(map[string]interface{}{
-				"install-crds":   "true",
-				"enable-webhook": "true",
-				"replica-count":  "1",
-			}),
-		)
 }

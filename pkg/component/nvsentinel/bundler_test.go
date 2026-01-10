@@ -1,153 +1,255 @@
 package nvsentinel
 
 import (
+	"context"
+	"os"
+	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/NVIDIA/cloud-native-stack/pkg/bundler/config"
-	"github.com/NVIDIA/cloud-native-stack/pkg/component/internal"
-	"github.com/NVIDIA/cloud-native-stack/pkg/measurement"
+	"github.com/NVIDIA/cloud-native-stack/pkg/recipe"
 )
 
-const testVersion = "v0.6.0"
-
-func TestBundler_Make(t *testing.T) {
-	harness := internal.NewTestHarness(t, "nvsentinel").
-		WithExpectedFiles([]string{
-			"values.yaml",
-			"scripts/install.sh",
-			"scripts/uninstall.sh",
-			"README.md",
-			"checksums.txt",
-		}).
-		WithRecipeBuilder(createTestRecipe)
-
-	b := NewBundler(config.NewConfig())
-	harness.TestMake(b)
-}
-
-func TestBundler_Validate(t *testing.T) {
+func TestNewBundler(t *testing.T) {
 	tests := []struct {
-		name    string
-		recipe  *internal.RecipeBuilder
-		wantErr bool
+		name string
+		cfg  *config.Config
 	}{
 		{
-			name: "valid recipe",
-			recipe: internal.NewRecipeBuilder().
-				WithK8sMeasurement(internal.ImageSubtype(map[string]string{
-					"nvsentinel": testVersion,
-				})),
-			wantErr: false,
+			name: "with nil config",
+			cfg:  nil,
 		},
 		{
-			name: "missing K8s measurements",
-			recipe: internal.NewRecipeBuilder().
-				WithGPUMeasurement(internal.SMISubtype(map[string]string{
-					"driver-version": "580.82.07",
-				})),
+			name: "with valid config",
+			cfg: config.NewConfig(
+				config.WithNamespace("test-namespace"),
+			),
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			b := NewBundler(tt.cfg)
+			if b == nil {
+				t.Fatal("NewBundler() returned nil")
+			}
+			if b.Config == nil {
+				t.Error("Bundler config should not be nil")
+			}
+		})
+	}
+}
+
+func TestBundler_Make(t *testing.T) {
+	tests := []struct {
+		name       string
+		recipe     *recipe.RecipeResult
+		wantErr    bool
+		verifyFunc func(t *testing.T, outputDir string)
+	}{
+		{
+			name:    "valid recipe with nvsentinel component",
+			recipe:  createTestRecipeResult(),
+			wantErr: false,
+			verifyFunc: func(t *testing.T, outputDir string) {
+				bundleDir := filepath.Join(outputDir, "nvsentinel")
+
+				// Verify values.yaml exists
+				valuesPath := filepath.Join(bundleDir, "values.yaml")
+				if _, err := os.Stat(valuesPath); os.IsNotExist(err) {
+					t.Errorf("Expected values.yaml not found")
+				}
+
+				// Verify install script
+				installPath := filepath.Join(bundleDir, "scripts/install.sh")
+				if _, err := os.Stat(installPath); os.IsNotExist(err) {
+					t.Errorf("Expected scripts/install.sh not found")
+				}
+
+				// Verify README
+				readmePath := filepath.Join(bundleDir, "README.md")
+				if _, err := os.Stat(readmePath); os.IsNotExist(err) {
+					t.Errorf("Expected README.md not found")
+				}
+
+				// Verify checksums.txt
+				checksumPath := filepath.Join(bundleDir, "checksums.txt")
+				if _, err := os.Stat(checksumPath); os.IsNotExist(err) {
+					t.Errorf("Expected checksums.txt not found")
+				}
+			},
+		},
+		{
+			name: "recipe with inline overrides",
+			recipe: createTestRecipeResultWithOverrides(map[string]interface{}{
+				"driver": map[string]interface{}{
+					"version": "585.0.0",
+				},
+			}),
+			wantErr: false,
+			verifyFunc: func(t *testing.T, outputDir string) {
+				bundleDir := filepath.Join(outputDir, "nvsentinel")
+				valuesPath := filepath.Join(bundleDir, "values.yaml")
+
+				data, err := os.ReadFile(valuesPath)
+				if err != nil {
+					t.Fatalf("Failed to read values.yaml: %v", err)
+				}
+
+				content := string(data)
+				if !strings.Contains(content, "585.0.0") {
+					t.Error("Expected overridden driver version 585.0.0 not found")
+				}
+			},
+		},
+		{
+			name:    "missing nvsentinel component",
+			recipe:  createRecipeResultWithoutGPUOperator(),
 			wantErr: true,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			rec := tt.recipe.Build()
-			err := rec.ValidateMeasurementExists(measurement.TypeK8s)
+			tmpDir := t.TempDir()
+			b := NewBundler(nil)
+			ctx := context.Background()
+
+			result, err := b.Make(ctx, tt.recipe, tmpDir)
+
 			if (err != nil) != tt.wantErr {
-				t.Errorf("ValidateMeasurementExists() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("Make() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+
+			if !tt.wantErr {
+				if result == nil {
+					t.Error("Make() returned nil result")
+					return
+				}
+				if len(result.Files) == 0 {
+					t.Error("Make() returned no files")
+				}
+
+				if tt.verifyFunc != nil {
+					tt.verifyFunc(t, tmpDir)
+				}
 			}
 		})
 	}
 }
 
-func TestBundler_Configure(t *testing.T) {
-	cfg := config.NewConfig()
-	b := NewBundler(cfg)
-
-	// Verify default values
-	if b.Config.Namespace() != "default" {
-		t.Errorf("Configure() namespace = %s, want default", b.Config.Namespace())
+func TestGetTemplate(t *testing.T) {
+	expectedTemplates := []string{
+		"values.yaml",
+		"install.sh",
+		"uninstall.sh",
+		"README.md",
 	}
+
+	for _, name := range expectedTemplates {
+		t.Run(name, func(t *testing.T) {
+			tmpl, ok := GetTemplate(name)
+			if !ok {
+				t.Errorf("GetTemplate(%s) not found", name)
+			}
+			if tmpl == "" {
+				t.Errorf("GetTemplate(%s) returned empty template", name)
+			}
+		})
+	}
+
+	// Test non-existent template
+	t.Run("nonexistent", func(t *testing.T) {
+		_, ok := GetTemplate("nonexistent")
+		if ok {
+			t.Error("GetTemplate() should return false for non-existent template")
+		}
+	})
 }
 
-func TestBundler_buildConfigMap(t *testing.T) {
-	b := NewBundler(config.NewConfig())
-	rec := createTestRecipe().Build()
-
-	configMap := b.buildConfigMap(rec)
-
-	// Verify namespace is set
-	if configMap["namespace"] != Name {
-		t.Errorf("namespace = %s, want %s", configMap["namespace"], Name)
-	}
-
-	// Verify K8s image versions are extracted
-	if got := configMap["nvsentinel_version"]; got != testVersion {
-		t.Errorf("configMap[nvsentinel_version] = %s, want %s", got, testVersion)
-	}
-}
-
-func TestGenerateHelmValues(t *testing.T) {
-	rec := createTestRecipe().Build()
-	config := map[string]string{
-		"namespace":          Name,
-		"nvsentinel_version": testVersion,
-	}
-
-	values := GenerateHelmValues(rec, config, nil)
-
-	// Verify basic fields
-	if values.Namespace != Name {
-		t.Errorf("Namespace = %s, want %s", values.Namespace, Name)
-	}
-
-	if values.NVSentinelVersion != testVersion {
-		t.Errorf("NVSentinelVersion = %s, want %s", values.NVSentinelVersion, testVersion)
-	}
-}
-
-func TestGenerateScriptData(t *testing.T) {
-	rec := createTestRecipe().Build()
-	config := map[string]string{
-		"namespace":          Name,
-		"nvsentinel_version": testVersion,
-	}
-
-	data := GenerateScriptData(rec, config)
-
-	// Verify basic fields
-	if data.Namespace != Name {
-		t.Errorf("Namespace = %s, want %s", data.Namespace, Name)
-	}
-
-	if data.NVSentinelVersion != testVersion {
-		t.Errorf("NVSentinelVersion = %s, want %s", data.NVSentinelVersion, testVersion)
-	}
-
-	expectedRepo := "oci://ghcr.io/nvidia/nvsentinel"
-	if data.HelmChartRepo != expectedRepo {
-		t.Errorf("HelmChartRepo = %s, want %s", data.HelmChartRepo, expectedRepo)
-	}
-
-	expectedRelease := "nvsentinel"
-	if data.HelmReleaseName != expectedRelease {
-		t.Errorf("HelmReleaseName = %s, want %s", data.HelmReleaseName, expectedRelease)
-	}
-}
-
-// createTestRecipe creates a test recipe with sample measurements.
-func createTestRecipe() *internal.RecipeBuilder {
-	return internal.NewRecipeBuilder().
-		WithK8sMeasurement(
-			internal.ImageSubtype(map[string]string{
-				"nvsentinel": testVersion,
-			}),
-			measurement.Subtype{
-				Name: "nvsentinel-config",
-				Data: map[string]measurement.Reading{
-					"helm_chart_repo":   measurement.Str("oci://ghcr.io/nvidia/nvsentinel"),
-					"helm_release_name": measurement.Str("nvsentinel"),
+// Helper function to create a test RecipeResult
+func createTestRecipeResult() *recipe.RecipeResult {
+	return &recipe.RecipeResult{
+		Kind:       "recipeResult",
+		APIVersion: recipe.FullAPIVersion,
+		ComponentRefs: []recipe.ComponentRef{
+			{
+				Name:    "nvsentinel",
+				Type:    "Helm",
+				Source:  "https://helm.ngc.nvidia.com/nvidia",
+				Version: "v25.3.4",
+				// Use inline overrides instead of ValuesFile for testing
+				Overrides: map[string]interface{}{
+					"operator": map[string]interface{}{
+						"version": "v25.3.4",
+					},
+					"driver": map[string]interface{}{
+						"version": "580.0.0",
+					},
+					"mig": map[string]interface{}{
+						"strategy": "mixed",
+					},
+					"gds": map[string]interface{}{
+						"enabled": false,
+					},
 				},
 			},
-		)
+		},
+	}
+}
+
+// Helper function to create a test RecipeResult with overrides
+func createTestRecipeResultWithOverrides(overrides map[string]interface{}) *recipe.RecipeResult {
+	// Start with base values including required fields
+	baseValues := map[string]interface{}{
+		"operator": map[string]interface{}{
+			"version": "v25.3.4",
+		},
+		"driver": map[string]interface{}{
+			"version": "580.0.0",
+		},
+		"mig": map[string]interface{}{
+			"strategy": "mixed",
+		},
+		"gds": map[string]interface{}{
+			"enabled": false,
+		},
+	}
+
+	// Merge overrides into base
+	for k, v := range overrides {
+		baseValues[k] = v
+	}
+
+	return &recipe.RecipeResult{
+		Kind:       "recipeResult",
+		APIVersion: recipe.FullAPIVersion,
+		ComponentRefs: []recipe.ComponentRef{
+			{
+				Name:    "nvsentinel",
+				Type:    "Helm",
+				Source:  "https://helm.ngc.nvidia.com/nvidia",
+				Version: "v25.3.4",
+				// Use inline overrides for testing
+				Overrides: baseValues,
+			},
+		},
+	}
+}
+
+// Helper function to create a RecipeResult without nvsentinel
+func createRecipeResultWithoutGPUOperator() *recipe.RecipeResult {
+	return &recipe.RecipeResult{
+		Kind:       "recipeResult",
+		APIVersion: recipe.FullAPIVersion,
+		ComponentRefs: []recipe.ComponentRef{
+			{
+				Name:    "other-component",
+				Type:    "Helm",
+				Version: "v1.0.0",
+			},
+		},
+	}
 }

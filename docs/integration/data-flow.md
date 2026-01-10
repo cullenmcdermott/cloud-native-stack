@@ -278,42 +278,40 @@ When `context=false`, context maps are stripped before response.
 │ Bundle Generator                                       │
 ├────────────────────────────────────────────────────────┤
 │                                                        │
-│  Recipe → Bundler Registry → Parallel Execution        │
+│  RecipeResult → Bundler Registry → Parallel Execution  │
 │                                                        │
 │  ┌─────────────────┐                                   │
-│  │ Recipe Input    │                                   │
+│  │ RecipeResult    │                                   │
 │  └────────┬────────┘                                   │
 │           │                                            │
 │  ┌────────▼────────┐                                   │
-│  │ Extract Config  │ (buildConfigMap)                  │
-│  │ ├─ K8s images   │                                   │
-│  │ ├─ GPU settings │                                   │
-│  │ ├─ OS params    │                                   │
-│  │ └─ Network cfg  │                                   │
+│  │ Get Component   │ (GetComponentRef)                 │
+│  │ ├─ Name         │                                   │
+│  │ ├─ Version      │                                   │
+│  │ └─ Values map   │ (GetValuesForComponent)           │
 │  └────────┬────────┘                                   │
 │           │                                            │
 │    ┌──────┴──────┐                                     │
 │    │   Parallel  │                                     │
 │    ├─────────────┤                                     │
 │    ├─ GPU Operator                                     │
-│    │  ├─ GenerateHelmValues()                          │
-│    │  ├─ GenerateManifestData()                        │
-│    │  └─ GenerateScriptData()                          │
+│    │  ├─ values map → values.yaml                      │
+│    │  ├─ values map → clusterpolicy.yaml               │
+│    │  └─ ScriptData → install.sh, README.md            │
 │    │                                                   │
 │    ├─ Network Operator                                 │
-│    │  ├─ GenerateHelmValues()                          │
-│    │  ├─ GenerateManifestData()                        │
-│    │  └─ GenerateScriptData()                          │
+│    │  ├─ values map → values.yaml                      │
+│    │  └─ ScriptData → install.sh, README.md            │
 │    │                                                   │
 │    ├─ Cert-Manager                                     │
-│    │  └─ GenerateHelmValues()                          │
+│    │  └─ values map → values.yaml                      │
 │    │                                                   │
 │    ├─ NVSentinel                                       │
-│    │  └─ GenerateHelmValues()                          │
+│    │  └─ values map → values.yaml                      │
 │    │                                                   │
 │    └─ Skyhook                                          │
-│       ├─ GenerateHelmValues()                          │
-│       └─ GenerateManifestData()                        │
+│       ├─ values map → values.yaml                      │
+│       └─ values map → skyhook-cr.yaml                  │
 │                                                        │
 │  ┌────────▼────────┐                                   │
 │  │ Template Engine │ (go:embed templates)              │
@@ -333,29 +331,43 @@ When `context=false`, context maps are stripped before response.
 
 ### Configuration Extraction
 
-**ValueWithContext Pattern:**
-```go
-type ValueWithContext struct {
-    Value   interface{}  // Actual configuration value
-    Context string       // Human-readable explanation
-}
+**RecipeResult Pattern:**
+Bundlers receive `RecipeResult` with component references and values maps:
 
-// Bundlers extract values with context
-DriverVersion := ValueWithContext{
-    Value:   "580.82.07",
-    Context: "NVIDIA GPU driver for H100",
-}
+```go
+// Get component reference and values from RecipeResult
+component := input.GetComponentRef("gpu-operator")
+values := input.GetValuesForComponent("gpu-operator")
+
+// Values map contains nested configuration
+// {
+//   "driver": {"enabled": true, "version": "580.82.07"},
+//   "mig": {"strategy": "single"},
+//   "gds": {"enabled": false}
+// }
 ```
 
 **Template Usage:**
 ```yaml
-# Helm values.yaml
+# Helm values.yaml - receives values map
 driver:
-  version: {{ .DriverVersion.Value }}
+  version: {{ index .Values "driver.version" }}
   
-# README.md
-Driver Version: {{ .DriverVersion.Value }}
-Reason: {{ .DriverVersion.Context }}
+# README.md - receives combined map with Values + Script
+Driver Version: {{ index .Values "driver.version" }}
+Namespace: {{ .Script.Namespace }}
+```
+
+**ScriptData for Metadata:**
+```go
+// ScriptData struct for scripts and README metadata
+type ScriptData struct {
+    Timestamp        string
+    Version          string
+    Namespace        string
+    HelmRepository   string
+    HelmChartVersion string
+}
 ```
 
 ### Bundle Structure

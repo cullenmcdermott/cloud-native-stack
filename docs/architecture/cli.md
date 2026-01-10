@@ -620,26 +620,25 @@ flowchart TD
 
 #### Bundler Data Flow
 
-**Simplified Architecture (Direct Struct-to-Template):**
+**Simplified Architecture (RecipeResult-to-Template):**
 ```mermaid
 flowchart TD
-    A[Recipe] --> B[buildConfigMap]
-    B --> C[map string string]
-    C --> D1[GenerateHelmValues]
-    C --> D2[GenerateManifestData]
-    C --> D3[GenerateScriptData]
-    D1 --> E1[HelmValues struct]
-    D2 --> E2[ManifestData struct]
-    D3 --> E3[ScriptData struct]
-    E1 --> F1[Template: values.yaml]
-    E2 --> F2[Template: clusterpolicy.yaml]
-    E3 --> F3[Template: install.sh]
-    F1 & F2 & F3 --> G[Generated Files]
+    A[RecipeResult] --> B[GetComponentRef]
+    A --> C[GetValuesForComponent]
+    B --> D[ComponentRef]
+    C --> E[Values Map]
+    D --> F[generateScriptData]
+    E --> F
+    F --> G[ScriptData struct]
+    E --> H1[Template: values.yaml]
+    G --> H2[Template: install.sh]
+    G --> H3[Template: README.md]
+    H1 & H2 & H3 --> I[Generated Files]
 ```
 
-**Key Simplification**: Eliminated ToMap() conversion layer (~200 lines of code removed)  
-**Data Flow**: Recipe → Config Map → Typed Struct → Template (direct field access)  
-**Templates**: Access struct fields directly (e.g., `{{ .DriverVersion.Value }}`, `{{ .Namespace }}`)
+**Key Simplification**: Single RecipeResult path (no dual Recipe/RecipeResult routing)  
+**Data Flow**: RecipeResult → Values Map + ScriptData → Templates  
+**Templates**: Use `index .Values "key"` for config, `.Script.*` for metadata
 
 #### Bundler Architecture
 
@@ -662,26 +661,32 @@ func init() {
 }
 ```
 
-**Internal Utilities for Recipe Parsing:**
+**RecipeResult-Based Data Access:**
 ```go
-// Extract configuration from recipe
-config := internal.BuildBaseConfigMap(recipe, extraConfig)
+// Get component reference from RecipeResult
+component := input.GetComponentRef(Name)
+values := input.GetValuesForComponent(Name)
 
-// Generate typed data structures
-helmValues := GenerateHelmValues(recipe, config)
-manifestData := GenerateManifestData(recipe, config)  
-scriptData := GenerateScriptData(recipe, config)
+// Generate script metadata
+scriptData := generateScriptData(component, values)
 
-// Pass structs directly to templates (no ToMap() conversion)
-b.GenerateFileFromTemplate(ctx, GetTemplate, "values.yaml", path, helmValues, 0644)
-b.GenerateFileFromTemplate(ctx, GetTemplate, "clusterpolicy.yaml", path, manifestData, 0644)
+// Pass values map to templates (config values)
+b.GenerateFileFromTemplate(ctx, GetTemplate, "values.yaml", path, values, 0644)
+
+// Pass ScriptData to scripts (metadata)
+b.GenerateFileFromTemplate(ctx, GetTemplate, "install.sh", path, scriptData, 0755)
+
+// Pass combined data to README
+readmeData := map[string]interface{}{"Values": values, "Script": scriptData}
+b.GenerateFileFromTemplate(ctx, GetTemplate, "README.md", path, readmeData, 0644)
 ```
 
-**Data Flow: Recipe → Struct → Template (Direct)**
+**Data Flow: RecipeResult → Values/ScriptData → Template**
 ```
-Recipe → buildConfigMap() → map[string]string
-       → GenerateHelmValues() → HelmValues struct
-       → Template (direct field access: {{ .DriverVersion.Value }})
+RecipeResult → GetComponentRef(Name) → ComponentRef
+             → GetValuesForComponent(Name) → values map
+             → generateScriptData() → ScriptData struct
+             → Template ({{ index .Values "key" }} or {{ .Script.Namespace }})
 ```
 
 **Registry Pattern:**

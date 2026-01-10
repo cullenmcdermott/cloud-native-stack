@@ -37,44 +37,22 @@ network-operator/
 
 This bundle is configured with the following settings:
 
-**Network Operator Version:** {{ .Helm.NetworkOperatorVersion }}
-{{- if .Helm.OFEDVersion }}
-**OFED Driver Version:** {{ .Helm.OFEDVersion }}
+**Network Operator Version:** {{ index .Values "version" }}
+{{- if index .Values "ofed.version" }}
+**OFED Driver Version:** {{ index .Values "ofed.version" }}
 {{- end }}
-**Namespace:** {{ .Helm.Namespace }}
+**Namespace:** {{ .Script.Namespace }}
 
-### Features Enabled
+### Available Features
 
-{{- if .Helm.EnableRDMA }}
-- ✅ RDMA Shared Device Plugin
-{{- else }}
-- ❌ RDMA Shared Device Plugin
-{{- end }}
-{{- if .Helm.EnableSRIOV }}
-- ✅ SR-IOV Device Plugin
-{{- else }}
-- ❌ SR-IOV Device Plugin
-{{- end }}
-{{- if .Helm.EnableHostDevice }}
-- ✅ Host Device Plugin
-{{- else }}
-- ❌ Host Device Plugin
-{{- end }}
-{{- if .Helm.EnableIPAM }}
-- ✅ NVIDIA IPAM Plugin
-{{- else }}
-- ❌ NVIDIA IPAM Plugin
-{{- end }}
-{{- if .Helm.EnableMultus }}
-- ✅ Multus CNI
-{{- else }}
-- ❌ Multus CNI
-{{- end }}
-{{- if .Helm.DeployOFED }}
-- ✅ OFED Driver Deployment
-{{- else }}
-- ❌ OFED Driver Deployment
-{{- end }}
+See `values.yaml` for feature configuration including:
+
+- RDMA Shared Device Plugin
+- SR-IOV Device Plugin
+- Host Device Plugin
+- NVIDIA IPAM Plugin
+- Multus CNI
+- OFED Driver Deployment
 
 ## Quick Start
 
@@ -107,7 +85,7 @@ If you prefer manual control:
 
 ```bash
 # Create namespace
-kubectl create namespace {{ .Helm.Namespace }}
+kubectl create namespace {{ .Script.Namespace }}
 
 # Add Helm repository
 helm repo add nvidia {{ .Script.HelmRepository }}
@@ -115,7 +93,7 @@ helm repo update
 
 # Install Network Operator
 helm install network-operator {{ .Script.HelmChart }} \
-    --namespace {{ .Helm.Namespace }} \
+    --namespace {{ .Script.Namespace }} \
     --values values.yaml \
     --create-namespace
 
@@ -129,18 +107,16 @@ Check the installation status:
 
 ```bash
 # Check Network Operator pods
-kubectl get pods -n {{ .Helm.Namespace }}
+kubectl get pods -n {{ .Script.Namespace }}
 
 # Check NicClusterPolicy
-kubectl get nicclusterpolicy -n {{ .Helm.Namespace }}
+kubectl get nicclusterpolicy -n {{ .Script.Namespace }}
 
 # Check operator logs
-kubectl logs -n {{ .Helm.Namespace }} -l app.kubernetes.io/component=network-operator
+kubectl logs -n {{ .Script.Namespace }} -l app.kubernetes.io/component=network-operator
 ```
 
-{{- if .Helm.EnableRDMA }}
-
-### Verify RDMA
+### Verify RDMA (if enabled)
 
 Check that RDMA devices are discovered and available:
 
@@ -149,24 +125,20 @@ Check that RDMA devices are discovered and available:
 kubectl get nodes -o json | jq '.items[].status.allocatable' | grep rdma
 
 # Check RDMA shared device plugin
-kubectl get pods -n {{ .Helm.Namespace }} -l app=rdma-shared-device-plugin
+kubectl get pods -n {{ .Script.Namespace }} -l app=rdma-shared-device-plugin
 ```
-{{- end }}
 
-{{- if .Helm.EnableSRIOV }}
-
-### Verify SR-IOV
+### Verify SR-IOV (if enabled)
 
 Check SR-IOV network node states:
 
 ```bash
 # List SR-IOV network node states
-kubectl get sriovnetworknodestates -n {{ .Helm.Namespace }}
+kubectl get sriovnetworknodestates -n {{ .Script.Namespace }}
 
 # Check SR-IOV device plugin
-kubectl get pods -n {{ .Helm.Namespace }} -l app=sriov-device-plugin
+kubectl get pods -n {{ .Script.Namespace }} -l app=sriov-device-plugin
 ```
-{{- end }}
 
 ## Configuration Customization
 
@@ -208,8 +180,8 @@ nodeAffinity:
 Check pod status and events:
 
 ```bash
-kubectl get pods -n {{ .Helm.Namespace }}
-kubectl describe pod <pod-name> -n {{ .Helm.Namespace }}
+kubectl get pods -n {{ .Script.Namespace }}
+kubectl describe pod <pod-name> -n {{ .Script.Namespace }}
 ```
 
 ### OFED Driver Issues
@@ -218,7 +190,7 @@ If OFED driver pods fail to start:
 
 ```bash
 # Check driver container logs
-kubectl logs -n {{ .Helm.Namespace }} -l app=mofed-driver -c mofed-container
+kubectl logs -n {{ .Script.Namespace }} -l app=mofed-driver -c mofed-container
 
 # Verify kernel compatibility
 kubectl get nodes -o wide
@@ -233,7 +205,7 @@ Verify NICs are properly detected:
 lspci | grep Mellanox
 
 # Check device plugin configuration
-kubectl get cm -n {{ .Helm.Namespace }} rdma-devices -o yaml
+kubectl get cm -n {{ .Script.Namespace }} rdma-devices -o yaml
 ```
 
 ### Network Policy Issues
@@ -241,8 +213,8 @@ kubectl get cm -n {{ .Helm.Namespace }} rdma-devices -o yaml
 Check NicClusterPolicy status:
 
 ```bash
-kubectl get nicclusterpolicy -n {{ .Helm.Namespace }} -o yaml
-kubectl describe nicclusterpolicy -n {{ .Helm.Namespace }}
+kubectl get nicclusterpolicy -n {{ .Script.Namespace }} -o yaml
+kubectl describe nicclusterpolicy -n {{ .Script.Namespace }}
 ```
 
 ## Uninstallation
@@ -255,9 +227,9 @@ chmod +x scripts/uninstall.sh
 ./scripts/uninstall.sh
 
 # Or manually
-kubectl delete nicclusterpolicy --all -n {{ .Helm.Namespace }}
-helm uninstall network-operator -n {{ .Helm.Namespace }}
-kubectl delete namespace {{ .Helm.Namespace }}
+kubectl delete nicclusterpolicy --all -n {{ .Script.Namespace }}
+helm uninstall network-operator -n {{ .Script.Namespace }}
+kubectl delete namespace {{ .Script.Namespace }}
 ```
 
 **Warning:** Uninstalling Network Operator will remove all network configurations and may disrupt running workloads using RDMA or SR-IOV devices.

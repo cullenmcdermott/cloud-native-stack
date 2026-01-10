@@ -21,24 +21,13 @@ This bundle contains configuration and deployment artifacts for the NVIDIA Skyho
 
 ## Configuration
 
-### Operator Version
+All configuration options are defined in `values.yaml`. Key settings include:
 
-- **Skyhook Operator**: {{ .Helm.SkyhookOperatorVersion }}
-- **Skyhook Agent**: {{ .Helm.SkyhookAgentImage }}
-- **Kube RBAC Proxy**: {{ .Helm.KubeRbacProxyVersion }}
+- Operator version and image repositories
+- Resource requests and limits
+- Node selectors and tolerations
 
-### Resource Requirements
-
-- **CPU Limit**: {{ .Helm.ManagerCPULimit }}
-- **Memory Limit**: {{ .Helm.ManagerMemoryLimit }}
-- **CPU Request**: {{ .Helm.ManagerCPURequest }}
-- **Memory Request**: {{ .Helm.ManagerMemoryRequest }}
-
-### Node Configuration
-
-- **Runtime Required**: {{ .CR.RuntimeRequired }}
-- **Interruption Budget**: {{ .CR.InterruptionBudgetPercent }}%
-- **Tuning Package**: {{ .CR.TuningVersion }}
+Review and customize `values.yaml` for your environment.
 
 ## Installation
 
@@ -70,7 +59,7 @@ chmod +x scripts/install.sh
 
 1. **Create namespace**:
    ```bash
-   kubectl create namespace {{ .Helm.Namespace }}
+   kubectl create namespace {{ .Script.Namespace }}
    ```
 
 2. **Add Helm repository**:
@@ -82,7 +71,7 @@ chmod +x scripts/install.sh
 3. **Install operator**:
    ```bash
    helm upgrade --install {{ .Script.HelmReleaseName }} skyhook/{{ .Script.HelmChartName }} \
-     --namespace {{ .Helm.Namespace }} \
+     --namespace {{ .Script.Namespace }} \
      --create-namespace \
      --values values.yaml \
      --wait
@@ -99,13 +88,13 @@ Check operator deployment:
 
 ```bash
 # Check operator pods
-kubectl get pods -n {{ .Helm.Namespace }}
+kubectl get pods -n {{ .Script.Namespace }}
 
 # Check Skyhook resources
 kubectl get skyhook -A
 
 # View operator logs
-kubectl logs -n {{ .Helm.Namespace }} -l control-plane=controller-manager -f
+kubectl logs -n {{ .Script.Namespace }} -l control-plane=controller-manager -f
 ```
 
 Verify node tuning:
@@ -127,7 +116,7 @@ Edit `manifests/skyhook.yaml` to change which nodes are tuned:
 ```yaml
 nodeSelectors:
   matchExpressions:
-    - key: {{ .CR.NodeSelectorKey }}
+    - key: your-node-selector-key
       operator: In
       values:
         - your-node-group
@@ -142,8 +131,8 @@ controllerManager:
   manager:
     resources:
       limits:
-        cpu: {{ .Helm.ManagerCPULimit }}
-        memory: {{ .Helm.ManagerMemoryLimit }}
+        cpu: 500m
+        memory: 512Mi
 ```
 
 ### Custom Tuning Configuration
@@ -169,10 +158,10 @@ Or manually:
 kubectl delete -f manifests/skyhook.yaml
 
 # Uninstall Helm release
-helm uninstall {{ .Script.HelmReleaseName }} -n {{ .Helm.Namespace }}
+helm uninstall {{ .Script.HelmReleaseName }} -n {{ .Script.Namespace }}
 
 # Delete namespace (optional)
-kubectl delete namespace {{ .Helm.Namespace }}
+kubectl delete namespace {{ .Script.Namespace }}
 ```
 
 ## Troubleshooting
@@ -181,19 +170,20 @@ kubectl delete namespace {{ .Helm.Namespace }}
 
 Check operator logs:
 ```bash
-kubectl logs -n {{ .Helm.Namespace }} deployment/skyhook-operator-controller-manager
+kubectl logs -n {{ .Script.Namespace }} deployment/skyhook-operator-controller-manager
 ```
 
 ### Node Not Being Tuned
 
 1. Check node selectors match your nodes:
    ```bash
-   kubectl get nodes -L {{ .CR.NodeSelectorKey }}
+   kubectl get nodes --show-labels
    ```
 
 2. Check Skyhook status:
    ```bash
-   kubectl describe skyhook {{ .CR.Name }}
+   kubectl get skyhook -A
+   kubectl describe skyhook <name>
    ```
 
 3. Check agent pods on nodes:
@@ -205,8 +195,8 @@ kubectl logs -n {{ .Helm.Namespace }} deployment/skyhook-operator-controller-man
 
 Check configMap:
 ```bash
-kubectl get configmap -n {{ .Helm.Namespace }} | grep skyhook
-kubectl describe configmap <configmap-name> -n {{ .Helm.Namespace }}
+kubectl get configmap -n {{ .Script.Namespace }} | grep skyhook
+kubectl describe configmap <configmap-name> -n {{ .Script.Namespace }}
 ```
 
 ## Support
@@ -214,12 +204,3 @@ kubectl describe configmap <configmap-name> -n {{ .Helm.Namespace }}
 For issues and questions:
 - GitHub Issues: https://github.com/NVIDIA/skyhook/issues
 - Documentation: https://github.com/NVIDIA/skyhook
-
-## Recipe Metadata
-
-{{- if .Metadata.Created }}
-- **Created**: {{ .Metadata.Created }}
-{{- end }}
-{{- if .Metadata.RecipeVersion }}
-- **Recipe Version**: {{ .Metadata.RecipeVersion }}
-{{- end }}

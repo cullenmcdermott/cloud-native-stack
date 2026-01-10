@@ -1,9 +1,9 @@
 # cert-manager Deployment Bundle
 
 Generated from Cloud Native Stack Recipe  
-Timestamp: {{ .Helm.Timestamp }}  
-Bundler Version: {{ .Helm.Version }}  
-Recipe Version: {{ .Helm.RecipeVersion }}
+Timestamp: {{ .Script.Timestamp }}  
+Bundler Version: {{ .Script.Version }}  
+Recipe Version: {{ .Script.RecipeVersion }}
 
 ## Overview
 
@@ -41,30 +41,30 @@ Before deploying cert-manager, ensure you have:
 
 ### Namespace
 {{- if .Helm.Namespace }}
-Namespace: `{{ .Helm.Namespace }}`
+Namespace: `{{ .Script.Namespace }}`
 {{- end }}
 
 ### cert-manager Version
-{{- if .Helm.CertManagerVersion }}
-Version: `{{ .Helm.CertManagerVersion }}`
+{{- if index .Values "version" }}
+Version: `{{ index .Values "version" }}`
 {{- end }}
 
 ### Configuration
-{{- if .Helm.InstallCRDs }}
-- Install CRDs: {{ .Helm.InstallCRDs }}
+{{- if index .Values "installCRDs" }}
+- Install CRDs: {{ index .Values "installCRDs" }}
 {{- end }}
-{{- if .Helm.EnablePrometheus }}
-- Enable Prometheus: {{ .Helm.EnablePrometheus }}
+{{- if index .Values "prometheus.enabled" }}
+- Enable Prometheus: {{ index .Values "prometheus.enabled" }}
 {{- end }}
 
 ### Resource Allocations
-- Controller: {{ .Helm.ControllerCPURequest }} CPU / {{ .Helm.ControllerMemoryRequest }} Memory
-- Webhook: {{ .Helm.WebhookCPURequest }} CPU / {{ .Helm.WebhookMemoryRequest }} Memory
-- CA Injector: {{ .Helm.CAInjectorCPURequest }} CPU / {{ .Helm.CAInjectorMemoryRequest }} Memory
+- Controller: {{ index .Values "controller.resources.requests.cpu" }} CPU / {{ index .Values "controller.resources.requests.memory" }} Memory
+- Webhook: {{ index .Values "webhook.resources.requests.cpu" }} CPU / {{ index .Values "webhook.resources.requests.memory" }} Memory
+- CA Injector: {{ index .Values "cainjector.resources.requests.cpu" }} CPU / {{ index .Values "cainjector.resources.requests.memory" }} Memory
 
 ### Node Placement
-- Node Selector: {{ .Helm.NodeSelectorKey }}={{ .Helm.NodeSelectorValue }}
-- Toleration: {{ .Helm.TolerationKey }}={{ .Helm.TolerationValue }}
+- Node Selector: {{ index .Values "nodeSelector" }}
+- Toleration: {{ index .Values "tolerations" }}
 
 ## Installation
 

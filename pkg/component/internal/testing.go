@@ -365,3 +365,61 @@ func AssertConfigValue(t *testing.T, config map[string]string, key, expected str
 		t.Errorf("Config[%s] = %s, want %s", key, val, expected)
 	}
 }
+
+// RecipeResultBuilder helps build test RecipeResult objects with fluent API.
+type RecipeResultBuilder struct {
+	componentRefs []recipe.ComponentRef
+	criteria      *recipe.Criteria
+}
+
+// NewRecipeResultBuilder creates a new RecipeResult builder.
+func NewRecipeResultBuilder() *RecipeResultBuilder {
+	return &RecipeResultBuilder{
+		componentRefs: []recipe.ComponentRef{},
+		criteria:      &recipe.Criteria{},
+	}
+}
+
+// WithComponent adds a component reference with inline overrides.
+func (rb *RecipeResultBuilder) WithComponent(name, version string, overrides map[string]interface{}) *RecipeResultBuilder {
+	rb.componentRefs = append(rb.componentRefs, recipe.ComponentRef{
+		Name:      name,
+		Version:   version,
+		Overrides: overrides,
+	})
+	return rb
+}
+
+// WithComponentAndSource adds a component reference with source and inline overrides.
+func (rb *RecipeResultBuilder) WithComponentAndSource(name, version, source string, overrides map[string]interface{}) *RecipeResultBuilder {
+	rb.componentRefs = append(rb.componentRefs, recipe.ComponentRef{
+		Name:      name,
+		Version:   version,
+		Source:    source,
+		Overrides: overrides,
+	})
+	return rb
+}
+
+// Build creates the RecipeResult.
+func (rb *RecipeResultBuilder) Build() *recipe.RecipeResult {
+	return &recipe.RecipeResult{
+		Kind:          "recipeResult",
+		APIVersion:    recipe.FullAPIVersion,
+		ComponentRefs: rb.componentRefs,
+		Criteria:      rb.criteria,
+	}
+}
+
+// TestMakeWithRecipeResult tests the Make method using RecipeResult with inline overrides.
+func (h *TestHarness) TestMakeWithRecipeResult(bundler BundlerInterface, recipeResult *recipe.RecipeResult) {
+	ctx := context.Background()
+	tmpDir := h.t.TempDir()
+
+	result, err := bundler.Make(ctx, recipeResult, tmpDir)
+	if err != nil {
+		h.t.Fatalf("Make() error = %v", err)
+	}
+
+	h.AssertResult(result, tmpDir)
+}

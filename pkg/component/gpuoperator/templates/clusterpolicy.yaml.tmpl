@@ -1,37 +1,30 @@
 # GPU Operator ClusterPolicy Manifest
 # Generated from Cloud Native Stack Recipe
-# Timestamp: {{ .Timestamp }}
-# Bundler Version: {{ .Version }}
-# Recipe Version: {{ .RecipeVersion }}
+# Timestamp: {{ .Script.Timestamp }}
+# Bundler Version: {{ .Script.Version }}
+# Recipe Version: {{ .Script.RecipeVersion }}
 
 apiVersion: nvidia.com/v1
 kind: ClusterPolicy
 metadata:
   name: gpu-cluster-policy
-  namespace: {{ .Namespace }}
-  {{- if .CustomLabels }}
-  labels:
-    {{- range $key, $value := .CustomLabels }}
-    {{ $key }}: {{ $value }}
-    {{- end }}
-  {{- end }}
-  {{- if .CustomAnnotations }}
-  annotations:
-    {{- range $key, $value := .CustomAnnotations }}
-    {{ $key }}: {{ $value }}
-    {{- end }}
-  {{- end }}
+  namespace: {{ .Script.Namespace }}
 spec:
   operator:
     defaultRuntime: containerd
 
   driver:
-    enabled: {{ .EnableDriver }}
-    {{- if .DriverVersion }}
-    version: "{{ .DriverVersion }}"
+    {{- $driver := index .Values "driver" }}
+    {{- if $driver }}
+    enabled: {{ index $driver "enabled" }}
+    {{- if index $driver "version" }}
+    version: "{{ index $driver "version" }}"
     {{- end }}
-    {{- if .UseOpenKernelModule }}
+    {{- if index $driver "useOpenKernelModules" }}
     useOpenKernelModules: true
+    {{- end }}
+    {{- else }}
+    enabled: true
     {{- end }}
 
   toolkit:
@@ -47,20 +40,28 @@ spec:
     enabled: true
 
   mig:
-    strategy: {{ .MIGStrategy }}
+    {{- $mig := index .Values "mig" }}
+    {{- if $mig }}
+    strategy: {{ index $mig "strategy" }}
+    {{- else }}
+    strategy: single
+    {{- end }}
 
   gds:
-    enabled: {{ .EnableGDS }}
+    {{- $gds := index .Values "gds" }}
+    {{- if $gds }}
+    enabled: {{ index $gds "enabled" }}
+    {{- else }}
+    enabled: false
+    {{- end }}
 
-  {{- if .EnableVGPU }}
+  {{- $vgpu := index .Values "vgpuManager" }}
+  {{- if $vgpu }}
+  {{- if index $vgpu "enabled" }}
   vgpuManager:
     enabled: true
-    {{- if .VGPULicenseServer }}
-    licenseServerURL: {{ .VGPULicenseServer }}
+    {{- if index $vgpu "licenseServerURL" }}
+    licenseServerURL: {{ index $vgpu "licenseServerURL" }}
     {{- end }}
   {{- end }}
-
-  {{- if .EnableCDI }}
-  cdi:
-    enabled: true
   {{- end }}

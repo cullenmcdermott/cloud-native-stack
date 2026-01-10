@@ -836,11 +836,11 @@ The e2e script:
 
 ### Adding a New Bundler
 
-The bundler framework uses **BaseBundler** - a helper that reduces boilerplate by ~75% (from ~400 lines to ~100 lines). Instead of implementing the full `Bundler` interface from scratch, embed `BaseBundler` and override only what you need.
+The bundler framework uses a **simplified RecipeResult-only architecture**. Bundlers receive RecipeResult with component references and generate deployment artifacts.
 
 #### Quick Start: Minimal Bundler Implementation
 
-1. Create bundler package in `pkg/bundler/<bundler-name>/`:
+1. Create bundler package in `pkg/component/<bundler-name>/`:
 ```go
 // pkg/component/networkoperator/bundler.go
 package networkoperator
@@ -848,23 +848,28 @@ package networkoperator
 import (
     "context"
     "embed"
+    "fmt"
+    "os"
+    "path/filepath"
     
     "github.com/NVIDIA/cloud-native-stack/pkg/bundler"
-    "github.com/NVIDIA/cloud-native-stack/pkg/component/internal"
-    "github.com/NVIDIA/cloud-native-stack/pkg/recipe"
+    "github.com/NVIDIA/cloud-native-stack/pkg/bundler/result"
 )
 
 //go:embed templates/*.tmpl
 var templatesFS embed.FS
 
-const bundlerType = bundler.BundleType("network-operator")
+const (
+    bundlerType = bundler.BundleType("network-operator")
+    Name        = "network-operator"  // Use constant for component name
+)
 
 func init() {
     // Self-register using MustRegister (panics on duplicates)
     bundler.MustRegister(bundlerType, NewBundler())
 }
 
-// Bundler generates Network Operator deployment bundles.
+// Bundler generates Network Operator deployment bundles from RecipeResult.
 type Bundler struct {
     *bundler.BaseBundler  // Embed helper for common functionality
 }
@@ -876,86 +881,111 @@ func NewBundler() *Bundler {
     }
 }
 
-// Make generates the bundle (override BaseBundler.Make).
-func (b *Bundler) Make(ctx context.Context, r *recipe.Recipe, 
-    outputDir string) (*bundler.BundleResult, error) {
+// Make generates the bundle (delegates to makeFromRecipeResult).
+func (b *Bundler) Make(ctx context.Context, input *result.RecipeResult, 
+    outputDir string) (*bundler.Result, error) {
+    return b.makeFromRecipeResult(ctx, input, outputDir)
+}
+
+// makeFromRecipeResult generates bundle from RecipeResult with component references.
+func (b *Bundler) makeFromRecipeResult(ctx context.Context, input *result.RecipeResult, 
+    outputDir string) (*bundler.Result, error) {
     
-    // 1. Create bundle directory structure
-    dirs := []string{"manifests", "scripts"}
-    if err := b.CreateBundleDir(outputDir, dirs...); err != nil {
+    // 1. Get component reference from RecipeResult
+    component := input.GetComponentRef(Name)
+    if component == nil {
+        return nil, fmt.Errorf(Name + " component not found in recipe result")
+    }
+    
+    // 2. Get values map (with overrides already applied)
+    values := input.GetValuesForComponent(Name)
+    
+    // 3. Create bundle directory structure
+    if err := b.CreateBundleDir(outputDir, "scripts"); err != nil {
         return nil, err
     }
     
-    // 2. Build configuration map from recipe
-    configMap := b.buildConfigMap(r)
+    // 4. Generate script metadata
+    scriptData := generateScriptData(component, values)
     
-    // 3. Generate typed data structures from recipe
-    helmValues := GenerateHelmValues(r, configMap)
-    scriptData := GenerateScriptData(r, configMap)
-    
-    // For README, combine both structures
+    // 5. Combine values and metadata for README
     readmeData := map[string]interface{}{
-        "Helm":   helmValues,
+        "Values": values,
         "Script": scriptData,
     }
     
-    // 4. Generate files from templates with typed structs
-    filePath := filepath.Join(outputDir, "values.yaml")
-    if err := b.GenerateFileFromTemplate(ctx, GetTemplate, "values.yaml",
-        filePath, helmValues, 0644); err != nil {
-        return nil, err
-    }
-    
-    filePath = filepath.Join(outputDir, "scripts/install.sh")
-    if err := b.GenerateFileFromTemplate(ctx, GetTemplate, "install.sh",
-        filePath, scriptData, 0755); err != nil {
-        return nil, err
-    }
-    
-    filePath = filepath.Join(outputDir, "README.md")
-    if err := b.GenerateFileFromTemplate(ctx, GetTemplate, "README.md",
-        filePath, readmeData, 0644); err != nil {
-        return nil, err
+    // 6. Generate files from templates
+    files := []struct {
+        path     string
+        template string
+        data     interface{}
+        perm     os.FileMode
+    }{
+        {filepath.Join(outputDir, "values.yaml"), "values.yaml", values, 0644},
+        {filepath.Join(outputDir, "scripts/install.sh"), "install.sh", scriptData, 0755},
+        {filepath.Join(outputDir, "README.md"), "README.md", readmeData, 0644},
     }
     
     var generatedFiles []string
-    // ... collect file paths
+    for _, f := range files {
+        if err := b.GenerateFileFromTemplate(ctx, GetTemplate, f.template, 
+            f.path, f.data, f.perm); err != nil {
+            return nil, err
+        }
+        generatedFiles = append(generatedFiles, f.path)
+    }
     
-    // 4. Generate checksums and return result
+    // 7. Generate checksums and return result
     return b.GenerateResult(outputDir, generatedFiles)
 }
 ```
 
-#### Key Components
+2. Create script metadata generator in `scripts.go`:
+```go
+// pkg/component/networkoperator/scripts.go
+package networkoperator
 
-**BaseBundler provides:**
-- `CreateBundleDir(path, subdirs...)` – Creates directory structure
-- `WriteFile(path, content)` – Writes file with error handling
-- `GenerateFileFromTemplate(ctx, getter, name, path, data, perm)` – Renders struct directly to template
-- `GenerateResult(dir, files)` – Creates BundleResult with checksums
-- `Type()` – Returns bundler type
-- `Validate(ctx, recipe)` – Default validation (override if needed)
+import (
+    "time"
+    
+    "github.com/NVIDIA/cloud-native-stack/pkg/bundler/result"
+)
 
-**Key principle**: Pass Go structs directly to templates (no map conversion)
+// ScriptData contains metadata for shell scripts and README.
+type ScriptData struct {
+    Timestamp     string
+    Namespace     string
+    Version       string
+    Repository    string
+    ComponentName string
+}
 
-**Internal helpers in `pkg/component/internal`:**
-- `BuildBaseConfigMap(recipe, additional)` – Extracts configuration strings from recipe
-- `ExtractK8sImageSubtype(recipe)` – Gets Kubernetes image measurements
-- `ExtractGPUDeviceSubtype(recipe)` – Gets GPU device measurements  
-- Plus 12 more measurement extraction helpers
-
-**Data generation functions** (in each component package):
-- `GenerateHelmValues(recipe, config)` – Creates typed HelmValues struct
-- `GenerateManifestData(recipe, config)` – Creates typed ManifestData struct
-- `GenerateScriptData(recipe, config)` – Creates typed ScriptData struct
-
-Structs are passed **directly** to templates - no ToMap() conversion needed
-
-2. Create templates directory with embedded templates:
+// generateScriptData creates metadata from component reference.
+func generateScriptData(component *result.ComponentRef, values map[string]interface{}) *ScriptData {
+    namespace := "default"
+    if ns, ok := values["namespace"].(string); ok {
+        namespace = ns
+    }
+    
+    repository := "https://helm.ngc.nvidia.com/nvidia"
+    if repo, ok := values["repository"].(string); ok {
+        repository = repo
+    }
+    
+    return &ScriptData{
+        Timestamp:     time.Now().Format(time.RFC3339),
+        Namespace:     namespace,
+        Version:       component.Version,
+        Repository:    repository,
+        ComponentName: component.Name,
+    }
+}
 ```
-pkg/bundler/networkoperator/templates/
+
+3. Create templates directory with embedded templates:
+```
+pkg/component/networkoperator/templates/
 ├── values.yaml.tmpl               # Helm chart values
-├── nicclusterpolicy.yaml.tmpl     # NICClusterPolicy CR
 ├── install.sh.tmpl                # Installation script
 ├── uninstall.sh.tmpl              # Cleanup script
 └── README.md.tmpl                 # Documentation
@@ -965,28 +995,25 @@ pkg/bundler/networkoperator/templates/
 ```yaml
 # Network Operator Helm Values
 # Generated by CNS Eidos
-# Timestamp: {{ .Timestamp }}
-# Bundler Version: {{ .Version }}
-# Recipe Version: {{ .RecipeVersion }}
 
-networkOperator:
-  # Direct struct field access - no map conversion
-  version: {{ .NetworkOperatorVersion.Value }}
+# Direct access to values map
+version: {{ index . "version" }}
+namespace: {{ index . "namespace" }}
   
 driver:
-  image: nvcr.io/nvidia/mellanox/mofed
-  version: {{ .OFEDVersion.Value }}
+  image: {{ index . "driver.image" }}
+  version: {{ index . "driver.version" }}
   
 config:
   rdma:
-    enabled: {{ .EnableRDMA.Value }}
+    enabled: {{ index . "rdma.enabled" }}
   sriov:
-    enabled: {{ .EnableSRIOV.Value }}
+    enabled: {{ index . "sriov.enabled" }}
 ```
 
-**Note:** Templates access struct fields directly. For `ValueWithContext` fields, use `.Value` to get the actual value.
+**Note:** Templates use `index` function to access values map.
 
-3. Write tests using TestHarness (reduces test code by 34%):
+4. Write tests with TestHarness and RecipeResult:
 ```go
 // pkg/component/networkoperator/bundler_test.go
 package networkoperator
@@ -994,9 +1021,8 @@ package networkoperator
 import (
     "testing"
     
+    "github.com/NVIDIA/cloud-native-stack/pkg/bundler/result"
     "github.com/NVIDIA/cloud-native-stack/pkg/component/internal"
-    "github.com/NVIDIA/cloud-native-stack/pkg/measurement"
-    "github.com/NVIDIA/cloud-native-stack/pkg/recipe"
 )
 
 func TestBundler_Make(t *testing.T) {
@@ -1005,13 +1031,13 @@ func TestBundler_Make(t *testing.T) {
     
     tests := []struct {
         name    string
-        recipe  *recipe.Recipe
+        input   *result.RecipeResult
         wantErr bool
         verify  func(t *testing.T, outputDir string)
     }{
         {
-            name:    "valid recipe with network operator",
-            recipe:  createTestRecipe(),
+            name:    "valid component reference",
+            input:   createTestRecipeResult(),
             wantErr: false,
             verify: func(t *testing.T, outputDir string) {
                 // TestHarness automatically verifies:
@@ -1021,21 +1047,19 @@ func TestBundler_Make(t *testing.T) {
                 
                 // Additional custom verification
                 harness.AssertFileContains(outputDir, "values.yaml", 
-                    "networkOperator:", "version: v25.4.0")
-                harness.AssertFileContains(outputDir, "manifests/nicclusterpolicy.yaml",
-                    "kind: NICClusterPolicy")
+                    "version:", "namespace:")
             },
         },
         {
-            name:    "missing required measurements",
-            recipe:  &recipe.Recipe{},
+            name:    "missing component reference",
+            input:   &result.RecipeResult{},
             wantErr: true,
         },
     }
     
     for _, tt := range tests {
         t.Run(tt.name, func(t *testing.T) {
-            result := harness.RunTest(tt.recipe, tt.wantErr)
+            result := harness.RunTest(tt.input, tt.wantErr)
             if !tt.wantErr && tt.verify != nil {
                 tt.verify(t, result.OutputDir)
             }
@@ -1043,33 +1067,21 @@ func TestBundler_Make(t *testing.T) {
     }
 }
 
-func createTestRecipe() *recipe.Recipe {
-    return &recipe.Recipe{
-        APIVersion: "v1",
-        Kind:       "Recipe",
-        Measurements: []*measurement.Measurement{
-            {
-                Type: measurement.TypeK8s,
-                Subtypes: []*measurement.Subtype{
-                    {
-                        Name: "image",
-                        Data: map[string]measurement.Reading{
-                            "network-operator": measurement.Str("v25.4.0"),
-                            "ofed-driver":      measurement.Str("24.07"),
-                        },
-                    },
-                },
-            },
-            {
-                Type: measurement.TypeOS,
-                Subtypes: []*measurement.Subtype{
-                    {
-                        Name: "release",
-                        Data: map[string]measurement.Reading{
-                            "ID":         measurement.Str("ubuntu"),
-                            "VERSION_ID": measurement.Str("24.04"),
-                        },
-                    },
+func createTestRecipeResult() *result.RecipeResult {
+    return &result.RecipeResult{
+        Components: map[string]*result.ComponentRef{
+            Name: {
+                Name:    Name,
+                Version: "v25.4.0",
+                Type:    "helm",
+                Source:  "recipe",
+                Values: map[string]interface{}{
+                    "version":        "v25.4.0",
+                    "namespace":      "network-operator",
+                    "driver.image":   "nvcr.io/nvidia/mellanox/mofed",
+                    "driver.version": "24.07",
+                    "rdma.enabled":   true,
+                    "sriov.enabled":  false,
                 },
             },
         },
@@ -1077,14 +1089,14 @@ func createTestRecipe() *recipe.Recipe {
 }
 ```
 
-4. Test bundle generation:
+5. Test bundle generation:
 ```bash
 # Build CLI with new bundler
 make build
 
 # Test bundle generation (automatic registration via init())
 ./dist/eidos_*/eidos bundle \
-    --recipe examples/recipes/gb200-eks-ubuntu-training.yaml \
+  --recipe examples/recipes/gb200-eks-ubuntu-training.yaml \
   --bundlers network-operator \
   --output ./test-bundles
 
@@ -1096,8 +1108,6 @@ tree test-bundles/network-operator/
 ```
 test-bundles/network-operator/
 ├── values.yaml
-├── manifests/
-│   └── nicclusterpolicy.yaml
 ├── scripts/
 │   ├── install.sh
 │   └── uninstall.sh
@@ -1105,19 +1115,44 @@ test-bundles/network-operator/
 └── checksums.txt
 ```
 
+
+#### Key Components
+
+**RecipeResult-Only Architecture:**
+- Single makeFromRecipeResult() path
+- Get component via `input.GetComponentRef(Name)` 
+- Extract values via `input.GetValuesForComponent(Name)`
+- Values map already has CLI --set overrides applied
+- No measurement extraction needed
+
+**ScriptData for Metadata:**
+- Contains namespace, version, repository, timestamp
+- Separate from values map
+- Used for shell scripts and README metadata
+
+**Template Data:**
+- values.yaml: receives values map directly
+- scripts: receive ScriptData struct
+- README.md: receives combined map with Values + Script
+
+**File Structure per Component:**
+- bundler.go: Main bundler logic with makeFromRecipeResult()
+- scripts.go: ScriptData generation
+- bundler_test.go: Tests using RecipeResult
+- templates/*.tmpl: Embedded templates
+
 #### Bundler Architecture Benefits
 
+**Simplified Architecture:**
+- 54% average code reduction across all bundlers
+- Single code path (no dual Recipe/RecipeResult routing)
+- Direct values access (no measurement extraction)
+- Simpler testing with RecipeResult pattern
+
 **BaseBundler Helper:**
-- 75% less boilerplate (400 lines → 100 lines typical bundler)
 - Common functionality: directory creation, file writing, template rendering, checksum generation
 - Consistent error handling and logging
 - Automatic context cancellation support
-
-**Internal Package Utilities:**
-- 15+ helper functions for recipe data extraction
-- Standardized measurement access patterns
-- Template generation from embed.FS
-- Reduces duplication across bundlers
 
 **TestHarness:**
 - 34% less test code
@@ -1131,36 +1166,14 @@ test-bundles/network-operator/
 - Automatic discovery (no manual registration needed)
 - `MustRegister()` panics on duplicate types (fail fast)
 
-#### Advanced: Custom Validation
-
-Override `Validate()` if you need custom recipe validation:
-
-```go
-func (b *Bundler) Validate(ctx context.Context, r *recipe.Recipe) error {
-    // Call base validation first
-    if err := b.BaseBundler.Validate(ctx, r); err != nil {
-        return err
-    }
-    
-    // Custom validation
-    imageSubtype := internal.ExtractK8sImageSubtype(r)
-    if imageSubtype == nil {
-        return fmt.Errorf("recipe missing K8s image measurements")
-    }
-    
-    if _, exists := imageSubtype.Data["network-operator"]; !exists {
-        return fmt.Errorf("recipe missing network-operator version")
-    }
-    
-    return nil
-}
-```
-
 #### Bundler Best Practices
 
 **Implementation:**
-- ✅ Embed `BaseBundler` instead of implementing from scratch
-- ✅ Use `internal` package helpers for recipe data extraction
+- ✅ Use `Name` constant instead of hardcoded component names
+- ✅ Single `makeFromRecipeResult()` method - no dual paths
+- ✅ Get values via `input.GetValuesForComponent(Name)`
+- ✅ Pass values map directly to templates
+- ✅ Use `ScriptData` for metadata (namespace, version, timestamps)
 - ✅ Use `go:embed` for template portability
 - ✅ Keep bundlers stateless (thread-safe by default)
 - ✅ Check context cancellation for long operations
@@ -1168,25 +1181,26 @@ func (b *Bundler) Validate(ctx context.Context, r *recipe.Recipe) error {
 
 **Testing:**
 - ✅ Use `TestHarness` for consistent test structure
-- ✅ Test with realistic recipes (use helper `createTestRecipe()`)
+- ✅ Create RecipeResult with ComponentRef in tests
+- ✅ Test with realistic values maps
 - ✅ Verify file content with `AssertFileContains()`
-- ✅ Test error cases (missing measurements, invalid data)
+- ✅ Test error cases (missing component reference)
 - ✅ Validate checksums are generated correctly
 
 **Templates:**
-- ✅ Use clear template variable names (`{{ .Version }}` not `{{ .V }}`)
-- ✅ Access struct fields directly without ToMap() conversion
-- ✅ Use `.Value` for ValueWithContext fields (`{{ .DriverVersion.Value }}`)
-- ✅ For README templates, use prefixes (`{{ .Script.Timestamp }}`, `{{ .Helm.Namespace }}`)
-- ✅ Add comments explaining template variables and data types
+- ✅ Access values map with `index` function: `{{ index . "key" }}`
+- ✅ For README, use nested access: `{{ index .Values "key" }}`
+- ✅ Use clear template variable names
+- ✅ Add comments explaining data types
+- ✅ Handle missing values gracefully with `{{- if }}`
 - ✅ Validate template rendering in tests
-- ✅ Handle missing template variables gracefully with `{{- if .Field }}`
 
 **Documentation:**
 - ✅ Add package doc.go with overview
 - ✅ Document exported types and functions
 - ✅ Include examples in README.md template
 - ✅ Explain prerequisites and deployment steps
+
 
 ## Code Quality Standards
 
