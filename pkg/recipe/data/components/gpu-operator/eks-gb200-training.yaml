@@ -1,53 +1,16 @@
 # GPU Operator Helm values
-# EKS GB200 Training configuration
+# EKS GB200 Training configuration overrides
 
-operator:
-  defaultRuntime: containerd
-
+# Override driver version for GB200
 driver:
-  enabled: true
-  repository: nvcr.io/nvidia
-  image: driver
   version: "570.86.16"
-  licensingConfig:
-    configMapName: ""
 
-toolkit:
-  enabled: true
-
-devicePlugin:
-  enabled: true
-
-dcgm:
-  enabled: true
-
-dcgmExporter:
-  enabled: true
-
-gfd:
-  enabled: true
-
-migManager:
-  enabled: false
-
-nodeStatusExporter:
-  enabled: true
-
-validator:
-  enabled: true
-
-# GB200-specific settings
+# GB200-specific features
 gdrcopy:
   enabled: true
 
 gds:
   enabled: true
-
-sandboxDevicePlugin:
-  enabled: false
-
-vgpuManager:
-  enabled: false
 
 vgpuDeviceManager:
   enabled: false

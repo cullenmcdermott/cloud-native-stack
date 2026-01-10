@@ -45,8 +45,9 @@ type BundleDirectories struct {
 	Manifests string
 }
 
-// CreateBundleDir creates the standard bundle directory structure.
-// Returns the bundle directories for easy access to each subdirectory.
+// CreateBundleDir creates the root bundle directory.
+// Subdirectories (scripts, manifests) are created on-demand when files are written.
+// Returns the bundle directories for easy access to each subdirectory path.
 func (b *BaseBundler) CreateBundleDir(outputDir, bundleName string) (BundleDirectories, error) {
 	bundleDir := filepath.Join(outputDir, bundleName)
 
@@ -56,13 +57,12 @@ func (b *BaseBundler) CreateBundleDir(outputDir, bundleName string) (BundleDirec
 		Manifests: filepath.Join(bundleDir, "manifests"),
 	}
 
-	for _, dir := range []string{dirs.Root, dirs.Scripts, dirs.Manifests} {
-		if err := os.MkdirAll(dir, 0755); err != nil {
-			return dirs, fmt.Errorf("failed to create directory %s: %w", dir, err)
-		}
+	// Only create the root directory. Subdirectories will be created when needed.
+	if err := os.MkdirAll(dirs.Root, 0755); err != nil {
+		return dirs, fmt.Errorf("failed to create directory %s: %w", dirs.Root, err)
 	}
 
-	slog.Debug("bundle directory structure created",
+	slog.Debug("bundle directory created",
 		"bundle", bundleName,
 		"root", dirs.Root,
 	)
@@ -73,7 +73,14 @@ func (b *BaseBundler) CreateBundleDir(outputDir, bundleName string) (BundleDirec
 // WriteFile writes content to a file and tracks it in the result.
 // The file is created with the specified permissions and automatically
 // added to the result's file list with its size.
+// Parent directories are created automatically if they don't exist.
 func (b *BaseBundler) WriteFile(path string, content []byte, perm os.FileMode) error {
+	// Ensure parent directory exists
+	dir := filepath.Dir(path)
+	if err := os.MkdirAll(dir, 0755); err != nil {
+		return fmt.Errorf("failed to create directory %s: %w", dir, err)
+	}
+
 	if err := os.WriteFile(path, content, perm); err != nil {
 		return fmt.Errorf("failed to write %s: %w", path, err)
 	}

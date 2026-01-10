@@ -164,6 +164,42 @@ func (b *Bundler) makeFromRecipeResult(ctx context.Context, input recipe.RecipeI
 			"failed to write values file", err)
 	}
 
+	// Build config map from component reference
+	configMap := map[string]string{
+		"namespace":          Name,
+		"helm_repository":    componentRef.Source,
+		"helm_chart_version": componentRef.Version,
+	}
+
+	// Generate HelmValues from values map
+	helmValues := GenerateHelmValuesFromMap(configMap)
+
+	// Generate ScriptData from config
+	scriptData := GenerateScriptDataFromConfig(configMap)
+
+	// Generate README
+	if b.Config.IncludeReadme() {
+		readmeData := map[string]interface{}{
+			"Helm":   helmValues,
+			"Script": scriptData,
+		}
+		if err := b.generateReadmeFromData(ctx, readmeData, dirs.Root); err != nil {
+			return b.Result, err
+		}
+	}
+
+	// Generate ClusterPolicy manifest
+	if err := b.generateManifestsFromData(ctx, helmValues, dirs.Root); err != nil {
+		return b.Result, err
+	}
+
+	// Generate install/uninstall scripts
+	if b.Config.IncludeScripts() {
+		if err := b.generateScriptsFromData(ctx, scriptData, dirs.Root); err != nil {
+			return b.Result, err
+		}
+	}
+
 	// Generate checksums file
 	if b.Config.IncludeChecksums() {
 		if err := b.GenerateChecksums(ctx, dirs.Root); err != nil {
@@ -393,6 +429,36 @@ func (b *Bundler) generateReadme(ctx context.Context, recipe *recipe.Recipe,
 
 	return b.GenerateFileFromTemplate(ctx, GetTemplate, "README.md",
 		filePath, data, 0644)
+}
+
+// generateReadmeFromData generates README from pre-built data (for RecipeResult).
+func (b *Bundler) generateReadmeFromData(ctx context.Context, data map[string]interface{}, dir string) error {
+	filePath := filepath.Join(dir, "README.md")
+	return b.GenerateFileFromTemplate(ctx, GetTemplate, "README.md",
+		filePath, data, 0644)
+}
+
+// generateScriptsFromData generates install/uninstall scripts from pre-built data.
+func (b *Bundler) generateScriptsFromData(ctx context.Context, scriptData *ScriptData, dir string) error {
+	// Generate install script
+	installPath := filepath.Join(dir, "scripts", "install.sh")
+	if err := b.GenerateFileFromTemplate(ctx, GetTemplate, "install.sh",
+		installPath, scriptData, 0755); err != nil {
+		return err
+	}
+
+	// Generate uninstall script
+	uninstallPath := filepath.Join(dir, "scripts", "uninstall.sh")
+	return b.GenerateFileFromTemplate(ctx, GetTemplate, "uninstall.sh",
+		uninstallPath, scriptData, 0755)
+}
+
+// generateManifestsFromData generates manifests from pre-built data.
+func (b *Bundler) generateManifestsFromData(ctx context.Context, helmValues *HelmValues, dir string) error {
+	manifestData := GenerateManifestDataFromValues(helmValues)
+	filePath := filepath.Join(dir, "manifests", "clusterpolicy.yaml")
+	return b.GenerateFileFromTemplate(ctx, GetTemplate, "clusterpolicy",
+		filePath, manifestData, 0644)
 }
 
 // getValueOverrides retrieves value overrides for this bundler from config.

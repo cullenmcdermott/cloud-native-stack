@@ -7,7 +7,7 @@ spec:
   # Basic assumptions - will create warning in pre-flight but not block deployment
   constraints:
     - name: k8s
-      value: ">= 1.30"
+      value: ">= 1.25"
 
   componentRefs:
     - name: cert-manager
@@ -21,14 +21,6 @@ spec:
       source: https://helm.ngc.nvidia.com/nvidia
       version: v25.3.3
       valuesFile: components/gpu-operator/values.yaml
-      dependencyRefs:
-        - cert-manager
-
-    - name: network-operator
-      type: Helm
-      source: https://helm.ngc.nvidia.com/nvidia
-      version: v25.4.0
-      valuesFile: components/network-operator/values.yaml
       dependencyRefs:
         - cert-manager
 

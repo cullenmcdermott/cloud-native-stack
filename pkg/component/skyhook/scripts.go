@@ -34,3 +34,18 @@ func GenerateScriptData(recipe *recipe.Recipe, config map[string]string) *Script
 
 	return data
 }
+
+// GenerateScriptDataFromConfig creates script data from config map only (for RecipeResult inputs).
+func GenerateScriptDataFromConfig(config map[string]string) *ScriptData {
+	data := &ScriptData{
+		Timestamp:        time.Now().UTC().Format(time.RFC3339),
+		Version:          common.GetBundlerVersion(config),
+		Namespace:        common.GetConfigValue(config, "namespace", Name),
+		HelmChartRepo:    common.ValueWithContext{Value: common.GetConfigValue(config, "helm_repository", "https://nvidia.github.io/skyhook")},
+		HelmChartName:    common.ValueWithContext{Value: common.GetConfigValue(config, "helm_chart_name", "skyhook")},
+		HelmReleaseName:  common.ValueWithContext{Value: common.GetConfigValue(config, "helm_release_name", "skyhook")},
+		OperatorRegistry: common.ValueWithContext{Value: common.GetConfigValue(config, "operator_registry", "nvcr.io/nvidia")},
+	}
+
+	return data
+}

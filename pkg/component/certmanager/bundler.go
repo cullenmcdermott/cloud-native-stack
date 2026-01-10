@@ -155,6 +155,31 @@ func (b *Bundler) makeFromRecipeResult(ctx context.Context, input recipe.RecipeI
 			"failed to write values file", err)
 	}
 
+	// Build config map from component reference
+	configMap := map[string]string{
+		"namespace":            Name,
+		"helm_chart_version":   componentRef.Version,
+		"helm_repository":      componentRef.Source,
+		"cert_manager_version": componentRef.Version,
+	}
+
+	// Generate README with pre-built data
+	if b.Config.IncludeReadme() {
+		helmValues := GenerateHelmValuesFromMap(configMap)
+		scriptData := GenerateScriptDataFromConfig(configMap)
+		if err := b.generateReadmeFromData(ctx, helmValues, scriptData, dirs.Root); err != nil {
+			return b.Result, err
+		}
+	}
+
+	// Generate installation scripts if enabled
+	if b.Config.IncludeScripts() {
+		scriptData := GenerateScriptDataFromConfig(configMap)
+		if err := b.generateScriptsFromData(ctx, scriptData, dirs.Root); err != nil {
+			return b.Result, err
+		}
+	}
+
 	// Generate checksums file
 	if b.Config.IncludeChecksums() {
 		if err := b.GenerateChecksums(ctx, dirs.Root); err != nil {
@@ -278,6 +303,39 @@ func (b *Bundler) generateReadme(ctx context.Context, r *recipe.Recipe,
 	filePath := filepath.Join(outputDir, "README.md")
 	return b.GenerateFileFromTemplate(ctx, GetTemplate, "README.md",
 		filePath, readmeData, 0644)
+}
+
+// generateReadmeFromData generates README from pre-built data (for RecipeResult).
+func (b *Bundler) generateReadmeFromData(ctx context.Context, helmValues *HelmValues,
+	scriptData *ScriptData, outputDir string) error {
+
+	readmeData := map[string]interface{}{
+		"Helm":   helmValues,
+		"Script": scriptData,
+	}
+
+	filePath := filepath.Join(outputDir, "README.md")
+	return b.GenerateFileFromTemplate(ctx, GetTemplate, "README.md",
+		filePath, readmeData, 0644)
+}
+
+// generateScriptsFromData generates installation scripts from pre-built data (for RecipeResult).
+func (b *Bundler) generateScriptsFromData(ctx context.Context, scriptData *ScriptData,
+	outputDir string) error {
+
+	scriptsDir := filepath.Join(outputDir, "scripts")
+
+	// Generate install script
+	installPath := filepath.Join(scriptsDir, "install.sh")
+	if err := b.GenerateFileFromTemplate(ctx, GetTemplate, "install.sh",
+		installPath, scriptData, 0755); err != nil {
+		return err
+	}
+
+	// Generate uninstall script
+	uninstallPath := filepath.Join(scriptsDir, "uninstall.sh")
+	return b.GenerateFileFromTemplate(ctx, GetTemplate, "uninstall.sh",
+		uninstallPath, scriptData, 0755)
 }
 
 // getValueOverrides extracts value overrides for this bundler from config.

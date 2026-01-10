@@ -113,6 +113,23 @@ func GenerateHelmValues(recipe *recipe.Recipe, config map[string]string, overrid
 	return values
 }
 
+// GenerateHelmValuesFromMap generates Helm values from config map (for RecipeResult inputs).
+func GenerateHelmValuesFromMap(config map[string]string) *HelmValues {
+	helmValues := &HelmValues{
+		Timestamp:          time.Now().UTC().Format(time.RFC3339),
+		Version:            common.GetBundlerVersion(config),
+		Namespace:          common.GetConfigValue(config, "namespace", Name),
+		InstallCRDs:        common.ValueWithContext{Value: "true"},
+		EnablePrometheus:   common.ValueWithContext{Value: "true"},
+		CertManagerVersion: common.ValueWithContext{Value: common.GetConfigValue(config, "helm_chart_version", "v1.19.1")},
+		ControllerImage:    common.ValueWithContext{Value: "nvcr.io/0491946863192633/cert-manager-controller:v1.19.1"},
+		WebhookImage:       common.ValueWithContext{Value: "nvcr.io/0491946863192633/cert-manager-webhook:v1.19.1"},
+		CAInjectorImage:    common.ValueWithContext{Value: "nvcr.io/0491946863192633/cert-manager-cainjector:v1.19.1"},
+	}
+
+	return helmValues
+}
+
 // extractK8sSettings extracts Kubernetes-related settings from measurements.
 func (v *HelmValues) extractK8sSettings(m *measurement.Measurement) {
 	// First, extract registry URI for cert-manager

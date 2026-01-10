@@ -89,4 +89,36 @@ func GenerateManifestData(recipe *recipe.Recipe, config map[string]string, overr
 	return data
 }
 
+// GenerateManifestDataFromValues creates manifest data from HelmValues (for RecipeResult inputs).
+func GenerateManifestDataFromValues(helmValues *HelmValues) *ManifestData {
+	data := &ManifestData{
+		Timestamp:     helmValues.Timestamp,
+		Namespace:     helmValues.Namespace,
+		EnableDriver:  true,
+		MIGStrategy:   "single",
+		EnableGDS:     false,
+		EnableVGPU:    false,
+		EnableCDI:     false,
+		CustomLabels:  helmValues.CustomLabels,
+		Version:       helmValues.Version,
+		RecipeVersion: helmValues.RecipeVersion,
+	}
+
+	// Convert helm values to manifest data - extract Value from ValueWithContext
+	if dv, ok := helmValues.DriverVersion.Value.(string); ok {
+		data.DriverVersion = dv
+	}
+	if okm, ok := helmValues.UseOpenKernelModule.Value.(bool); ok {
+		data.UseOpenKernelModule = okm
+	}
+	if ms, ok := helmValues.MIGStrategy.Value.(string); ok {
+		data.MIGStrategy = ms
+	}
+	if gds, ok := helmValues.EnableGDS.Value.(bool); ok {
+		data.EnableGDS = gds
+	}
+
+	return data
+}
+
 // ToMap converts ManifestData to a map for template rendering.

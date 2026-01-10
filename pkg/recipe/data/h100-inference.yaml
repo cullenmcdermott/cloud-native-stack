@@ -1,30 +1,29 @@
 kind: recipeMetadata
 apiVersion: cns.nvidia.com/v1alpha1
 metadata:
-  name: gb200-eks-training
+  name: h100-inference
 
 spec:
   criteria:
-    service: eks
-    accelerator: gb200
-    intent: training
+    accelerator: h100
+    intent: inference
 
-  # Specific constraints for GB200 on EKS training workloads
+  # Specific constraints for H100 inference workloads
   constraints:
     - name: k8s
-      value: ">= 1.32.4"
+      value: ">= 1.31"
     - name: worker-os
       value: "ubuntu"
     - name: worker-os-version
-      value: "24.04"
+      value: ">= 24.04"
     - name: kernel
       value: ">= 6.8"
 
   componentRefs:
-    - name: gpu-operator
+    - name: network-operator
       type: Helm
       source: https://helm.ngc.nvidia.com/nvidia
-      version: v25.3.3
-      valuesFile: components/gpu-operator/eks-gb200-training.yaml
+      version: v25.4.0
+      valuesFile: components/network-operator/values.yaml
       dependencyRefs:
         - cert-manager

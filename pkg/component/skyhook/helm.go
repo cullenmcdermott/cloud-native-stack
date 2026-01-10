@@ -66,6 +66,28 @@ func GenerateHelmValues(recipe *recipe.Recipe, config map[string]string, overrid
 	return values
 }
 
+// GenerateHelmValuesFromMap generates Helm values from config map (for RecipeResult inputs).
+func GenerateHelmValuesFromMap(config map[string]string) *HelmValues {
+	helmValues := &HelmValues{
+		Timestamp:              time.Now().UTC().Format(time.RFC3339),
+		Namespace:              common.GetConfigValue(config, "namespace", Name),
+		Version:                common.GetBundlerVersion(config),
+		OperatorRegistry:       common.ValueWithContext{Value: common.GetConfigValue(config, "operator_registry", "nvcr.io/nvidia")},
+		KubeRbacProxyVersion:   common.ValueWithContext{Value: common.GetConfigValue(config, "kube_rbac_proxy_version", "v0.15.0")},
+		SkyhookOperatorVersion: common.ValueWithContext{Value: common.GetConfigValue(config, "helm_chart_version", "v0.7.4")},
+		SkyhookAgentImage:      common.ValueWithContext{Value: common.GetConfigValue(config, "skyhook_agent_image", "nvcr.io/nvidia/skyhook-agent:latest")},
+		ManagerCPULimit:        common.ValueWithContext{Value: common.GetConfigValue(config, "manager_cpu_limit", "1000m")},
+		ManagerMemoryLimit:     common.ValueWithContext{Value: common.GetConfigValue(config, "manager_memory_limit", "4000Mi")},
+		ManagerCPURequest:      common.ValueWithContext{Value: common.GetConfigValue(config, "manager_cpu_request", "1000m")},
+		ManagerMemoryRequest:   common.ValueWithContext{Value: common.GetConfigValue(config, "manager_memory_request", "2000Mi")},
+		NodeSelector:           common.ValueWithContext{Value: common.GetConfigValue(config, "node_selector", "dedicated")},
+		TolerationKey:          common.ValueWithContext{Value: common.GetConfigValue(config, "toleration_key", "dedicated")},
+		TolerationValue:        common.ValueWithContext{Value: common.GetConfigValue(config, "toleration_value", "system-workload")},
+	}
+
+	return helmValues
+}
+
 // extractK8sSettings extracts Kubernetes-related settings from measurements.
 func (v *HelmValues) extractK8sSettings(m *measurement.Measurement) {
 	for _, st := range m.Subtypes {

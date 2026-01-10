@@ -41,6 +41,20 @@ func GenerateScriptData(recipe *recipe.Recipe, config map[string]string) *Script
 	return data
 }
 
+// GenerateScriptDataFromConfig creates script data from config map only (for RecipeResult inputs).
+func GenerateScriptDataFromConfig(config map[string]string) *ScriptData {
+	data := &ScriptData{
+		Timestamp:         time.Now().UTC().Format(time.RFC3339),
+		Version:           common.GetBundlerVersion(config),
+		Namespace:         common.GetConfigValue(config, "namespace", Name),
+		HelmChartRepo:     common.ValueWithContext{Value: common.GetConfigValue(config, "helm_repository", "oci://ghcr.io/nvidia/nvsentinel")},
+		HelmReleaseName:   common.ValueWithContext{Value: common.GetConfigValue(config, "helm_release_name", "nvsentinel")},
+		NVSentinelVersion: common.ValueWithContext{Value: common.GetConfigValue(config, "helm_chart_version", "v0.6.0")},
+	}
+
+	return data
+}
+
 // extractK8sSettings extracts Kubernetes-related settings from measurements.
 func (s *ScriptData) extractK8sSettings(m *measurement.Measurement) {
 	for _, st := range m.Subtypes {

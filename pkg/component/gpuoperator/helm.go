@@ -71,6 +71,22 @@ func GenerateHelmValues(recipe *recipe.Recipe, config map[string]string, overrid
 	return values
 }
 
+// GenerateHelmValuesFromMap generates Helm values from config map (for RecipeResult inputs).
+func GenerateHelmValuesFromMap(config map[string]string) *HelmValues {
+	helmValues := &HelmValues{
+		Timestamp:        time.Now().UTC().Format(time.RFC3339),
+		DriverRegistry:   common.ValueWithContext{Value: common.GetConfigValue(config, "driver_registry", "nvcr.io/nvidia")},
+		EnableDriver:     common.ValueWithContext{Value: true},
+		MIGStrategy:      common.ValueWithContext{Value: "single"},
+		EnableGDS:        common.ValueWithContext{Value: false},
+		EnableSecureBoot: common.ValueWithContext{Value: false},
+		Namespace:        common.GetConfigValue(config, "namespace", Name),
+		Version:          common.GetBundlerVersion(config),
+	}
+
+	return helmValues
+}
+
 // extractK8sSettings extracts Kubernetes-related settings from measurements.
 func (v *HelmValues) extractK8sSettings(m *measurement.Measurement) {
 	for _, st := range m.Subtypes {

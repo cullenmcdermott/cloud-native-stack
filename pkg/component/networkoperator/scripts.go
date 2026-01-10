@@ -55,4 +55,18 @@ func GenerateScriptData(recipe *recipe.Recipe, config map[string]string) *Script
 	return data
 }
 
+// GenerateScriptDataFromConfig creates script data from config map only (for RecipeResult inputs).
+func GenerateScriptDataFromConfig(config map[string]string) *ScriptData {
+	data := &ScriptData{
+		Timestamp:        time.Now().UTC().Format(time.RFC3339),
+		Namespace:        common.GetConfigValue(config, "namespace", "nvidia-network-operator"),
+		HelmRepository:   common.GetConfigValue(config, "helm_repository", "https://helm.ngc.nvidia.com/nvidia"),
+		HelmChart:        "nvidia/network-operator",
+		HelmChartVersion: common.GetConfigValue(config, "helm_chart_version", ""),
+		Version:          common.GetBundlerVersion(config),
+	}
+
+	return data
+}
+
 // ToMap converts ScriptData to a map for template rendering.

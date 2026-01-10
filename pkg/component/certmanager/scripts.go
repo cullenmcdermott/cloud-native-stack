@@ -50,3 +50,18 @@ func GenerateScriptData(recipe *recipe.Recipe, config map[string]string) *Script
 
 	return data
 }
+
+// GenerateScriptDataFromConfig creates script data from config map only (for RecipeResult inputs).
+func GenerateScriptDataFromConfig(config map[string]string) *ScriptData {
+	data := &ScriptData{
+		Timestamp:        time.Now().UTC().Format(time.RFC3339),
+		Namespace:        common.GetConfigValue(config, "namespace", Name),
+		HelmRepository:   common.GetConfigValue(config, "helm_repository", "https://charts.jetstack.io"),
+		HelmChart:        "jetstack/cert-manager",
+		HelmChartVersion: common.GetConfigValue(config, "helm_chart_version", "v1.19.1"),
+		Version:          common.GetBundlerVersion(config),
+		InstallCRDs:      true,
+	}
+
+	return data
+}

@@ -64,11 +64,15 @@ func TestBaseBundler_CreateBundleDir(t *testing.T) {
 		t.Fatalf("CreateBundleDir() error = %v", err)
 	}
 
-	// Verify directory structure
-	expectedDirs := []string{dirs.Root, dirs.Scripts, dirs.Manifests}
-	for _, dir := range expectedDirs {
-		if _, err := os.Stat(dir); os.IsNotExist(err) {
-			t.Errorf("Directory %s was not created", dir)
+	// Verify only the root directory is created (subdirectories created on-demand)
+	if _, err := os.Stat(dirs.Root); os.IsNotExist(err) {
+		t.Errorf("Root directory %s was not created", dirs.Root)
+	}
+
+	// Verify subdirectories are NOT created yet (created on-demand when writing files)
+	for _, dir := range []string{dirs.Scripts, dirs.Manifests} {
+		if _, err := os.Stat(dir); !os.IsNotExist(err) {
+			t.Errorf("Subdirectory %s should not exist yet (created on-demand)", dir)
 		}
 	}
 
