@@ -94,15 +94,15 @@ You are integrating CNS into CI/CD pipelines, GitOps workflows, or a larger prod
 
 ## Project Structure
 
-- `docs/` — User-facing documentation, guides, and examples
-- `recipes/` — Version-locked configuration definitions
-- `metadata/` — Structured configuration metadata
-- `bundles/` — Generated deployment artifacts
-- `benchmarks/` — Validation and performance evidence artifacts
-- `tools/` — Supporting tooling and utilities
-- `pipelines/` — CI and publishing workflows
-
-> Some directories are intentionally scaffolded and will be populated incrementally as the project evolves.
+- `api/` — OpenAPI specifications for the REST API
+- `cmd/` — Entry points for CLI (`eidos`) and API server (`eidos-api-server`)
+- `deployments/` — Kubernetes manifests for agent deployment
+- `docs/` — User-facing documentation, guides, and architecture docs
+- `examples/` — Example snapshots, recipes, and comparisons
+- `infra/` — Infrastructure as code (Terraform) for deployments
+- `pkg/` — Core Go packages (collectors, recipe engine, bundlers, serializers)
+- `tools/` — Build scripts, E2E testing, and utilities
+- `~archive/` — Archived v1 installation guides and playbooks
 
 ## Documentation & Resources
 
