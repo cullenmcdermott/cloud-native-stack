@@ -60,11 +60,9 @@ func (b *Builder) HandleRecipes(w http.ResponseWriter, r *http.Request) {
 
 	slog.Debug("criteria",
 		"service", criteria.Service,
-		"fabric", criteria.Fabric,
 		"accelerator", criteria.Accelerator,
 		"intent", criteria.Intent,
-		"worker", criteria.Worker,
-		"system", criteria.System,
+		"os", criteria.OS,
 		"nodes", criteria.Nodes,
 	)
 

@@ -164,12 +164,8 @@ func TestRecipeEndpointWithValidQueryParams(t *testing.T) {
 			query: "?intent=inference",
 		},
 		{
-			name:  "fabric nvlink",
-			query: "?fabric=nvlink",
-		},
-		{
-			name:  "worker ubuntu",
-			query: "?worker=ubuntu",
+			name:  "os ubuntu",
+			query: "?os=ubuntu",
 		},
 		{
 			name:  "nodes count",
@@ -225,12 +221,8 @@ func TestRecipeEndpointWithInvalidQueryParams(t *testing.T) {
 			query: "?intent=invalid-intent",
 		},
 		{
-			name:  "invalid fabric",
-			query: "?fabric=invalid-fabric",
-		},
-		{
-			name:  "invalid worker os",
-			query: "?worker=invalid-os",
+			name:  "invalid os",
+			query: "?os=invalid-os",
 		},
 		{
 			name:  "invalid nodes negative",

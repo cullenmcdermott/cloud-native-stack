@@ -12,11 +12,9 @@
 //
 //	type Criteria struct {
 //	    Service     CriteriaServiceType     // eks, gke, aks, any
-//	    Fabric      CriteriaFabricType      // nvlink, nvswitch, infiniband, any
 //	    Accelerator CriteriaAcceleratorType // h100, gb200, a100, l40, any
 //	    Intent      CriteriaIntentType      // training, inference, any
-//	    Worker      CriteriaOSType          // ubuntu, cos, rhel, any
-//	    System      CriteriaOSType          // ubuntu, cos, rhel, any
+//	    OS          CriteriaOSType          // ubuntu, cos, rhel, any
 //	    Nodes       int                     // node count (0 = any)
 //	}
 //
@@ -52,12 +50,6 @@
 //   - CriteriaServiceGKE: Google GKE
 //   - CriteriaServiceAKS: Azure AKS
 //   - CriteriaServiceAny: Any service (wildcard)
-//
-// Fabric types for interconnect:
-//   - CriteriaFabricNVLink: NVLink connection
-//   - CriteriaFabricNVSwitch: NVSwitch fabric
-//   - CriteriaFabricInfiniband: InfiniBand network
-//   - CriteriaFabricAny: Any fabric (wildcard)
 //
 // Accelerator types for GPU selection:
 //   - CriteriaAcceleratorH100: NVIDIA H100
@@ -109,12 +101,10 @@
 //
 // The HTTP handler accepts these query parameters:
 //   - service: eks, gke, aks, any (default: any)
-//   - fabric: nvlink, nvswitch, infiniband, any (default: any)
 //   - accelerator: h100, gb200, a100, l40, any (default: any)
 //   - gpu: alias for accelerator (backwards compatibility)
 //   - intent: training, inference, any (default: any)
-//   - worker: ubuntu, cos, rhel, any (default: any)
-//   - system: ubuntu, cos, rhel, any (default: any)
+//   - os: ubuntu, cos, rhel, any (default: any)
 //   - nodes: integer node count (default: 0 = any)
 //
 // # Criteria Matching
@@ -192,7 +182,6 @@
 //
 // ParseCriteriaFromRequest returns errors when:
 //   - Service type is invalid
-//   - Fabric type is invalid
 //   - Accelerator type is invalid
 //   - Intent type is invalid
 //   - Nodes count is negative or non-numeric

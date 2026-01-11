@@ -262,10 +262,9 @@ func TestOverlayAddsNewComponent(t *testing.T) {
 	// Build recipe for H100 inference workload
 	// h100-inference.yaml adds network-operator which is NOT in base.yaml
 	builder := NewBuilder()
-	criteria := &Criteria{
-		Accelerator: CriteriaAcceleratorH100,
-		Intent:      CriteriaIntentInference,
-	}
+	criteria := NewCriteria()
+	criteria.Accelerator = CriteriaAcceleratorH100
+	criteria.Intent = CriteriaIntentInference
 
 	result, err := builder.BuildFromCriteria(ctx, criteria)
 	if err != nil {
@@ -301,7 +300,7 @@ func TestOverlayAddsNewComponent(t *testing.T) {
 		t.Error("network-operator has no dependencies (should depend on cert-manager)")
 	}
 
-	t.Logf("✅ Successfully verified overlay can add new components")
+	t.Logf("Successfully verified overlay can add new components")
 	t.Logf("   Base components: %d", len(baseComponents))
 	t.Logf("   Total components: %d", len(result.ComponentRefs))
 	t.Logf("   network-operator version: %s", networkOp.Version)
@@ -314,10 +313,9 @@ func TestOverlayMergeDoesNotLoseBaseComponents(t *testing.T) {
 	builder := NewBuilder()
 
 	// Build H100 inference recipe (matches overlay that adds network-operator)
-	criteria := &Criteria{
-		Accelerator: CriteriaAcceleratorH100,
-		Intent:      CriteriaIntentInference,
-	}
+	criteria := NewCriteria()
+	criteria.Accelerator = CriteriaAcceleratorH100
+	criteria.Intent = CriteriaIntentInference
 
 	result, err := builder.BuildFromCriteria(ctx, criteria)
 	if err != nil {
@@ -343,7 +341,7 @@ func TestOverlayMergeDoesNotLoseBaseComponents(t *testing.T) {
 		t.Errorf("Expected at least 5 components, got %d", len(result.ComponentRefs))
 	}
 
-	t.Logf("✅ Base components preserved when overlay adds new components")
+	t.Logf("Base components preserved when overlay adds new components")
 	t.Logf("   Total components: %d (4 base + additions)", len(result.ComponentRefs))
 	if networkOp != nil {
 		t.Logf("   network-operator added: version %s", networkOp.Version)

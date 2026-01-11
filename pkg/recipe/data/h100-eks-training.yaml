@@ -7,15 +7,16 @@ spec:
   criteria:
     service: eks
     accelerator: h100
+    os: ubuntu
     intent: training
 
   # Specific constraints for GB200 on EKS training workloads
   constraints:
     - name: k8s
       value: ">= 1.30"
-    - name: worker-os
+    - name: os
       value: "ubuntu"
-    - name: worker-os-version
+    - name: os-version
       value: "24.04"
     - name: kernel
       value: ">= 6.8"

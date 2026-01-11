@@ -46,35 +46,6 @@ func GetCriteriaServiceTypes() []string {
 	return []string{"aks", "eks", "gke", "oke"}
 }
 
-// CriteriaFabricType represents the network fabric type.
-type CriteriaFabricType string
-
-// CriteriaFabricType constants for supported network fabrics.
-const (
-	CriteriaFabricAny CriteriaFabricType = "any"
-	CriteriaFabricEFA CriteriaFabricType = "efa"
-	CriteriaFabricIB  CriteriaFabricType = "ib"
-)
-
-// ParseCriteriaFabricType parses a string into a CriteriaFabricType.
-func ParseCriteriaFabricType(s string) (CriteriaFabricType, error) {
-	switch strings.ToLower(strings.TrimSpace(s)) {
-	case "", criteriaAnyValue:
-		return CriteriaFabricAny, nil
-	case "efa":
-		return CriteriaFabricEFA, nil
-	case "ib", "infiniband":
-		return CriteriaFabricIB, nil
-	default:
-		return CriteriaFabricAny, fmt.Errorf("invalid fabric type: %s", s)
-	}
-}
-
-// GetCriteriaFabricTypes returns all supported fabric types sorted alphabetically.
-func GetCriteriaFabricTypes() []string {
-	return []string{"efa", "ib"}
-}
-
 // CriteriaAcceleratorType represents the GPU/accelerator type.
 type CriteriaAcceleratorType string
 
@@ -180,20 +151,14 @@ type Criteria struct {
 	// Service is the Kubernetes service type (eks, gke, aks, oke, self-managed).
 	Service CriteriaServiceType `json:"service,omitempty" yaml:"service,omitempty"`
 
-	// Fabric is the network fabric type (efa, ib).
-	Fabric CriteriaFabricType `json:"fabric,omitempty" yaml:"fabric,omitempty"`
-
 	// Accelerator is the GPU/accelerator type (h100, gb200, a100, l40).
 	Accelerator CriteriaAcceleratorType `json:"accelerator,omitempty" yaml:"accelerator,omitempty"`
 
 	// Intent is the workload intent (training, inference).
 	Intent CriteriaIntentType `json:"intent,omitempty" yaml:"intent,omitempty"`
 
-	// Worker is the worker node OS type.
-	Worker CriteriaOSType `json:"worker,omitempty" yaml:"worker,omitempty"`
-
-	// System is the system/control-plane node OS type.
-	System CriteriaOSType `json:"system,omitempty" yaml:"system,omitempty"`
+	// OS is the worker node operating system type.
+	OS CriteriaOSType `json:"os,omitempty" yaml:"os,omitempty"`
 
 	// Nodes is the number of worker nodes (0 means any/unspecified).
 	Nodes int `json:"nodes,omitempty" yaml:"nodes,omitempty"`
@@ -203,11 +168,9 @@ type Criteria struct {
 func NewCriteria() *Criteria {
 	return &Criteria{
 		Service:     CriteriaServiceAny,
-		Fabric:      CriteriaFabricAny,
 		Accelerator: CriteriaAcceleratorAny,
 		Intent:      CriteriaIntentAny,
-		Worker:      CriteriaOSAny,
-		System:      CriteriaOSAny,
+		OS:          CriteriaOSAny,
 		Nodes:       0,
 	}
 }
@@ -224,19 +187,13 @@ func (c *Criteria) Matches(other *Criteria) bool {
 	if c.Service != CriteriaServiceAny && other.Service != CriteriaServiceAny && c.Service != other.Service {
 		return false
 	}
-	if c.Fabric != CriteriaFabricAny && other.Fabric != CriteriaFabricAny && c.Fabric != other.Fabric {
-		return false
-	}
 	if c.Accelerator != CriteriaAcceleratorAny && other.Accelerator != CriteriaAcceleratorAny && c.Accelerator != other.Accelerator {
 		return false
 	}
 	if c.Intent != CriteriaIntentAny && other.Intent != CriteriaIntentAny && c.Intent != other.Intent {
 		return false
 	}
-	if c.Worker != CriteriaOSAny && other.Worker != CriteriaOSAny && c.Worker != other.Worker {
-		return false
-	}
-	if c.System != CriteriaOSAny && other.System != CriteriaOSAny && c.System != other.System {
+	if c.OS != CriteriaOSAny && other.OS != CriteriaOSAny && c.OS != other.OS {
 		return false
 	}
 	// Nodes: 0 means any, otherwise must match exactly
@@ -255,19 +212,13 @@ func (c *Criteria) Specificity() int {
 	if c.Service != CriteriaServiceAny {
 		score++
 	}
-	if c.Fabric != CriteriaFabricAny {
-		score++
-	}
 	if c.Accelerator != CriteriaAcceleratorAny {
 		score++
 	}
 	if c.Intent != CriteriaIntentAny {
 		score++
 	}
-	if c.Worker != CriteriaOSAny {
-		score++
-	}
-	if c.System != CriteriaOSAny {
+	if c.OS != CriteriaOSAny {
 		score++
 	}
 	if c.Nodes != 0 {
@@ -282,20 +233,14 @@ func (c *Criteria) String() string {
 	if c.Service != CriteriaServiceAny {
 		parts = append(parts, fmt.Sprintf("service=%s", c.Service))
 	}
-	if c.Fabric != CriteriaFabricAny {
-		parts = append(parts, fmt.Sprintf("fabric=%s", c.Fabric))
-	}
 	if c.Accelerator != CriteriaAcceleratorAny {
 		parts = append(parts, fmt.Sprintf("accelerator=%s", c.Accelerator))
 	}
 	if c.Intent != CriteriaIntentAny {
 		parts = append(parts, fmt.Sprintf("intent=%s", c.Intent))
 	}
-	if c.Worker != CriteriaOSAny {
-		parts = append(parts, fmt.Sprintf("worker=%s", c.Worker))
-	}
-	if c.System != CriteriaOSAny {
-		parts = append(parts, fmt.Sprintf("system=%s", c.System))
+	if c.OS != CriteriaOSAny {
+		parts = append(parts, fmt.Sprintf("os=%s", c.OS))
 	}
 	if c.Nodes != 0 {
 		parts = append(parts, fmt.Sprintf("nodes=%d", c.Nodes))
@@ -317,18 +262,6 @@ func WithCriteriaService(s string) CriteriaOption {
 			return err
 		}
 		c.Service = st
-		return nil
-	}
-}
-
-// WithCriteriaFabric sets the fabric type.
-func WithCriteriaFabric(s string) CriteriaOption {
-	return func(c *Criteria) error {
-		ft, err := ParseCriteriaFabricType(s)
-		if err != nil {
-			return err
-		}
-		c.Fabric = ft
 		return nil
 	}
 }
@@ -357,26 +290,14 @@ func WithCriteriaIntent(s string) CriteriaOption {
 	}
 }
 
-// WithCriteriaWorker sets the worker OS type.
-func WithCriteriaWorker(s string) CriteriaOption {
+// WithCriteriaOS sets the OS type.
+func WithCriteriaOS(s string) CriteriaOption {
 	return func(c *Criteria) error {
 		ot, err := ParseCriteriaOSType(s)
 		if err != nil {
 			return err
 		}
-		c.Worker = ot
-		return nil
-	}
-}
-
-// WithCriteriaSystem sets the system OS type.
-func WithCriteriaSystem(s string) CriteriaOption {
-	return func(c *Criteria) error {
-		ot, err := ParseCriteriaOSType(s)
-		if err != nil {
-			return err
-		}
-		c.System = ot
+		c.OS = ot
 		return nil
 	}
 }
@@ -405,7 +326,7 @@ func BuildCriteria(opts ...CriteriaOption) (*Criteria, error) {
 
 // ParseCriteriaFromRequest parses recipe criteria from HTTP query parameters.
 // All parameters are optional and default to "any" if not specified.
-// Supported parameters: service, fabric, accelerator (alias: gpu), intent, worker, system, nodes.
+// Supported parameters: service, accelerator (alias: gpu), intent, os, nodes.
 func ParseCriteriaFromRequest(r *http.Request) (*Criteria, error) {
 	if r == nil {
 		return nil, fmt.Errorf("request cannot be nil")
@@ -417,7 +338,7 @@ func ParseCriteriaFromRequest(r *http.Request) (*Criteria, error) {
 
 // ParseCriteriaFromValues parses recipe criteria from URL values.
 // All parameters are optional and default to "any" if not specified.
-// Supported parameters: service, fabric, accelerator (alias: gpu), intent, worker, system, nodes.
+// Supported parameters: service, accelerator (alias: gpu), intent, os, nodes.
 func ParseCriteriaFromValues(values url.Values) (*Criteria, error) {
 	c := NewCriteria()
 
@@ -428,15 +349,6 @@ func ParseCriteriaFromValues(values url.Values) (*Criteria, error) {
 			return nil, err
 		}
 		c.Service = st
-	}
-
-	// Parse fabric
-	if s := values.Get("fabric"); s != "" {
-		ft, err := ParseCriteriaFabricType(s)
-		if err != nil {
-			return nil, err
-		}
-		c.Fabric = ft
 	}
 
 	// Parse accelerator (also accept "gpu" as alias for backwards compatibility)
@@ -461,22 +373,13 @@ func ParseCriteriaFromValues(values url.Values) (*Criteria, error) {
 		c.Intent = it
 	}
 
-	// Parse worker OS
-	if s := values.Get("worker"); s != "" {
+	// Parse OS
+	if s := values.Get("os"); s != "" {
 		ot, err := ParseCriteriaOSType(s)
 		if err != nil {
 			return nil, err
 		}
-		c.Worker = ot
-	}
-
-	// Parse system OS
-	if s := values.Get("system"); s != "" {
-		ot, err := ParseCriteriaOSType(s)
-		if err != nil {
-			return nil, err
-		}
-		c.System = ot
+		c.OS = ot
 	}
 
 	// Parse nodes count

@@ -7,11 +7,9 @@ metadata:
     - gb200-eks-training
 criteria:
   service: eks
-  fabric: any
   accelerator: gb200
   intent: training
-  worker: any
-  system: any
+  os: any
 constraints:
   - name: k8s
     value: '>= 1.32.4'

@@ -25,11 +25,9 @@ func recipeCmd() *cli.Command {
 		Usage:                 "Generate configuration recipe for a given environment",
 		Description: `Generate configuration recipe based on specified environment parameters including:
   - Kubernetes service type (eks, gke, aks, oke, self-managed)
-  - Network fabric type (efa, ib)
   - Accelerator type (h100, gb200, a100, l40)
   - Workload intent (training, inference)
-  - Worker node OS (ubuntu, rhel, cos, amazonlinux)
-  - System node OS (ubuntu, rhel, cos, amazonlinux)
+  - Operating system (ubuntu, rhel, cos, amazonlinux)
   - Number of nodes
 
 The recipe returns a list of components with deployment order based on dependencies.
@@ -38,10 +36,6 @@ Output can be in JSON or YAML format.`,
 			&cli.StringFlag{
 				Name:  "service",
 				Usage: fmt.Sprintf("Kubernetes service type (e.g. %s)", strings.Join(recipe.GetCriteriaServiceTypes(), ", ")),
-			},
-			&cli.StringFlag{
-				Name:  "fabric",
-				Usage: fmt.Sprintf("Network fabric type (e.g. %s)", strings.Join(recipe.GetCriteriaFabricTypes(), ", ")),
 			},
 			&cli.StringFlag{
 				Name:    "accelerator",
@@ -53,16 +47,12 @@ Output can be in JSON or YAML format.`,
 				Usage: fmt.Sprintf("Workload intent (e.g. %s)", strings.Join(recipe.GetCriteriaIntentTypes(), ", ")),
 			},
 			&cli.StringFlag{
-				Name:  "worker",
-				Usage: fmt.Sprintf("Worker node OS type (e.g. %s)", strings.Join(recipe.GetCriteriaOSTypes(), ", ")),
-			},
-			&cli.StringFlag{
-				Name:  "system",
-				Usage: fmt.Sprintf("System/control-plane node OS type (e.g. %s)", strings.Join(recipe.GetCriteriaOSTypes(), ", ")),
+				Name:  "os",
+				Usage: fmt.Sprintf("Operating system type of the GPU node (e.g. %s)", strings.Join(recipe.GetCriteriaOSTypes(), ", ")),
 			},
 			&cli.IntFlag{
 				Name:  "nodes",
-				Usage: "Number of worker nodes",
+				Usage: "Number of worker/GPU nodes",
 			},
 			&cli.StringFlag{
 				Name:    "snapshot",
@@ -156,20 +146,14 @@ func buildCriteriaFromCmd(cmd *cli.Command) (*recipe.Criteria, error) {
 	if s := cmd.String("service"); s != "" {
 		opts = append(opts, recipe.WithCriteriaService(s))
 	}
-	if s := cmd.String("fabric"); s != "" {
-		opts = append(opts, recipe.WithCriteriaFabric(s))
-	}
 	if s := cmd.String("accelerator"); s != "" {
 		opts = append(opts, recipe.WithCriteriaAccelerator(s))
 	}
 	if s := cmd.String("intent"); s != "" {
 		opts = append(opts, recipe.WithCriteriaIntent(s))
 	}
-	if s := cmd.String("worker"); s != "" {
-		opts = append(opts, recipe.WithCriteriaWorker(s))
-	}
-	if s := cmd.String("system"); s != "" {
-		opts = append(opts, recipe.WithCriteriaSystem(s))
+	if s := cmd.String("os"); s != "" {
+		opts = append(opts, recipe.WithCriteriaOS(s))
 	}
 	if n := cmd.Int("nodes"); n > 0 {
 		opts = append(opts, recipe.WithCriteriaNodes(n))
@@ -233,7 +217,7 @@ func extractCriteriaFromSnapshot(snap *snapshotter.Snapshot) *recipe.Criteria {
 				if st.Name == "release" {
 					if osID, ok := st.Data["ID"]; ok {
 						if parsed, err := recipe.ParseCriteriaOSType(osID.String()); err == nil {
-							criteria.Worker = parsed
+							criteria.OS = parsed
 						}
 					}
 				}
@@ -257,13 +241,6 @@ func applyCriteriaOverrides(cmd *cli.Command, criteria *recipe.Criteria) error {
 		}
 		criteria.Service = parsed
 	}
-	if s := cmd.String("fabric"); s != "" {
-		parsed, err := recipe.ParseCriteriaFabricType(s)
-		if err != nil {
-			return err
-		}
-		criteria.Fabric = parsed
-	}
 	if s := cmd.String("accelerator"); s != "" {
 		parsed, err := recipe.ParseCriteriaAcceleratorType(s)
 		if err != nil {
@@ -278,19 +255,12 @@ func applyCriteriaOverrides(cmd *cli.Command, criteria *recipe.Criteria) error {
 		}
 		criteria.Intent = parsed
 	}
-	if s := cmd.String("worker"); s != "" {
+	if s := cmd.String("os"); s != "" {
 		parsed, err := recipe.ParseCriteriaOSType(s)
 		if err != nil {
 			return err
 		}
-		criteria.Worker = parsed
-	}
-	if s := cmd.String("system"); s != "" {
-		parsed, err := recipe.ParseCriteriaOSType(s)
-		if err != nil {
-			return err
-		}
-		criteria.System = parsed
+		criteria.OS = parsed
 	}
 	if n := cmd.Int("nodes"); n > 0 {
 		criteria.Nodes = n

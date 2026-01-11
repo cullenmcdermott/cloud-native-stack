@@ -336,7 +336,7 @@ func TestGetValuesForComponent_InlineOverrides(t *testing.T) {
 				}
 			}
 
-			t.Logf("✅ Test passed - values merged correctly")
+			t.Logf("Test passed - values merged correctly")
 		})
 	}
 }
@@ -399,7 +399,7 @@ func TestGetValuesForComponent_OverridesMergeDeep(t *testing.T) {
 		}
 	}
 
-	t.Logf("✅ Deep merge works correctly - overrides merged, not replaced")
+	t.Logf("Deep merge works correctly - overrides merged, not replaced")
 }
 
 // TestGetValuesForComponent_BuilderIntegration tests inline overrides
@@ -437,7 +437,7 @@ func TestGetValuesForComponent_BuilderIntegration(t *testing.T) {
 		t.Error("values map is empty")
 	}
 
-	t.Logf("✅ Builder integration works - loaded %d top-level keys", len(values))
+	t.Logf("Builder integration works - loaded %d top-level keys", len(values))
 
 	// If the recipe has inline overrides, verify they were applied
 	if len(ref.Overrides) > 0 {

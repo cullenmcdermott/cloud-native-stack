@@ -6,15 +6,16 @@ metadata:
 spec:
   criteria:
     accelerator: h100
+    os: ubuntu
     intent: inference
 
   # Specific constraints for H100 inference workloads
   constraints:
     - name: k8s
       value: ">= 1.31"
-    - name: worker-os
+    - name: os
       value: "ubuntu"
-    - name: worker-os-version
+    - name: os-version
       value: ">= 24.04"
     - name: kernel
       value: ">= 6.8"

@@ -200,11 +200,9 @@ func TestCriteriaSpecificity(t *testing.T) {
 			name: "one field",
 			criteria: &Criteria{
 				Service:     CriteriaServiceEKS,
-				Fabric:      CriteriaFabricAny,
 				Accelerator: CriteriaAcceleratorAny,
 				Intent:      CriteriaIntentAny,
-				Worker:      CriteriaOSAny,
-				System:      CriteriaOSAny,
+				OS:          CriteriaOSAny,
 				Nodes:       0,
 			},
 			want: 1,
@@ -213,11 +211,9 @@ func TestCriteriaSpecificity(t *testing.T) {
 			name: "three fields",
 			criteria: &Criteria{
 				Service:     CriteriaServiceEKS,
-				Fabric:      CriteriaFabricAny,
 				Accelerator: CriteriaAcceleratorH100,
 				Intent:      CriteriaIntentTraining,
-				Worker:      CriteriaOSAny,
-				System:      CriteriaOSAny,
+				OS:          CriteriaOSAny,
 				Nodes:       0,
 			},
 			want: 3,
@@ -226,14 +222,12 @@ func TestCriteriaSpecificity(t *testing.T) {
 			name: "all fields",
 			criteria: &Criteria{
 				Service:     CriteriaServiceEKS,
-				Fabric:      CriteriaFabricEFA,
 				Accelerator: CriteriaAcceleratorH100,
 				Intent:      CriteriaIntentTraining,
-				Worker:      CriteriaOSUbuntu,
-				System:      CriteriaOSUbuntu,
+				OS:          CriteriaOSUbuntu,
 				Nodes:       100,
 			},
-			want: 7,
+			want: 5,
 		},
 	}
 
@@ -263,11 +257,9 @@ func TestBuildCriteria(t *testing.T) {
 			opts: []CriteriaOption{WithCriteriaService("eks")},
 			want: &Criteria{
 				Service:     CriteriaServiceEKS,
-				Fabric:      CriteriaFabricAny,
 				Accelerator: CriteriaAcceleratorAny,
 				Intent:      CriteriaIntentAny,
-				Worker:      CriteriaOSAny,
-				System:      CriteriaOSAny,
+				OS:          CriteriaOSAny,
 			},
 		},
 		{
@@ -279,11 +271,9 @@ func TestBuildCriteria(t *testing.T) {
 			},
 			want: &Criteria{
 				Service:     CriteriaServiceEKS,
-				Fabric:      CriteriaFabricAny,
 				Accelerator: CriteriaAcceleratorH100,
 				Intent:      CriteriaIntentTraining,
-				Worker:      CriteriaOSAny,
-				System:      CriteriaOSAny,
+				OS:          CriteriaOSAny,
 			},
 		},
 		{
@@ -314,7 +304,6 @@ func TestBuildCriteria(t *testing.T) {
 				return
 			}
 			if got.Service != tt.want.Service ||
-				got.Fabric != tt.want.Fabric ||
 				got.Accelerator != tt.want.Accelerator ||
 				got.Intent != tt.want.Intent {
 
@@ -336,25 +325,21 @@ func TestParseCriteriaFromValues(t *testing.T) {
 			query: "",
 			want: &Criteria{
 				Service:     CriteriaServiceAny,
-				Fabric:      CriteriaFabricAny,
 				Accelerator: CriteriaAcceleratorAny,
 				Intent:      CriteriaIntentAny,
-				Worker:      CriteriaOSAny,
-				System:      CriteriaOSAny,
+				OS:          CriteriaOSAny,
 				Nodes:       0,
 			},
 			wantErr: false,
 		},
 		{
 			name:  "all parameters",
-			query: "service=eks&fabric=efa&accelerator=h100&intent=training&worker=ubuntu&system=ubuntu&nodes=8",
+			query: "service=eks&accelerator=h100&intent=training&os=ubuntu&nodes=8",
 			want: &Criteria{
 				Service:     CriteriaServiceEKS,
-				Fabric:      CriteriaFabricEFA,
 				Accelerator: CriteriaAcceleratorH100,
 				Intent:      CriteriaIntentTraining,
-				Worker:      CriteriaOSUbuntu,
-				System:      CriteriaOSUbuntu,
+				OS:          CriteriaOSUbuntu,
 				Nodes:       8,
 			},
 			wantErr: false,
@@ -364,11 +349,9 @@ func TestParseCriteriaFromValues(t *testing.T) {
 			query: "gpu=gb200",
 			want: &Criteria{
 				Service:     CriteriaServiceAny,
-				Fabric:      CriteriaFabricAny,
 				Accelerator: CriteriaAcceleratorGB200,
 				Intent:      CriteriaIntentAny,
-				Worker:      CriteriaOSAny,
-				System:      CriteriaOSAny,
+				OS:          CriteriaOSAny,
 				Nodes:       0,
 			},
 			wantErr: false,
@@ -378,11 +361,9 @@ func TestParseCriteriaFromValues(t *testing.T) {
 			query: "accelerator=h100&gpu=a100",
 			want: &Criteria{
 				Service:     CriteriaServiceAny,
-				Fabric:      CriteriaFabricAny,
 				Accelerator: CriteriaAcceleratorH100,
 				Intent:      CriteriaIntentAny,
-				Worker:      CriteriaOSAny,
-				System:      CriteriaOSAny,
+				OS:          CriteriaOSAny,
 				Nodes:       0,
 			},
 			wantErr: false,
@@ -390,11 +371,6 @@ func TestParseCriteriaFromValues(t *testing.T) {
 		{
 			name:    "invalid service",
 			query:   "service=invalid",
-			wantErr: true,
-		},
-		{
-			name:    "invalid fabric",
-			query:   "fabric=invalid",
 			wantErr: true,
 		},
 		{
@@ -408,13 +384,12 @@ func TestParseCriteriaFromValues(t *testing.T) {
 			wantErr: true,
 		},
 		{
-			name:    "invalid worker os",
-			query:   "worker=invalid",
+			name:    "invalid os",
+			query:   "os=invalid",
 			wantErr: true,
 		},
 		{
-			name:    "invalid system os",
-			query:   "system=invalid",
+			query:   "os=invalid",
 			wantErr: true,
 		},
 		{
@@ -444,20 +419,17 @@ func TestParseCriteriaFromValues(t *testing.T) {
 			if got.Service != tt.want.Service {
 				t.Errorf("Service = %v, want %v", got.Service, tt.want.Service)
 			}
-			if got.Fabric != tt.want.Fabric {
-				t.Errorf("Fabric = %v, want %v", got.Fabric, tt.want.Fabric)
-			}
 			if got.Accelerator != tt.want.Accelerator {
 				t.Errorf("Accelerator = %v, want %v", got.Accelerator, tt.want.Accelerator)
 			}
 			if got.Intent != tt.want.Intent {
 				t.Errorf("Intent = %v, want %v", got.Intent, tt.want.Intent)
 			}
-			if got.Worker != tt.want.Worker {
-				t.Errorf("Worker = %v, want %v", got.Worker, tt.want.Worker)
+			if got.OS != tt.want.OS {
+				t.Errorf("OS = %v, want %v", got.OS, tt.want.OS)
 			}
-			if got.System != tt.want.System {
-				t.Errorf("System = %v, want %v", got.System, tt.want.System)
+			if got.OS != tt.want.OS {
+				t.Errorf("OS = %v, want %v", got.OS, tt.want.OS)
 			}
 			if got.Nodes != tt.want.Nodes {
 				t.Errorf("Nodes = %v, want %v", got.Nodes, tt.want.Nodes)

@@ -40,21 +40,6 @@ func TestBuildCriteriaFromCmd(t *testing.T) {
 			errMsg:    "invalid service type",
 		},
 		{
-			name: "valid fabric",
-			args: []string{"cmd", "--fabric", "efa"},
-			validate: func(t *testing.T, c *recipe.Criteria) {
-				if c.Fabric != recipe.CriteriaFabricEFA {
-					t.Errorf("Fabric = %v, want %v", c.Fabric, recipe.CriteriaFabricEFA)
-				}
-			},
-		},
-		{
-			name:      "invalid fabric",
-			args:      []string{"cmd", "--fabric", "invalid-fabric"},
-			wantError: true,
-			errMsg:    "invalid fabric type",
-		},
-		{
 			name: "valid accelerator",
 			args: []string{"cmd", "--accelerator", "h100"},
 			validate: func(t *testing.T, c *recipe.Criteria) {
@@ -94,28 +79,19 @@ func TestBuildCriteriaFromCmd(t *testing.T) {
 			errMsg:    "invalid intent type",
 		},
 		{
-			name: "valid worker os",
-			args: []string{"cmd", "--worker", "ubuntu"},
+			name: "valid os",
+			args: []string{"cmd", "--os", "ubuntu"},
 			validate: func(t *testing.T, c *recipe.Criteria) {
-				if c.Worker != recipe.CriteriaOSUbuntu {
-					t.Errorf("Worker = %v, want %v", c.Worker, recipe.CriteriaOSUbuntu)
+				if c.OS != recipe.CriteriaOSUbuntu {
+					t.Errorf("OS = %v, want %v", c.OS, recipe.CriteriaOSUbuntu)
 				}
 			},
 		},
 		{
-			name:      "invalid worker os",
-			args:      []string{"cmd", "--worker", "invalid-os"},
+			name:      "invalid os",
+			args:      []string{"cmd", "--os", "invalid-os"},
 			wantError: true,
 			errMsg:    "invalid os type",
-		},
-		{
-			name: "valid system os",
-			args: []string{"cmd", "--system", "rhel"},
-			validate: func(t *testing.T, c *recipe.Criteria) {
-				if c.System != recipe.CriteriaOSRHEL {
-					t.Errorf("System = %v, want %v", c.System, recipe.CriteriaOSRHEL)
-				}
-			},
 		},
 		{
 			name: "valid nodes",
@@ -131,19 +107,14 @@ func TestBuildCriteriaFromCmd(t *testing.T) {
 			args: []string{
 				"cmd",
 				"--service", "gke",
-				"--fabric", "ib",
 				"--accelerator", "a100",
 				"--intent", "inference",
-				"--worker", "cos",
-				"--system", "ubuntu",
+				"--os", "cos",
 				"--nodes", "16",
 			},
 			validate: func(t *testing.T, c *recipe.Criteria) {
 				if c.Service != recipe.CriteriaServiceGKE {
 					t.Errorf("Service = %v, want %v", c.Service, recipe.CriteriaServiceGKE)
-				}
-				if c.Fabric != recipe.CriteriaFabricIB {
-					t.Errorf("Fabric = %v, want %v", c.Fabric, recipe.CriteriaFabricIB)
 				}
 				if c.Accelerator != recipe.CriteriaAcceleratorA100 {
 					t.Errorf("Accelerator = %v, want %v", c.Accelerator, recipe.CriteriaAcceleratorA100)
@@ -151,11 +122,8 @@ func TestBuildCriteriaFromCmd(t *testing.T) {
 				if c.Intent != recipe.CriteriaIntentInference {
 					t.Errorf("Intent = %v, want %v", c.Intent, recipe.CriteriaIntentInference)
 				}
-				if c.Worker != recipe.CriteriaOSCOS {
-					t.Errorf("Worker = %v, want %v", c.Worker, recipe.CriteriaOSCOS)
-				}
-				if c.System != recipe.CriteriaOSUbuntu {
-					t.Errorf("System = %v, want %v", c.System, recipe.CriteriaOSUbuntu)
+				if c.OS != recipe.CriteriaOSCOS {
+					t.Errorf("OS = %v, want %v", c.OS, recipe.CriteriaOSCOS)
 				}
 				if c.Nodes != 16 {
 					t.Errorf("Nodes = %v, want 16", c.Nodes)
@@ -182,11 +150,9 @@ func TestBuildCriteriaFromCmd(t *testing.T) {
 				Name: "test",
 				Flags: []cli.Flag{
 					&cli.StringFlag{Name: "service"},
-					&cli.StringFlag{Name: "fabric"},
 					&cli.StringFlag{Name: "accelerator", Aliases: []string{"gpu"}},
 					&cli.StringFlag{Name: "intent"},
-					&cli.StringFlag{Name: "worker"},
-					&cli.StringFlag{Name: "system"},
+					&cli.StringFlag{Name: "os"},
 					&cli.IntFlag{Name: "nodes"},
 				},
 				Action: func(ctx context.Context, cmd *cli.Command) error {
@@ -347,8 +313,8 @@ func TestExtractCriteriaFromSnapshot(t *testing.T) {
 				},
 			},
 			validate: func(t *testing.T, c *recipe.Criteria) {
-				if c.Worker != recipe.CriteriaOSUbuntu {
-					t.Errorf("Worker = %v, want %v", c.Worker, recipe.CriteriaOSUbuntu)
+				if c.OS != recipe.CriteriaOSUbuntu {
+					t.Errorf("OS = %v, want %v", c.OS, recipe.CriteriaOSUbuntu)
 				}
 			},
 		},
@@ -398,8 +364,8 @@ func TestExtractCriteriaFromSnapshot(t *testing.T) {
 				if c.Accelerator != recipe.CriteriaAcceleratorA100 {
 					t.Errorf("Accelerator = %v, want %v", c.Accelerator, recipe.CriteriaAcceleratorA100)
 				}
-				if c.Worker != recipe.CriteriaOSRHEL {
-					t.Errorf("Worker = %v, want %v", c.Worker, recipe.CriteriaOSRHEL)
+				if c.OS != recipe.CriteriaOSRHEL {
+					t.Errorf("OS = %v, want %v", c.OS, recipe.CriteriaOSRHEL)
 				}
 			},
 		},
@@ -471,11 +437,9 @@ func TestApplyCriteriaOverrides(t *testing.T) {
 				Name: "test",
 				Flags: []cli.Flag{
 					&cli.StringFlag{Name: "service"},
-					&cli.StringFlag{Name: "fabric"},
 					&cli.StringFlag{Name: "accelerator", Aliases: []string{"gpu"}},
 					&cli.StringFlag{Name: "intent"},
-					&cli.StringFlag{Name: "worker"},
-					&cli.StringFlag{Name: "system"},
+					&cli.StringFlag{Name: "os"},
 					&cli.IntFlag{Name: "nodes"},
 				},
 				Action: func(ctx context.Context, cmd *cli.Command) error {
@@ -519,7 +483,7 @@ func TestRecipeCmd_CommandStructure(t *testing.T) {
 		t.Error("Description should not be empty")
 	}
 
-	requiredFlags := []string{"service", "fabric", "accelerator", "intent", "worker", "system", "nodes", "snapshot", "output", "format"}
+	requiredFlags := []string{"service", "accelerator", "intent", "os", "nodes", "snapshot", "output", "format"}
 	for _, flagName := range requiredFlags {
 		found := false
 		for _, flag := range cmd.Flags {

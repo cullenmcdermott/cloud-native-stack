@@ -7,11 +7,9 @@ metadata:
     - h100-eks-training
 criteria:
   service: eks
-  fabric: any
   accelerator: h100
   intent: training
-  worker: any
-  system: any
+  os: any
 constraints:
   - name: k8s
     value: '>= 1.30'
