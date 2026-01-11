@@ -227,32 +227,26 @@ Generate recipes using direct system parameters:
 **Flags:**
 | Flag | Short | Type | Description |
 |------|-------|------|-------------|
-| `--os` | | string | OS family: ubuntu, rhel, cos, amazonlinux |
-| `--osv` | | string | OS version: 24.04, 22.04 |
-| `--kernel` | | string | Kernel version: 6.8, 5.15 |
-| `--service` | | string | K8s service: eks, gke, aks, self-managed |
-| `--k8s` | | string | Kubernetes version: v1.33, 1.32 |
+| `--service` | | string | K8s service: eks, gke, aks, oke |
 | `--accelerator` | `--gpu` | string | Accelerator/GPU type: h100, gb200, a100, l40 |
 | `--intent` | | string | Workload intent: training, inference |
-| `--context` | | bool | Include context metadata in response |
+| `--os` | | string | OS family: ubuntu, rhel, cos, amazonlinux |
+| `--nodes` | | int | Number of GPU nodes in the cluster |
 | `--output` | `-o` | string | Output file (default: stdout) |
-| `--format` | `-f` | string | Format: json, yaml, table (default: json) |
+| `--format` | `-f` | string | Format: json, yaml (default: yaml) |
 
 **Examples:**
 ```shell
 # Basic recipe for Ubuntu on EKS with H100
 eidos recipe --os ubuntu --service eks --accelerator h100
 
-# Full specification with context
+# Training workload with multiple GPU nodes
 eidos recipe \
-  --os ubuntu \
-  --osv 24.04 \
-  --kernel 6.8 \
   --service eks \
-  --k8s 1.33 \
   --accelerator gb200 \
   --intent training \
-  --context \
+  --os ubuntu \
+  --nodes 8 \
   --format yaml
 
 # Save to file (--gpu is an alias for --accelerator)
@@ -268,8 +262,7 @@ Generate recipes from captured snapshots:
 | `--snapshot` | `-f` | string | Path/URI to snapshot (file path, URL, or cm://namespace/name) |
 | `--intent` | `-i` | string | Workload intent: training, inference |
 | `--output` | `-o` | string | Output destination (file, ConfigMap URI, or stdout) |
-| `--format` | | string | Format: json, yaml, table (default: json) |
-| `--context` | | bool | Include context metadata |
+| `--format` | | string | Format: json, yaml (default: yaml) |
 | `--kubeconfig` | `-k` | string | Path to kubeconfig file (for ConfigMap URIs, overrides KUBECONFIG env) |
 
 **Snapshot Sources:**
@@ -307,18 +300,24 @@ eidos recipe -f system.yaml -i inference -o recipe.yaml --format yaml
 apiVersion: cns.nvidia.com/v1alpha1
 kind: Recipe
 metadata:
+  version: v1.0.0
   created: "2025-12-31T10:30:00Z"
-request:
-  os: ubuntu
-  gpu: h100
+  appliedOverlays:
+    - "service=eks, accelerator=h100, intent=training"
+criteria:
   service: eks
-matchedRules:
-  - "OS: ubuntu, GPU: h100, Service: eks"
-measurements:
-  - type: K8s
-    subtypes: [...]
-  - type: GPU
-    subtypes: [...]
+  accelerator: h100
+  intent: training
+  os: ubuntu
+componentRefs:
+  - name: gpu-operator
+    version: v25.3.3
+    order: 1
+    repository: https://helm.ngc.nvidia.com/nvidia
+constraints:
+  driver:
+    version: "580.82.07"
+    cudaVersion: "13.1"
 ```
 
 ---
@@ -611,7 +610,7 @@ Eidos respects standard environment variables:
 
 ### Quick Recipe Generation
 ```shell
-eidos recipe --os ubuntu --gpu h100 | jq '.measurements[]'
+eidos recipe --os ubuntu --accelerator h100 | jq '.componentRefs[]'
 ```
 
 ### Save All Steps
@@ -623,11 +622,13 @@ eidos bundle -f recipe.yaml -o ./bundles
 
 ### JSON Processing
 ```shell
-# Extract GPU driver version from recipe
-eidos recipe --os ubuntu --gpu h100 --format json | \
-  jq -r '.measurements[] | select(.type=="GPU") | 
-         .subtypes[] | select(.subtype=="driver") | 
-         .data.version'
+# Extract GPU Operator version from recipe
+eidos recipe --os ubuntu --accelerator h100 --format json | \
+  jq -r '.componentRefs[] | select(.name=="gpu-operator") | .version'
+
+# Get all component versions
+eidos recipe --os ubuntu --accelerator h100 --format json | \
+  jq -r '.componentRefs[] | "\(.name): \(.version)"'
 ```
 
 ### Multiple Environments

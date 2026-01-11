@@ -240,34 +240,22 @@ Result: MATCH (os wildcarded)
 │ Recipe (cns.nvidia.com/v1alpha1)                        │
 ├─────────────────────────────────────────────────────────┤
 │ metadata:                                               │
+│   version: recipe format version                        │
 │   created: timestamp                                    │
-│   recipe-version: version                               │
+│   appliedOverlays: matched overlay descriptions         │
 │                                                         │
-│ request: Query (original parameters)                    │
+│ criteria: Criteria (service, accelerator, intent, os)   │
 │                                                         │
-│ matchedRules: []string (matched overlay keys)           │
+│ componentRefs: []ComponentRef                           │
+│   ├─ name: component name                               │
+│   ├─ version: component version                         │
+│   ├─ order: deployment order                            │
+│   └─ repository: Helm repository URL                    │
 │                                                         │
-│ measurements: []Measurement                             │
-│   ├─ SystemD                                            │
-│   │   └─ subtypes + merged data                         │
-│   ├─ OS                                                 │
-│   │   └─ subtypes + merged data                         │
-│   ├─ K8s                                                │
-│   │   └─ subtypes + merged data (with recommendations)  │
-│   └─ GPU                                                │
-│       └─ subtypes + merged data                         │
+│ constraints:                                            │
+│   └─ driver: version, cudaVersion                       │
 └─────────────────────────────────────────────────────────┘
 ```
-
-**Context Metadata (Optional):**
-```yaml
-data:
-  iommu.passthrough: "1"
-context:
-  iommu.passthrough: "Bypass IOMMU translation for GB200"
-```
-
-When `context=false`, context maps are stripped before response.
 
 ## Stage 3: Bundle (Data Packaging)
 
@@ -547,10 +535,10 @@ X-RateLimit-Reset: 1735650000
 ### Output Validation
 
 **Recipes:**
-- At least one measurement present
-- All measurements have valid type
-- All subtypes have data
-- Context keys match data keys (if context=true)
+- Valid apiVersion and kind
+- Metadata with version and timestamp
+- Criteria properly populated
+- ComponentRefs have required fields (name, version)
 
 **Bundles:**
 - All required files generated

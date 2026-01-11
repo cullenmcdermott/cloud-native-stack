@@ -130,7 +130,7 @@ The `context` field provides human-readable explanations for each configuration 
 
 - Explains **why** a setting is configured
 - Describes the **impact** on GPU workloads
-- Is **optional** in responses (controlled by `?context=true` query parameter)
+- Used internally for recipe data organization
 - Should be updated whenever data values change
 
 Example:
@@ -152,10 +152,10 @@ The recipe system intentionally maintains **separate `data` and `context` maps**
 - **Context** represents *why* it should be configured (human-readable explanations)
 - This philosophical separation mirrors the distinction between code and comments in software
 
-**2. Conditional Context Inclusion**
-- API consumers can request context-free recipes via `?context=false` for reduced bandwidth
-- The `stripContext()` function removes all context in one pass (10 lines of code)
-- Embedding context would require complex recursive filtering to extract values
+**2. Internal Data Organization**
+- Context maps are used internally for recipe data management
+- The bundler framework uses context for generating documentation
+- Separating context allows cleaner data structures for template rendering
 
 **3. Type Safety**
 - The `data` map uses the `Reading` interface with generic `Scalar[T]` types for compile-time type safety
@@ -586,17 +586,22 @@ func mergeMeasurementSubtypes(target, overlay) {
 - **Data merging**: `overlayValue` overwrites `baseValue` for same key
 - **Context merging**: `overlayContext` overwrites `baseContext` for same key
 
-### Step 7: Strip Context (Optional)
+### Step 7: Build Response
 
 ```go
-if !query.IncludeContext {
-    stripContext(measurements)
+return &Recipe{
+    APIVersion: "cns.nvidia.com/v1alpha1",
+    Kind: "Recipe",
+    Metadata: metadata,
+    Criteria: criteria,
+    ComponentRefs: componentRefs,
+    Constraints: constraints,
 }
 ```
 
-- Remove context metadata if not requested via `?context=true`
-- Reduces payload size for production use cases
-- Context included by default in CLI, excluded in API unless requested
+- Build response with criteria, componentRefs, and constraints
+- Context metadata used internally for bundler documentation generation
+- API returns simplified recipe structure without internal measurement details
 
 ### Complete Flow Diagram
 
@@ -635,21 +640,14 @@ eidos snapshot --output snapshot.yaml
 eidos recipe --snapshot snapshot.yaml --intent training
 ```
 
-**With context metadata:**
-```bash
-eidos recipe --os ubuntu --service eks --gpu gb200 --context
-```
-
 **Full specification:**
 ```bash
 eidos recipe \
   --os ubuntu \
-  --osv 24.04 \
-  --kernel 6.8 \
   --service eks \
-  --k8s 1.33 \
-  --gpu gb200 \
+  --accelerator gb200 \
   --intent training \
+  --nodes 8 \
   --format yaml \
   --output recipe.yaml
 ```
@@ -658,80 +656,54 @@ eidos recipe \
 
 **Basic query:**
 ```bash
-curl "https://cns.dgxc.io/v1/recipe?os=ubuntu&service=eks&gpu=h100"
-```
-
-**With context:**
-```bash
-curl "https://cns.dgxc.io/v1/recipe?os=ubuntu&gpu=gb200&context=true"
+curl "https://cns.dgxc.io/v1/recipe?os=ubuntu&service=eks&accelerator=h100"
 ```
 
 **Full specification:**
 ```bash
-curl "https://cns.dgxc.io/v1/recipe?os=ubuntu&osv=24.04&service=eks&k8s=1.33&gpu=gb200&intent=training&context=true"
+curl "https://cns.dgxc.io/v1/recipe?os=ubuntu&service=eks&accelerator=gb200&intent=training&nodes=8"
 ```
 
 ### Example Response
 
 ```json
 {
-  "apiVersion": "v1",
+  "apiVersion": "cns.nvidia.com/v1alpha1",
   "kind": "Recipe",
-  "request": {
-    "os": "ubuntu",
-    "service": "eks",
-    "gpu": "gb200"
+  "metadata": {
+    "version": "v1.0.0",
+    "created": "2025-01-15T10:30:00Z",
+    "appliedOverlays": [
+      "service=eks, accelerator=gb200, intent=training"
+    ]
   },
-  "matchedRules": [
-    "OS: ubuntu any, Kernel: any, Service: eks, K8s: any, GPU: any, Intent: any, Context: false",
-    "OS: any any, Kernel: any, Service: eks, K8s: any, GPU: gb200, Intent: any, Context: false"
-  ],
-  "measurements": [
+  "criteria": {
+    "service": "eks",
+    "accelerator": "gb200",
+    "intent": "training",
+    "os": "ubuntu",
+    "nodes": 8
+  },
+  "componentRefs": [
     {
-      "type": "OS",
-      "subtypes": [
-        {
-          "subtype": "kmod",
-          "data": {
-            "nvidia": "true",
-            "nvidia_uvm": "true",
-            "efa": "true"
-          }
-        },
-        {
-          "subtype": "grub",
-          "data": {
-            "BOOT_IMAGE": "/boot/vmlinuz-6.8.0-1028-aws",
-            "numa_balancing": "disable"
-          }
-        }
-      ]
+      "name": "gpu-operator",
+      "version": "v25.3.3",
+      "order": 1,
+      "repository": "https://helm.ngc.nvidia.com/nvidia"
     },
     {
-      "type": "K8s",
-      "subtypes": [
-        {
-          "subtype": "server",
-          "data": {
-            "version": "v1.33"
-          }
-        },
-        {
-          "subtype": "image",
-          "data": {
-            "gpu-operator": "v25.3.3",
-            "aws-efa-k8s-device-plugin": "v0.5.3"
-          }
-        },
-        {
-          "subtype": "config",
-          "data": {
-            "useOpenKernelModule": "true"
-          }
-        }
-      ]
+      "name": "network-operator",
+      "version": "v25.4.0",
+      "order": 2,
+      "repository": "https://helm.ngc.nvidia.com/nvidia"
     }
-  ]
+  ],
+  "constraints": {
+    "driver": {
+      "version": "580.82.07",
+      "cudaVersion": "13.1"
+    }
+  }
 }
 ```
 
@@ -913,22 +885,21 @@ overlays:
 
 **See which overlays matched:**
 ```bash
-eidos recipe --os ubuntu --service eks --gpu gb200 --format json | jq '.matchedRules'
+eidos recipe --os ubuntu --service eks --accelerator gb200 --format json | jq '.metadata.appliedOverlays'
 ```
 
 **Output:**
 ```json
 [
-  "OS: ubuntu any, Kernel: any, Service: eks, K8s: any, GPU: any, Intent: any, Context: false",
-  "OS: any any, Kernel: any, Service: eks, K8s: any, GPU: gb200, Intent: any, Context: false"
+  "service=eks, accelerator=gb200, intent=training"
 ]
 ```
 
-**Verify specific configuration:**
+**Extract component versions:**
 ```bash
-# Check if EFA module is included for EKS + GB200
-eidos recipe --service eks --gpu gb200 --format json | \
-  jq '.measurements[] | select(.type=="OS") | .subtypes[] | select(.subtype=="kmod") | .data.efa'
+# Check GPU Operator version for EKS + GB200
+eidos recipe --service eks --accelerator gb200 --format json | \
+  jq '.componentRefs[] | select(.name=="gpu-operator") | .version'
 ```
 
 ### Version History

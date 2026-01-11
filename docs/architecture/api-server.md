@@ -226,15 +226,13 @@ func (b *Builder) HandleRecipes(w http.ResponseWriter, r *http.Request) {
 #### Query Parameter Parsing
 
 | Parameter | Type | Validation | Example |
-|-----------|------|------------|---------|
-| `os` | OsFamily | Enum: ubuntu, cos, ALL | `os=ubuntu` |
-| `osv` | Version | Semantic version | `osv=24.04` |
-| `kernel` | Version | Semantic version | `kernel=6.8.0` |
-| `service` | ServiceType | Enum: eks, gke, aks, self-managed, ALL | `service=eks` |
-| `k8s` | Version | Semantic version | `k8s=v1.33.0` |
-| `gpu` | GPUType | Enum: h100, gb200, a100, l40, ALL | `gpu=h100` |
-| `intent` | IntentType | Enum: training, inference, ALL | `intent=training` |
-| `context` | bool | true/false | `context=true` |
+|-----------|------|------------|--------|
+| `service` | ServiceType | Enum: eks, gke, aks, oke, any | `service=eks` |
+| `accelerator` | AcceleratorType | Enum: h100, gb200, a100, l40, any | `accelerator=h100` |
+| `gpu` | AcceleratorType | Alias for accelerator | `gpu=h100` |
+| `intent` | IntentType | Enum: training, inference, any | `intent=training` |
+| `os` | OSType | Enum: ubuntu, rhel, cos, amazonlinux, any | `os=ubuntu` |
+| `nodes` | int | >= 0 | `nodes=8` |
 
 ### Recipe Builder: `pkg/recipe/builder.go`
 
@@ -247,41 +245,43 @@ Shared with CLI - same logic as described in CLI architecture.
 **Endpoint**: `GET /v1/recipe`
 
 **Query Parameters**:
-- `os` - Operating system family
-- `osv` - OS version
-- `kernel` - Kernel version
-- `service` - Kubernetes service type
-- `k8s` - Kubernetes version
-- `gpu` - GPU type
-- `intent` - Workload intent
-- `context` - Include context metadata (default: false)
+- `service` - Kubernetes service type (eks, gke, aks, oke)
+- `accelerator` - GPU/accelerator type (h100, gb200, a100, l40)
+- `gpu` - Alias for accelerator (backwards compatibility)
+- `intent` - Workload intent (training, inference)
+- `os` - Operating system family (ubuntu, rhel, cos, amazonlinux)
+- `nodes` - Number of GPU nodes (0 = any/unspecified)
 
 **Response**: 200 OK
 
 ```json
 {
-  "request": {
-    "os": "ubuntu",
-    "gpu": "h100",
-    "withContext": false
+  "apiVersion": "cns.nvidia.com/v1alpha1",
+  "kind": "Recipe",
+  "metadata": {
+    "version": "v1.0.0",
+    "created": "2025-12-25T12:00:00Z",
+    "appliedOverlays": [
+      "service=eks, accelerator=h100"
+    ]
   },
-  "matchedRuleId": [
-    "OS: ubuntu *, Kernel: *, Service: *, K8s: *, GPU: h100, Intent: *, Context: false"
-  ],
-  "measurements": [
+  "criteria": {
+    "service": "eks",
+    "accelerator": "h100",
+    "os": "ubuntu"
+  },
+  "componentRefs": [
     {
-      "type": "os",
-      "subtypes": [
-        {
-          "subtype": "grub",
-          "data": {
-            "hugepages": 5128,
-            "hugepagesz": "2M"
-          }
-        }
-      ]
+      "name": "gpu-operator",
+      "version": "v25.3.3",
+      "order": 1
     }
-  ]
+  ],
+  "constraints": {
+    "driver": {
+      "version": "580.82.07"
+    }
+  }
 }
 ```
 
@@ -401,7 +401,7 @@ eidos_panic_recoveries_total 0
 curl "http://localhost:8080/v1/recipe?os=ubuntu&gpu=h100"
 
 # Full specification
-curl "http://localhost:8080/v1/recipe?os=ubuntu&osv=24.04&kernel=6.8&service=eks&k8s=v1.33&gpu=gb200&intent=training&context=true"
+curl "http://localhost:8080/v1/recipe?os=ubuntu&service=eks&accelerator=gb200&intent=training&nodes=8"
 
 # With request ID
 curl -H "X-Request-Id: 550e8400-e29b-41d4-a716-446655440000" \

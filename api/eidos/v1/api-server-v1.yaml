@@ -3,11 +3,11 @@ info:
   title: Eidos API Server - CNS Recipe API
   version: 1.0.0
   description: >
-    Returns optimized system configuration recipes (measurements and component recommendations)
-    for a given combination of platform parameters (OS, kernel, service, Kubernetes, GPU, intent).
+    Returns optimized system configuration recipes (component references and deployment constraints)
+    for a given combination of platform parameters (service, accelerator, OS, intent, nodes).
 
-    The recipe system uses a rule-based overlay architecture where base measurements are layered
-    with environment-specific overlays based on query matching.
+    The recipe system uses a criteria-based overlay architecture where base configurations are layered
+    with environment-specific overlays based on criteria matching.
 
 servers:
   - url: https://api.eidos.dev/v1
@@ -66,50 +66,26 @@ paths:
             type: string
             format: uuid
           description: Client-provided request ID for tracing
-        - name: os
-          in: query
-          required: false
-          description: OS family. If omitted, treated as "any" (wildcard).
-          schema:
-            type: string
-            enum: [ubuntu, cos, any]
-            default: any
-        - name: osv
-          in: query
-          required: false
-          description: OS version (e.g., 24.04, 22.04). If omitted, treated as wildcard.
-          schema:
-            type: string
-            pattern: '^\d+\.\d+(\.\d+)?$'
-            examples: ["24.04", "22.04", "20.04"]
-        - name: kernel
-          in: query
-          required: false
-          description: Kernel version (e.g., 6.8, 5.15.0). Supports vendor suffixes. If omitted, treated as wildcard.
-          schema:
-            type: string
-            pattern: '^\d+\.\d+(\.\d+)?'
-            examples: ["6.8", "5.15.0", "6.8.0-1028-aws"]
         - name: service
           in: query
           required: false
           description: Kubernetes service/environment type. If omitted, treated as "any" (wildcard).
           schema:
             type: string
-            enum: [eks, gke, aks, self-managed, any]
+            enum: [eks, gke, aks, oke, any]
             default: any
-        - name: k8s
+        - name: accelerator
           in: query
           required: false
-          description: Kubernetes version (e.g., 1.33, v1.32.6). Supports vendor suffixes. If omitted, treated as wildcard.
+          description: GPU/accelerator type. If omitted, treated as "any" (wildcard).
           schema:
             type: string
-            pattern: '^v?\d+\.\d+(\.\d+)?'
-            examples: ["1.33", "v1.32.6", "v1.33.5-eks-3025e55"]
+            enum: [h100, gb200, a100, l40, any]
+            default: any
         - name: gpu
           in: query
           required: false
-          description: GPU type. If omitted, treated as "any" (wildcard).
+          description: Alias for accelerator parameter (backwards compatibility).
           schema:
             type: string
             enum: [h100, gb200, a100, l40, any]
@@ -122,14 +98,22 @@ paths:
             type: string
             enum: [training, inference, any]
             default: any
-        - name: context
+        - name: os
           in: query
           required: false
-          description: Whether to include context metadata in measurements (true/false or 1/0)
+          description: GPU node operating system. If omitted, treated as "any" (wildcard).
           schema:
             type: string
-            enum: ["true", "false", "1", "0"]
-            default: "false"
+            enum: [ubuntu, rhel, cos, amazonlinux, any]
+            default: any
+        - name: nodes
+          in: query
+          required: false
+          description: Number of GPU nodes (0 = any/unspecified).
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
       responses:
         "200":
           description: Recipe payload for the requested parameter combination
@@ -152,40 +136,31 @@ paths:
                 basic:
                   summary: Basic recipe request
                   value:
-                    apiVersion: v1
+                    apiVersion: cns.nvidia.com/v1alpha1
                     kind: Recipe
-                    request:
-                      os: ubuntu
-                      osv: "24.04"
+                    metadata:
+                      version: v1.0.0
+                      created: "2025-01-15T10:30:00Z"
+                      appliedOverlays:
+                        - "service=eks, accelerator=h100, intent=training"
+                    criteria:
                       service: eks
-                      k8s: "1.33"
-                      gpu: h100
+                      accelerator: h100
                       intent: training
-                    matchedRules:
-                      - "OS: ubuntu any, Kernel: any, Service: eks, K8s: any, GPU: h100, Intent: training, Context: false"
-                    measurements:
-                      - type: systemd
-                        subtypes:
-                          - name: containerd.service
-                            data:
-                              CPUAccounting: "yes"
-                              MemoryAccounting: "yes"
-                      - type: os
-                        subtypes:
-                          - name: grub
-                            data:
-                              intel_iommu: "on"
-                              iommu: "pt"
-                      - type: k8s
-                        subtypes:
-                          - name: server
-                            data:
-                              version: "1.33.0"
-                      - type: gpu
-                        subtypes:
-                          - name: device
-                            data:
-                              model: "H100"
+                      os: ubuntu
+                    componentRefs:
+                      - name: gpu-operator
+                        version: v25.3.3
+                        order: 1
+                        repository: https://helm.ngc.nvidia.com/nvidia
+                      - name: network-operator
+                        version: v25.4.0
+                        order: 2
+                        repository: https://helm.ngc.nvidia.com/nvidia
+                    constraints:
+                      driver:
+                        version: "580.82.07"
+                        cudaVersion: "13.1"
         "400":
           description: Invalid request parameters
           headers:
@@ -411,35 +386,18 @@ components:
           description: Whether client should retry this request
           example: false
 
-    Query:
+    Criteria:
       type: object
-      description: Recipe query parameters
+      description: Recipe criteria parameters
       properties:
-        os:
-          type: string
-          description: Operating system family
-          enum: [ubuntu, cos, any]
-          example: ubuntu
-        osv:
-          type: string
-          description: Operating system version
-          example: "24.04"
-        kernel:
-          type: string
-          description: Kernel version (supports vendor suffixes)
-          example: "6.8.0-1028-aws"
         service:
           type: string
           description: Kubernetes service type
-          enum: [eks, gke, aks, self-managed, any]
+          enum: [eks, gke, aks, oke, any]
           example: eks
-        k8s:
+        accelerator:
           type: string
-          description: Kubernetes version (supports vendor suffixes)
-          example: "v1.33.5-eks-3025e55"
-        gpu:
-          type: string
-          description: GPU type
+          description: GPU/accelerator type
           enum: [h100, gb200, a100, l40, any]
           example: h100
         intent:
@@ -447,10 +405,16 @@ components:
           description: Workload intent
           enum: [training, inference, any]
           example: training
-        withContext:
-          type: boolean
-          description: Include context metadata in measurements
-          default: false
+        os:
+          type: string
+          description: Operating system family
+          enum: [ubuntu, rhel, cos, amazonlinux, any]
+          example: ubuntu
+        nodes:
+          type: integer
+          description: Number of GPU nodes (0 = any)
+          minimum: 0
+          default: 0
 
     Reading:
       type: object
@@ -506,30 +470,57 @@ components:
 
     RecipeResponse:
       type: object
-      description: Complete recipe response with metadata and measurements
-      required: [apiVersion, kind, measurements]
+      description: Complete recipe response with metadata and component references
+      required: [apiVersion, kind]
       properties:
         apiVersion:
           type: string
           description: API version of the recipe format
-          example: v1
+          example: cns.nvidia.com/v1alpha1
         kind:
           type: string
           description: Resource type
           enum: [Recipe]
           example: Recipe
-        request:
-          $ref: "#/components/schemas/Query"
-          description: Original query parameters (omitted if all wildcards)
-        matchedRules:
+        metadata:
+          type: object
+          description: Recipe metadata
+          properties:
+            version:
+              type: string
+              description: Recipe version
+              example: v1.0.0
+            created:
+              type: string
+              format: date-time
+              description: Recipe creation timestamp
+            appliedOverlays:
+              type: array
+              items:
+                type: string
+              description: List of overlay criteria that were applied
+        criteria:
+          $ref: "#/components/schemas/Criteria"
+          description: Original criteria parameters
+        componentRefs:
           type: array
           items:
-            type: string
-          description: List of overlay rules that matched this query
-          example:
-            - "OS: ubuntu any, Kernel: any, Service: eks, K8s: any, GPU: h100, Intent: training, Context: false"
-        measurements:
-          type: array
-          items:
-            $ref: "#/components/schemas/Measurement"
-          description: System configuration measurements and recommendations
+            type: object
+            properties:
+              name:
+                type: string
+                description: Component name
+              version:
+                type: string
+                description: Component version
+              order:
+                type: integer
+                description: Deployment order
+              repository:
+                type: string
+                description: Helm repository URL
+          description: List of component references with deployment order
+        constraints:
+          type: object
+          description: Deployment constraints (driver versions, etc.)
+          additionalProperties: true

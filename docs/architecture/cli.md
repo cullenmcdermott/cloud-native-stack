@@ -383,7 +383,7 @@ flowchart TD
 flowchart TD
     A[Recipe Command] --> B[buildQueryFromCmd]
     
-    B --> B1["Parse CLI Flags:<br/>--os, --osv, --kernel<br/>--service, --k8s<br/>--gpu, --intent, --context"]
+    B --> B1["Parse CLI Flags:<br/>--service, --accelerator/--gpu<br/>--intent, --os, --nodes"]
     B1 --> B2["Version Parsing:<br/>• ParseVersion for osv, kernel, k8s<br/>• Reject negative components<br/>• Support precision (1.2.3, 1.2, 1)"]
     
     B2 --> C[recipe.BuildRecipe]
@@ -429,14 +429,11 @@ eidos recipe --os ubuntu --gpu h100
 
 # Full specification with all parameters
 eidos recipe \
-  --os ubuntu \
-  --osv 24.04 \
-  --kernel 6.8.0 \
   --service eks \
-  --k8s v1.33.0 \
-  --gpu gb200 \
+  --accelerator gb200 \
   --intent training \
-  --context \
+  --os ubuntu \
+  --nodes 8 \
   --format yaml \
   --output recipe.yaml
 
@@ -463,10 +460,10 @@ Direct recipe generation from environment parameters:
 
 ```mermaid
 flowchart TD
-    A[User Invocation] --> B[Parse Flags<br/>os, osv, kernel, service, k8s, gpu, intent]
-    B --> C[Build Query Object]
-    C --> D[recipe.BuildFromQuery]
-    D --> E[Match Rules in Data Store]
+    A[User Invocation] --> B[Parse Flags<br/>service, accelerator, intent, os, nodes]
+    B --> C[Build Criteria Object]
+    C --> D[recipe.BuildFromCriteria]
+    D --> E[Match Overlays in Data Store]
     E --> F[Apply Overlays]
     F --> G[Generate Recipe]
     G --> H[Serialize Output]
@@ -494,17 +491,14 @@ flowchart TD
 When using snapshot mode, the recipe builder extracts environment parameters from the snapshot:
 
 **From OS Measurements:**
-- **release subtype** → OS family (ubuntu, rhel, cos)
-- **release.VERSION_ID** → OS version (24.04, 22.04, etc.)
-- **sysctl.kernel.osrelease** → Kernel version (handles vendor suffixes like `-aws`)
+- **release subtype** → OS family (ubuntu, rhel, cos, amazonlinux)
 
 **From Kubernetes Measurements:**
-- **server subtype** → K8s version (handles vendor formats like `v1.33.5-eks-3025e55`)
-- **Version field** → Extract service provider (eks, gke, aks) from vendor extras
+- **server subtype** → K8s service provider (eks, gke, aks) inferred from images
 
 **From GPU Measurements:**
 - **Product Name** → GPU type detection (H100, GB200, A100, L40)
-- Maps product names to normalized GPU types for recipe matching
+- Maps product names to normalized accelerator types for recipe matching
 
 **Intent Types:**
 - **training** – Optimize for high throughput, batch processing, multi-GPU orchestration
@@ -515,23 +509,21 @@ When using snapshot mode, the recipe builder extracts environment parameters fro
 
 ```bash
 # Query mode - generate recipe from parameters
-eidos recipe --os ubuntu --service eks --gpu h100 --intent training
+eidos recipe --os ubuntu --service eks --accelerator h100 --intent training
 
 # Snapshot mode - analyze snapshot for training workloads
 eidos recipe --snapshot system.yaml --intent training
 
 # Snapshot mode with output file
-eidos recipe -f system.yaml -i inference -o recipe.json
+eidos recipe -f system.yaml -i inference -o recipe.yaml
 
 # Query mode with full specification
 eidos recipe \
-  --os ubuntu \
-  --osv 24.04 \
-  --kernel 6.8.0-1028-aws \
   --service eks \
-  --k8s v1.33.5 \
-  --gpu gb200 \
+  --accelerator gb200 \
   --intent training \
+  --os ubuntu \
+  --nodes 8 \
   --format yaml
 ```
 
@@ -541,51 +533,46 @@ eidos recipe \
 apiVersion: cns.nvidia.com/v1alpha1
 kind: Recipe
 metadata:
+  version: v1.0.0
   created: "2025-01-15T10:30:00Z"
-  recipe-version: v0.7.0
-request:
-  os: ubuntu
-  osv: "24.04"
-  kernel: 6.8.0-1028-aws
+  appliedOverlays:
+    - "service=eks, accelerator=gb200, intent=training"
+criteria:
   service: eks
-  k8s: v1.33.5-eks-3025e55
-  gpu: gb200
+  accelerator: gb200
   intent: training
-matchedRules:
-  - os:ubuntu
-  - gpu:gb200
-  - intent:training
-measurements:
-  - type: K8s
-    subtypes:
-      - subtype: cluster
-        data:
-          gpu-operator-version: "25.3.1"
-          enable-mig: "false"
-  - type: GPU
-    subtypes:
-      - subtype: driver
-        data:
-          version: "570.158.01"
-          cuda-version: "12.7"
+  os: ubuntu
+  nodes: 8
+componentRefs:
+  - name: gpu-operator
+    version: v25.3.3
+    order: 1
+    repository: https://helm.ngc.nvidia.com/nvidia
+  - name: network-operator
+    version: v25.4.0
+    order: 2
+    repository: https://helm.ngc.nvidia.com/nvidia
+constraints:
+  driver:
+    version: "580.82.07"
+    cudaVersion: "13.1"
 ```
 
 #### Error Handling
 
 - **Query Mode**:
   - Invalid parameter values: Returns error with supported options
-  - Missing required parameters: Allows "all" as default fallback
-  - No matching rules: Returns recipe with empty measurements
+  - Missing required parameters: Allows "any" as default fallback
+  - No matching overlays: Returns recipe with base configuration
 
 - **Snapshot Mode**:
   - Missing snapshot file: File not found error with path
   - Invalid snapshot format: Parse error with details
   - Invalid intent: Returns error with supported intent types (training, inference, any)
-  - Extraction failures: Best-effort extraction with partial query
+  - Extraction failures: Best-effort extraction with partial criteria
 
 **Common Errors**:
-- Unknown output format: Error with supported formats list (json, yaml, table)
-- Context cancellation: Respects context timeout and cancellation
+- Unknown output format: Error with supported formats list (json, yaml)
 
 ### Bundle Command: `pkg/cli/bundle.go`
 
@@ -943,9 +930,9 @@ type Reading struct {
 ### Example Error Messages
 
 ```bash
-# Invalid version format
-$ eidos recipe --osv -1.0
-Error: error parsing recipe input parameter: os version cannot contain negative numbers: -1.0
+# Invalid accelerator type
+$ eidos recipe --accelerator invalid-gpu
+Error: invalid accelerator type: must be one of h100, gb200, a100, l40, any
 
 # Unknown output format
 $ eidos snapshot --format xml

@@ -101,13 +101,10 @@ Review the recipe:
 cat recipe.yaml
 ```
 
-Or even cleaner: 
+Or to view the component references: 
 
 ```shell
-yq eval '.measurements[]
-  | {"type": .type,
-     "subtypes": (.subtypes | map({"subtype": .subtype, "count": (.data | length)}))
-    }' recipe.yaml
+yq eval '.componentRefs[] | {"name": .name, "version": .version}' recipe.yaml
 ```
 
 You can also skip the snapshot altogether, and just generate the recipe from input parameters, for example: 
@@ -115,15 +112,14 @@ You can also skip the snapshot altogether, and just generate the recipe from inp
 ```shell
 eidos recipe \
     --service eks \
-    --gpu gb200 \
-    --intent training \
-    --context
+    --accelerator gb200 \
+    --intent training
 ```
 
 You can also query the CNS API server directly (https://cns.dgxc.io):
 
 ```shell
-curl -fsSL "https://cns.dgxc.io/v1/recipe?gpu=gb200&service=eks&intent=training" | jq .
+curl -fsSL "https://cns.dgxc.io/v1/recipe?accelerator=gb200&service=eks&intent=training" | jq .
 ```
 
 ![data flow](images/data.png)

@@ -40,13 +40,13 @@ Captures comprehensive system state including OS, kernel, GPU, Kubernetes, and S
 - **Storage**: File, stdout, or **Kubernetes ConfigMap** (`cm://namespace/name` URI)
 
 ### Step 2: Recipe – Generate Configuration Recommendations
-Produces optimized configuration recipes based on environment parameters or captured snapshots.
+Produces optimized configuration recipes based on environment criteria or captured snapshots.
 - **CLI**: `eidos recipe` command (supports query mode and snapshot mode)
-  - **Query Mode**: Direct recipe generation from system parameters (OS, GPU, K8s, etc.)
+  - **Query Mode**: Direct recipe generation from criteria (service, accelerator, intent, OS, nodes)
   - **Snapshot Mode**: Analyzes captured snapshots and generates tailored recipes based on workload intent
   - **ConfigMap Input**: Can read snapshots from ConfigMap URIs (`cm://namespace/name`)
 - **API Server**: `GET /v1/recipe` endpoint for programmatic access (query mode only)
-- **Output**: Recipe with matched rules and configuration measurements
+- **Output**: Recipe with component references and deployment constraints
 - **Storage**: File, stdout, or **Kubernetes ConfigMap**
 
 ### Step 3: Bundle – Create Deployment Artifacts
@@ -108,12 +108,10 @@ if err := g.Wait(); err != nil {
 - [Rate Limiting](https://pkg.go.dev/golang.org/x/time/rate)  
 - [Prometheus Best Practices](https://prometheus.io/docs/practices/naming/)
 
-### 6. Semantic Versioning with Precision Control and Vendor Extras
-**Pattern**: Version struct with Major.Minor.Patch components and optional Extras field  
-**Rationale**: Flexible matching (1.2 matches 1.2.x); reject negative components; preserve vendor-specific suffixes  
-**Vendor Support**: Handles kernel versions like `6.8.0-1028-aws` and Kubernetes versions like `v1.33.5-eks-3025e55`  
-**Trade-off**: Complexity vs matching flexibility and vendor compatibility  
-**Implementation**: Extras field stores vendor suffixes (e.g., `-1028-aws`, `-eks-3025e55`) without affecting version comparison  
+### 6. Semantic Versioning with Precision Control
+**Pattern**: Version struct with Major.Minor.Patch components  
+**Rationale**: Flexible matching (1.2 matches 1.2.x); reject negative components  
+**Trade-off**: Complexity vs matching flexibility  
 **Reference**: [Semantic Versioning 2.0.0](https://semver.org/)
 
 ### 7. Immutable Data Structures

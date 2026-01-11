@@ -180,12 +180,9 @@ jobs:
       - run:
           name: Extract component versions
           command: |
-            # GPU Operator version
-            GPU_OP_VERSION=$(jq -r '.measurements[] | 
-              select(.type=="K8s") | 
-              .subtypes[] | 
-              select(.subtype=="image") | 
-              .data["gpu-operator"]' recipe.json)
+            # GPU Operator version from componentRefs
+            GPU_OP_VERSION=$(jq -r '.componentRefs[] | 
+              select(.name=="gpu-operator") | .version' recipe.json)
             
             echo "GPU Operator: $GPU_OP_VERSION"
             
@@ -616,8 +613,8 @@ def log_recipe_request(params, recipe, duration):
     logging.info(json.dumps({
         'event': 'recipe_generated',
         'params': params,
-        'matched_rules': len(recipe.get('matchedRules', [])),
-        'measurements': len(recipe.get('measurements', [])),
+        'component_refs': len(recipe.get('componentRefs', [])),
+        'applied_overlays': len(recipe.get('metadata', {}).get('appliedOverlays', [])),
         'duration_ms': duration * 1000
     }))
 ```
@@ -751,18 +748,14 @@ yq eval '.measurements[] | .type' snapshot.yaml | sort -u
 
 ```bash
 # Generate and validate
-eidos recipe --os ubuntu --gpu h100 --output recipe.yaml
+eidos recipe --os ubuntu --accelerator h100 --output recipe.yaml
 yamllint recipe.yaml
 
-# Check matched rules
-yq eval '.matchedRules' recipe.yaml
+# Check applied overlays
+yq eval '.metadata.appliedOverlays' recipe.yaml
 
-# Extract GPU Operator version
-yq eval '.measurements[] | 
-  select(.type=="K8s") | 
-  .subtypes[] | 
-  select(.subtype=="image") | 
-  .data["gpu-operator"]' recipe.yaml
+# Extract GPU Operator version from componentRefs
+yq eval '.componentRefs[] | select(.name=="gpu-operator") | .version' recipe.yaml
 ```
 
 ## See Also
