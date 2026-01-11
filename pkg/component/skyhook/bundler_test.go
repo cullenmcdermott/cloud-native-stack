@@ -108,6 +108,42 @@ func TestBundler_Make(t *testing.T) {
 			recipe:  createRecipeResultWithoutGPUOperator(),
 			wantErr: true,
 		},
+		{
+			name: "recipe with valid customization",
+			recipe: createTestRecipeResultWithOverrides(map[string]interface{}{
+				"customization": "ubuntu",
+			}),
+			wantErr: false,
+			verifyFunc: func(t *testing.T, outputDir string) {
+				bundleDir := filepath.Join(outputDir, "skyhook")
+
+				// Verify customization manifest exists
+				manifestPath := filepath.Join(bundleDir, "manifests/ubuntu.yaml")
+				if _, err := os.Stat(manifestPath); os.IsNotExist(err) {
+					t.Errorf("Expected manifests/ubuntu.yaml not found")
+				}
+
+				// Verify content
+				data, err := os.ReadFile(manifestPath)
+				if err != nil {
+					t.Fatalf("Failed to read customization manifest: %v", err)
+				}
+				content := string(data)
+				if !strings.Contains(content, "kind: Skyhook") {
+					t.Error("Expected 'kind: Skyhook' in customization manifest")
+				}
+				if !strings.Contains(content, "ubuntu") {
+					t.Error("Expected 'ubuntu' name in manifest")
+				}
+			},
+		},
+		{
+			name: "recipe with invalid customization",
+			recipe: createTestRecipeResultWithOverrides(map[string]interface{}{
+				"customization": "nonexistent-customization",
+			}),
+			wantErr: true,
+		},
 	}
 
 	for _, tt := range tests {
@@ -167,6 +203,46 @@ func TestGetTemplate(t *testing.T) {
 			t.Error("GetTemplate() should return false for non-existent template")
 		}
 	})
+}
+
+func TestGetCustomizationTemplate(t *testing.T) {
+	t.Run("valid customization", func(t *testing.T) {
+		tmpl, ok := GetCustomizationTemplate("ubuntu")
+		if !ok {
+			t.Error("GetCustomizationTemplate(ubuntu) not found")
+		}
+		if tmpl == "" {
+			t.Error("GetCustomizationTemplate() returned empty template")
+		}
+		if !strings.Contains(tmpl, "kind: Skyhook") {
+			t.Error("Template should contain 'kind: Skyhook'")
+		}
+	})
+
+	t.Run("nonexistent customization", func(t *testing.T) {
+		_, ok := GetCustomizationTemplate("nonexistent")
+		if ok {
+			t.Error("GetCustomizationTemplate() should return false for non-existent customization")
+		}
+	})
+}
+
+func TestListCustomizations(t *testing.T) {
+	customizations := ListCustomizations()
+	if len(customizations) == 0 {
+		t.Error("ListCustomizations() returned empty list")
+	}
+
+	found := false
+	for _, c := range customizations {
+		if c == "ubuntu" {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Error("Expected 'ubuntu' in customizations list")
+	}
 }
 
 // Helper function to create a test RecipeResult

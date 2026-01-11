@@ -118,6 +118,11 @@ func (b *Bundler) makeFromRecipeResult(ctx context.Context, input recipe.RecipeI
 		}
 	}
 
+	// Generate customization manifests if specified in values
+	if err := b.generateCustomizationManifests(ctx, values, scriptData, dirs.Root); err != nil {
+		return b.Result, err
+	}
+
 	// Generate checksums file
 	if b.Config.IncludeChecksums() {
 		if err := b.GenerateChecksums(ctx, dirs.Root); err != nil {
@@ -170,4 +175,59 @@ func (b *Bundler) getValueOverrides() map[string]string {
 	}
 
 	return nil
+}
+
+// generateCustomizationManifests generates Skyhook customization CR manifests based on values.
+// If customization is specified in values but doesn't exist, returns an error.
+func (b *Bundler) generateCustomizationManifests(ctx context.Context, values map[string]interface{}, scriptData *ScriptData, dir string) error {
+	// Check if customization is specified in values
+	customizationName, ok := values["customization"].(string)
+	if !ok || customizationName == "" {
+		// No customization specified, nothing to generate
+		return nil
+	}
+
+	slog.Debug("generating Skyhook customization manifest",
+		"customization", customizationName,
+	)
+
+	// Check if the customization template exists
+	_, exists := GetCustomizationTemplate(customizationName)
+	if !exists {
+		availableCustomizations := ListCustomizations()
+		return errors.New(errors.ErrCodeInvalidRequest,
+			"unknown Skyhook customization '"+customizationName+"'; available customizations: "+
+				formatCustomizationList(availableCustomizations))
+	}
+
+	// Combine values map with script metadata for template
+	manifestData := map[string]interface{}{
+		"Values": values,
+		"Script": scriptData,
+	}
+
+	// Generate the customization manifest (WriteFile creates parent dirs automatically)
+	filePath := filepath.Join(dir, "manifests", customizationName+".yaml")
+	if err := b.GenerateFileFromTemplate(ctx, GetCustomizationTemplate, customizationName,
+		filePath, manifestData, 0644); err != nil {
+		return errors.Wrap(errors.ErrCodeInternal,
+			"failed to generate customization manifest", err)
+	}
+
+	return nil
+}
+
+// formatCustomizationList formats a list of customization names for error messages.
+func formatCustomizationList(names []string) string {
+	if len(names) == 0 {
+		return "(none available)"
+	}
+	result := ""
+	for i, name := range names {
+		if i > 0 {
+			result += ", "
+		}
+		result += name
+	}
+	return result
 }

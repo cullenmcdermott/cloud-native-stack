@@ -31,9 +31,11 @@ kubectl wait --for=condition=available --timeout=300s \
   deployment/skyhook-operator-controller-manager \
   -n {{ .Namespace }}
 
-# Apply Skyhook CR
-echo "Applying Skyhook custom resource..."
-kubectl apply -f manifests/skyhook.yaml
+# Apply Skyhook customizations if manifests directory exists
+if [ -d "manifests" ]; then
+  echo "Applying Skyhook customizations..."
+  kubectl apply -f manifests/
+fi
 
 echo "Skyhook Operator installation complete!"
 echo ""

@@ -29,3 +29,9 @@ spec:
       valuesFile: components/network-operator/values.yaml
       dependencyRefs:
         - cert-manager
+
+    # Override with tainted configuration for system-workload deployments
+    - name: skyhook
+      type: Helm
+      overrides:
+        customization: ubuntu

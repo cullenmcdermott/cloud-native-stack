@@ -28,6 +28,7 @@ spec:
       type: Helm
       source: oci://ghcr.io/nvidia/nvsentinel
       version: v0.6.0
+      valuesFile: components/nvsentinel/values.yaml
       dependencyRefs:
         - cert-manager
 

@@ -9,9 +9,11 @@ set -e
 
 echo "Uninstalling Skyhook Operator..."
 
-# Delete Skyhook CR
-echo "Deleting Skyhook custom resource..."
-kubectl delete -f manifests/skyhook.yaml --ignore-not-found=true
+# Delete Skyhook customizations if manifests directory exists
+if [ -d "manifests" ]; then
+  echo "Deleting Skyhook customizations..."
+  kubectl delete -f manifests/ --ignore-not-found=true
+fi
 
 # Wait for cleanup
 echo "Waiting for resources to be cleaned up..."

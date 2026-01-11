@@ -37,3 +37,15 @@ spec:
           version: 570.133.20
         gdrcopy:
           enabled: false
+
+    # Override with tainted configuration for system-workload deployments
+    - name: nvsentinel
+      type: Helm
+      valuesFile: components/nvsentinel/values-tainted.yaml
+
+    # Override with tainted configuration for system-workload deployments
+    - name: skyhook
+      type: Helm
+      valuesFile: components/skyhook/values-tainted.yaml
+      overrides:
+        customization: ubuntu

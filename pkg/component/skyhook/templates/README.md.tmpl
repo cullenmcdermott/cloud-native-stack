@@ -14,7 +14,7 @@ This bundle contains configuration and deployment artifacts for the NVIDIA Skyho
 ## Contents
 
 - `values.yaml` - Helm chart values for Skyhook Operator deployment
-- `manifests/skyhook.yaml` - Skyhook custom resource for node tuning
+- `manifests/` - Skyhook custom resources for node tuning (if customization specified)
 - `scripts/install.sh` - Automated installation script
 - `scripts/uninstall.sh` - Cleanup script
 - `checksums.txt` - SHA256 checksums for file integrity verification
@@ -77,9 +77,11 @@ chmod +x scripts/install.sh
      --wait
    ```
 
-4. **Apply Skyhook CR**:
+4. **Apply Skyhook customization** (if manifests/ directory exists):
    ```bash
-   kubectl apply -f manifests/skyhook.yaml
+   if [ -d manifests ]; then
+     kubectl apply -f manifests/
+   fi
    ```
 
 ## Verification
@@ -154,8 +156,10 @@ chmod +x scripts/uninstall.sh
 Or manually:
 
 ```bash
-# Delete Skyhook CR
-kubectl delete -f manifests/skyhook.yaml
+# Delete Skyhook customization (if manifests exist)
+if [ -d manifests ]; then
+  kubectl delete -f manifests/
+fi
 
 # Uninstall Helm release
 helm uninstall {{ .Script.HelmReleaseName }} -n {{ .Script.Namespace }}
