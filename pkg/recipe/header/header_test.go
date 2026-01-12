@@ -57,6 +57,16 @@ func TestKind_IsValid(t *testing.T) {
 			want: true,
 		},
 		{
+			name: "RecipeResult is valid",
+			kind: KindRecipeResult,
+			want: true,
+		},
+		{
+			name: "ValidationResult is valid",
+			kind: KindValidationResult,
+			want: true,
+		},
+		{
 			name: "Empty kind is invalid",
 			kind: Kind(""),
 			want: false,
@@ -355,11 +365,11 @@ func TestHeader_Init(t *testing.T) {
 				if h.APIVersion != testAPIVersion {
 					t.Errorf("APIVersion = %v, want %s", h.APIVersion, testAPIVersion)
 				}
-				if _, exists := h.Metadata["recipe-timestamp"]; !exists {
-					t.Error("recipe-timestamp not found in metadata")
+				if _, exists := h.Metadata["timestamp"]; !exists {
+					t.Error("timestamp not found in metadata")
 				}
-				if _, exists := h.Metadata["recipe-version"]; exists {
-					t.Error("recipe-version should not exist when version is empty")
+				if _, exists := h.Metadata["version"]; exists {
+					t.Error("version should not exist when version is empty")
 				}
 			},
 		},
@@ -434,6 +444,12 @@ func TestConstants(t *testing.T) {
 	}
 	if KindRecipe != "Recipe" {
 		t.Errorf("KindRecipe = %v, want Recipe", KindRecipe)
+	}
+	if KindRecipeResult != "RecipeResult" {
+		t.Errorf("KindRecipeResult = %v, want RecipeResult", KindRecipeResult)
+	}
+	if KindValidationResult != "ValidationResult" {
+		t.Errorf("KindValidationResult = %v, want ValidationResult", KindValidationResult)
 	}
 	// Note: API version constants moved to resource-specific packages
 	// - snapshotter.FullAPIVersion for Snapshot resources

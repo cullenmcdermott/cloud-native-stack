@@ -411,8 +411,8 @@ cnsctl validate \
 apiVersion: cns.nvidia.com/v1alpha1
 kind: ValidationResult
 metadata:
-  validationresult-timestamp: "2025-12-31T10:30:00Z"
-  validationresult-version: v0.14.0
+  timestamp: "2025-12-31T10:30:00Z"
+  version: v0.14.0
 recipeSource: recipe.yaml
 snapshotSource: cm://gpu-operator/cns-snapshot
 summary:

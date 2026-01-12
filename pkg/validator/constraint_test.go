@@ -34,6 +34,12 @@ func TestParseConstraintExpression(t *testing.T) {
 		{name: "extra spaces", expression: ">=  1.32.4", wantOp: OperatorGTE, wantValue: "1.32.4"},
 		{name: "leading space", expression: " >= 1.32.4", wantOp: OperatorGTE, wantValue: "1.32.4"},
 		{name: "trailing space", expression: ">= 1.32.4 ", wantOp: OperatorGTE, wantValue: "1.32.4"},
+		{name: "no space after operator", expression: ">=6.8", wantOp: OperatorGTE, wantValue: "6.8"},
+		{name: "no space with gt", expression: ">1.30", wantOp: OperatorGT, wantValue: "1.30"},
+		{name: "no space with lte", expression: "<=1.33", wantOp: OperatorLTE, wantValue: "1.33"},
+		{name: "no space with lt", expression: "<2.0", wantOp: OperatorLT, wantValue: "2.0"},
+		{name: "no space with eq", expression: "==ubuntu", wantOp: OperatorEQ, wantValue: "ubuntu"},
+		{name: "no space with ne", expression: "!=rhel", wantOp: OperatorNE, wantValue: "rhel"},
 
 		// Error cases
 		{name: "empty expression", expression: "", expectError: true},

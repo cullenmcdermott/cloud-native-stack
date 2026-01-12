@@ -1,18 +1,20 @@
 package header
 
 import (
-	"fmt"
-	"strings"
 	"time"
 )
 
-const (
-	KindSnapshot = "Snapshot"
-	KindRecipe   = "Recipe"
-)
-
 // Kind represents the type of CNS resource.
+// All CNS resources should use these constants for consistency.
 type Kind string
+
+// Valid Kind constants for all CNS resource types.
+const (
+	KindSnapshot         Kind = "Snapshot"
+	KindRecipe           Kind = "Recipe"
+	KindRecipeResult     Kind = "RecipeResult"
+	KindValidationResult Kind = "ValidationResult"
+)
 
 // String returns the string representation of the Kind.
 func (k Kind) String() string {
@@ -22,7 +24,7 @@ func (k Kind) String() string {
 // IsValid checks if the Kind is one of the recognized kinds.
 func (k *Kind) IsValid() bool {
 	switch *k {
-	case KindSnapshot, KindRecipe:
+	case KindSnapshot, KindRecipe, KindRecipeResult, KindValidationResult:
 		return true
 	default:
 		return false
@@ -94,26 +96,15 @@ type Header struct {
 
 // Init initializes the Header with the specified kind, apiVersion, and version.
 // It sets the Kind, APIVersion, and populates Metadata with timestamp and version.
-// For Snapshot kind, uses unprefixed keys (timestamp, version).
-// For Recipe kind, uses prefixed keys (recipe-timestamp, recipe-version).
+// Uses unprefixed keys (timestamp, version) for all kinds.
 func (h *Header) Init(kind Kind, apiVersion string, version string) {
 	h.Kind = kind
 	h.APIVersion = apiVersion
 	h.Metadata = make(map[string]string)
 
-	// Use unprefixed keys for Snapshot, prefixed for other kinds
-	var timestampKey, versionKey string
-	if kind == KindSnapshot {
-		timestampKey = "timestamp"
-		versionKey = "version"
-	} else {
-		kindStr := strings.ToLower(string(kind))
-		timestampKey = fmt.Sprintf("%s-timestamp", kindStr)
-		versionKey = fmt.Sprintf("%s-version", kindStr)
-	}
-
-	h.Metadata[timestampKey] = time.Now().UTC().Format(time.RFC3339)
+	// Use unprefixed keys for all kinds
+	h.Metadata["timestamp"] = time.Now().UTC().Format(time.RFC3339)
 	if version != "" {
-		h.Metadata[versionKey] = version
+		h.Metadata["version"] = version
 	}
 }

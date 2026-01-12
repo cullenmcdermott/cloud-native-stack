@@ -19,9 +19,6 @@ import (
 const (
 	// APIVersion is the API version for validation results.
 	APIVersion = "cns.nvidia.com/v1alpha1"
-
-	// Kind is the kind for validation results.
-	Kind = "ValidationResult"
 )
 
 // Validator evaluates recipe constraints against snapshot measurements.
@@ -62,7 +59,7 @@ func (v *Validator) Validate(ctx context.Context, recipeResult *recipe.RecipeRes
 	}
 
 	result := NewValidationResult()
-	result.Init(header.Kind(Kind), APIVersion, v.Version)
+	result.Init(header.KindValidationResult, APIVersion, v.Version)
 
 	// Evaluate each constraint
 	for _, constraint := range recipeResult.Constraints {

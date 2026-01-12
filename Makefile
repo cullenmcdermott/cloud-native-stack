@@ -3,7 +3,7 @@
 
 REPO_NAME          := cloud-native-stack
 VERSION            ?= $(shell git describe --tags --abbrev=0 2>/dev/null || echo "v0.0.0")
-YAML_FILES         := $(shell find . -type f \( -iname "*.yml" -o -iname "*.yaml" \) ! -path "./examples/*" ! -path "./~archive/*")
+YAML_FILES         := $(shell find . -type f \( -iname "*.yml" -o -iname "*.yaml" \) ! -path "./examples/*" ! -path "./~archive/*" ! -path "./bundles/*")
 COMMIT             := $(shell git rev-parse HEAD)
 BRANCH             := $(shell git rev-parse --abbrev-ref HEAD)
 GO_VERSION	       := $(shell go env GOVERSION 2>/dev/null | sed 's/go//')

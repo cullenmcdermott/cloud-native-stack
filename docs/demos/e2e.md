@@ -113,8 +113,8 @@ Output:
 kind: ValidationResult
 apiVersion: cns.nvidia.com/v1alpha1
 metadata:
-  validationresult-timestamp: "2026-01-12T21:53:03Z"
-  validationresult-version: 0.16.2
+  timestamp: "2026-01-12T21:53:03Z"
+  version: 0.16.2
 recipeSource: recipe.yaml
 snapshotSource: cm://gpu-operator/cns-snapshot
 summary:
