@@ -32,16 +32,6 @@ componentRefs:
 - Team collaboration with clear file ownership
 - Separate overlay files already exist
 
-**Pros:**
-- Clean git diffs (changes in dedicated files)
-- Reusable across recipes
-- Large configs manageable
-
-**Cons:**
-- Two files to track
-- Potential for drift between recipe and values file
-- Discovery overhead (finding the right values file)
-
 ### Pattern 2: Overrides Only (Self-Contained)
 
 All configuration is inline in the recipe - no separate values file needed. Best for small configurations or recipe-specific deployments.
@@ -72,16 +62,6 @@ componentRefs:
 - Unique, recipe-specific settings
 - One-off deployments or testing
 - Self-contained recipes (no external dependencies)
-
-**Pros:**
-- Self-contained (single file has everything)
-- No file discovery issues
-- Easy to copy/modify entire recipes
-
-**Cons:**
-- Duplication across recipes if config is reused
-- Large inline configs make recipes harder to read
-- No reusability across recipes
 
 ### Pattern 3: Hybrid (ValuesFile + Overrides)
 
@@ -127,16 +107,6 @@ componentRefs:
 - Environment-specific overrides (dev/staging/prod)
 - Version pinning per deployment
 - Feature flags or experimental settings
-
-**Pros:**
-- Best of both worlds - reusable base + recipe customizations
-- Recipe shows only what's different from base
-- Large base configs in dedicated files
-- Small tweaks inline for easy discovery
-
-**Cons:**
-- Slightly more complex precedence rules to understand
-- Must understand both valuesFile and overrides
 
 ## Value Merge Precedence
 
@@ -195,99 +165,13 @@ gds:
   enabled: true              # From overlay valuesFile
 ```
 
-## Directory Structure
-
-```
-pkg/recipe/data/
-├── README.md                           # This file
-├── base.yaml                           # Base recipe metadata
-├── data-v1.yaml                        # Base measurements and rules
-├── example-migration-to-overrides.yaml # Migration guide from traditional to hybrid
-└── components/                         # Component-specific values
-    ├── cert-manager/
-    │   ├── base.yaml
-    │   └── eks-values.yaml
-    ├── gpu-operator/
-    │   ├── base.yaml
-    │   ├── eks-gb200-training.yaml
-    │   └── gke-h100-inference.yaml
-    ├── network-operator/
-    │   ├── base-values.yaml
-    │   └── eks-rdma.yaml
-    ├── nvsentinel/
-    │   └── base.yaml
-    └── skyhook/
-        └── base.yaml
-```
-
 ## File Naming Conventions
 
 - `base.yaml` - Base values for a component (defaults, common settings)
-- `{service}-{gpu}-{intent}.yaml` - Overlay values for specific environment
-  - Examples: `eks-gb200-training.yaml`, `gke-h100-inference.yaml`
+- `{service}-{gpu}-{os}-{intent}.yaml` - Overlay values for specific environment
+  - Examples: `eks-gb200-ubuntu-training.yaml`, `gke-h100-ubuntu-inference.yaml`
 - Recipe metadata files use overlay naming for easy discovery
 
-## Complete Example: All Three Patterns
-
-Here's a complete recipe demonstrating all three configuration patterns:
-
-```yaml
-kind: Recipe
-bundlerType: overlay
-criteria:
-  service: eks
-  accelerator: h100
-  intent: training
-
-componentRefs:
-  # Pattern 1: ValuesFile only
-  - name: cert-manager
-    type: Helm
-    version: v1.17.3
-    valuesFile: components/cert-manager/eks-values.yaml
-
-  # Pattern 2: Overrides only
-  - name: nvsentinel
-    type: Helm
-    version: v0.3.0
-    overrides:
-      namespace: gpu-operator
-      sentinel:
-        enabled: true
-        logLevel: info
-
-  # Pattern 3: Hybrid (recommended)
-  - name: gpu-operator
-    type: Helm
-    version: v25.3.4
-    valuesFile: components/gpu-operator/eks-gb200-training.yaml
-    overrides:
-      driver:
-        version: "570.86.16"
-      experimental:
-        newFeature: true
-```
-
-## Migration Guide
-
-See [example-migration-to-overrides.yaml](example-migration-to-overrides.yaml) for detailed guidance on migrating from traditional ValuesFile-only pattern to the hybrid approach.
-
-## Pattern Selection Decision Tree
-
-```
-How large is your configuration?
-├─ Small (<50 lines)
-│  └─ Pattern 2: Overrides only
-│
-└─ Large (>50 lines)
-   ├─ Do you need to reuse this config across recipes?
-   │  ├─ Yes
-   │  │  └─ Do you need recipe-specific tweaks?
-   │  │     ├─ Yes → Pattern 3: Hybrid (ValuesFile + Overrides)
-   │  │     └─ No  → Pattern 1: ValuesFile only
-   │  └─ No
-   │     └─ Pattern 2: Overrides only (self-contained)
-```
 
 ## Testing
 
