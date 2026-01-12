@@ -188,7 +188,6 @@ cat test-bundles/gpu-operator/values.yaml | grep -A5 "driver:"
 
 ## See Also
 
-- [Bundler Development Guide](../../../docs/architecture/bundler-development.md)
+- [Bundler Development Guide](../../../docs/architecture/component.md)
 - [Recipe Architecture](../../../docs/architecture/data.md)
 - [CLI Reference](../../../docs/user-guide/cli-reference.md)
-- [Migration Example](example-migration-to-overrides.yaml)

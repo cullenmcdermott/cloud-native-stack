@@ -4,13 +4,13 @@ This page describes the steps required to use Ansible to install the NVIDIA Clou
 
 ### The following Ansible Playbooks are available
 
-- [Install NVIDIA Cloud Native Stack](https://github.com/NVIDIA/cloud-native-stack/blob/master/playbooks/cns-installation.yaml)
+- [Install NVIDIA Cloud Native Stack](https://github.com/NVIDIA/cloud-native-stack/blob/main/~archive/cns-v1/playbooks/cns-installation.yaml)
 
-- [Upgrade NVIDIA Cloud Native Stack ](https://github.com/NVIDIA/cloud-native-stack/blob/master/playbooks/cns-upgrade.yaml)
+- [Upgrade NVIDIA Cloud Native Stack ](https://github.com/NVIDIA/cloud-native-stack/blob/main/~archive/cns-v1/playbooks/cns-upgrade.yaml)
 
-- [Validate NVIDIA Cloud Native Stack ](https://github.com/NVIDIA/cloud-native-stack/blob/master/playbooks/cns-validation.yaml)
+- [Validate NVIDIA Cloud Native Stack ](https://github.com/NVIDIA/cloud-native-stack/blob/main/~archive/cns-v1/playbooks/cns-validation.yaml)
 
-- [Uninstall NVIDIA Cloud Native Stack](https://github.com/NVIDIA/cloud-native-stack/blob/master/playbooks/cns-uninstall.yaml)
+- [Uninstall NVIDIA Cloud Native Stack](https://github.com/NVIDIA/cloud-native-stack/blob/main/~archive/cns-v1/playbooks/cns-uninstall.yaml)
 
 ## Prerequisites
 
@@ -859,7 +859,7 @@ bash setup.sh uninstall
 ```
 
 `NOTE`
-A list of older NVIDIA Cloud Native Stack versions (formerly known as Cloud Native Core) can be found [here](https://github.com/NVIDIA/cloud-native-stack/blob/master/playbooks/older_versions/readme.md)
+A list of older NVIDIA Cloud Native Stack versions (formerly known as Cloud Native Core) can be found [here](https://github.com/NVIDIA/cloud-native-stack/blob/main/~archive/cns-v1/playbooks/older_versions/readme.md)
 
 <h2> Ansible Playbook Descriptions </h2>
 

@@ -77,7 +77,7 @@ You are contributing code, extending functionality, or working on CNS internals.
 
 - **[Contributing Guide](CONTRIBUTING.md)** – Development setup, testing, and PR process
 - **[Architecture Overview](docs/architecture/README.md)** – System design and components
-- **[Bundler Development](docs/architecture/bundler-development.md)** – How to create new bundlers
+- **[Bundler Development](docs/architecture/component.md)** – How to create new bundlers
 - **[Data Architecture](docs/architecture/data.md)** – Recipe data model and query matching
 </details>
 
