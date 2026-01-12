@@ -59,10 +59,7 @@ cnsctl recipe \
 View component versions:
 
 ```shell
-yq eval '.measurements[]
-  | {"type": .type,
-     "subtypes": (.subtypes | map({"subtype": .subtype, "count": (.data | length)}))
-    }' recipe.yaml
+yq eval '.componentRefs[] | {"name": .name, "version": .version, "type": .type}' recipe.yaml
 ```
 
 **Alternative**: Generate recipe directly from parameters (no snapshot needed):
@@ -93,6 +90,14 @@ cnsctl validate \
     --snapshot cm://gpu-operator/cns-snapshot
 ```
 
+Outputs: 
+
+```
+loading recipe: uri=recipe.yaml
+loading snapshot: uri=cm://gpu-operator/cns-snapshot
+validating constraints: recipe=recipe.yaml snapshot=cm://gpu-operator/cns-snapshot constraints=4
+```
+
 Save results to a file:
 
 ```shell
@@ -100,6 +105,42 @@ cnsctl validate \
     --recipe recipe.yaml \
     --snapshot cm://gpu-operator/cns-snapshot \
     --output validation-results.yaml
+```
+
+Output: 
+
+```yaml
+kind: ValidationResult
+apiVersion: cns.nvidia.com/v1alpha1
+metadata:
+  validationresult-timestamp: "2026-01-12T21:53:03Z"
+  validationresult-version: 0.16.2
+recipeSource: recipe.yaml
+snapshotSource: cm://gpu-operator/cns-snapshot
+summary:
+  passed: 4
+  failed: 0
+  skipped: 0
+  total: 4
+  status: pass
+  duration: 20.958µs
+results:
+  - name: K8s.server.version
+    expected: '>= 1.32.4'
+    actual: v1.33.5-eks-3025e55
+    status: passed
+  - name: OS.release.ID
+    expected: ubuntu
+    actual: ubuntu
+    status: passed
+  - name: OS.release.VERSION_ID
+    expected: "24.04"
+    actual: "24.04"
+    status: passed
+  - name: OS.sysctl./proc/sys/kernel/osrelease
+    expected: '>= 6.8'
+    actual: 6.8.0-1028-aws
+    status: passed
 ```
 
 ## 4. Bundle

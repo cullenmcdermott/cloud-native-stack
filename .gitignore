@@ -49,6 +49,9 @@ venv.bak/
 report.xml
 nosetests.xml
 coverage.xml
+/recipe.yaml
+/bundles
+/bundles.zip
 
 # Coverage data
 .coverage
