@@ -263,6 +263,180 @@ for cluster_config in "${CLUSTERS[@]}"; do
 done
 ```
 
+### Pattern 5: GitOps Deployment with ArgoCD
+
+Use ArgoCD for declarative, GitOps-based deployments with automatic sync-wave ordering.
+
+**Use case:** Automated deployment pipeline with ArgoCD
+
+```yaml
+# GitHub Actions
+name: GitOps Deploy with ArgoCD
+on:
+  push:
+    branches: [main]
+
+jobs:
+  generate-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      
+      - name: Setup cnsctl
+        run: |
+          curl -sLO https://github.com/nvidia/cloud-native-stack/releases/latest/download/cnsctl_linux_amd64.tar.gz
+          tar -xzf cnsctl_linux_amd64.tar.gz
+          sudo mv cnsctl /usr/local/bin/
+      
+      - name: Generate recipe
+        run: |
+          cnsctl recipe \
+            --service eks \
+            --accelerator h100 \
+            --intent training \
+            --os ubuntu \
+            --output recipe.yaml
+      
+      - name: Generate ArgoCD bundles
+        run: |
+          cnsctl bundle \
+            --recipe recipe.yaml \
+            --bundlers gpu-operator,network-operator,cert-manager \
+            --deployer argocd \
+            --output ./bundles
+      
+      - name: Commit to GitOps repo
+        run: |
+          # Copy ArgoCD manifests to GitOps repository
+          cp -r bundles/*/argocd/* gitops-repo/apps/
+          
+          cd gitops-repo
+          git add .
+          git commit -m "Update GPU stack components"
+          git push
+```
+
+**Generated ArgoCD Application with sync-wave:**
+```yaml
+# bundles/gpu-operator/argocd/application.yaml
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: gpu-operator
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"  # Deployed after cert-manager (wave 0)
+spec:
+  project: default
+  source:
+    repoURL: https://helm.ngc.nvidia.com/nvidia
+    chart: gpu-operator
+    targetRevision: v25.3.3
+    helm:
+      valueFiles:
+        - values.yaml
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: gpu-operator
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+```
+
+### Pattern 6: GitOps Deployment with Flux
+
+Use Flux for GitOps deployments with dependency-based ordering.
+
+**Use case:** Multi-component deployment with Flux
+
+```yaml
+# GitLab CI
+stages:
+  - generate
+  - commit
+  - sync
+
+generate_flux_bundles:
+  stage: generate
+  image: ghcr.io/nvidia/cns:latest
+  script:
+    - cnsctl recipe --service gke --accelerator gb200 --intent training -o recipe.yaml
+    - cnsctl bundle -f recipe.yaml -b gpu-operator,network-operator,cert-manager --deployer flux -o ./bundles
+  artifacts:
+    paths:
+      - bundles/
+
+commit_to_gitops:
+  stage: commit
+  script:
+    - cp -r bundles/*/flux/* gitops-repo/clusters/production/
+    - cd gitops-repo && git add . && git commit -m "Update GPU stack" && git push
+
+flux_sync:
+  stage: sync
+  script:
+    - flux reconcile source git flux-system
+    - flux reconcile kustomization apps
+```
+
+**Generated Flux HelmRelease with dependencies:**
+```yaml
+# bundles/gpu-operator/flux/helmrelease.yaml
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: gpu-operator
+  namespace: gpu-operator
+spec:
+  interval: 5m
+  chart:
+    spec:
+      chart: gpu-operator
+      version: v25.3.3
+      sourceRef:
+        kind: HelmRepository
+        name: nvidia
+        namespace: flux-system
+  dependsOn:
+    - name: cert-manager
+      namespace: cert-manager
+  values:
+    # Values from bundle
+```
+
+### Pattern 7: Multi-Environment GitOps
+
+Deploy to multiple environments with environment-specific deployers.
+
+```bash
+#!/bin/bash
+# multi-env-gitops.sh
+
+ENVIRONMENTS=(
+  "staging:script"     # Staging uses shell scripts
+  "production:argocd"  # Production uses ArgoCD
+  "dr-site:flux"       # DR site uses Flux
+)
+
+for env_config in "${ENVIRONMENTS[@]}"; do
+  IFS=":" read -r ENV DEPLOYER <<< "$env_config"
+  
+  echo "Generating bundles for $ENV with $DEPLOYER deployer..."
+  
+  cnsctl bundle \
+    --recipe "recipes/${ENV}.yaml" \
+    --bundlers gpu-operator,network-operator \
+    --deployer "$DEPLOYER" \
+    --output "./bundles/${ENV}"
+  
+  echo "Generated $DEPLOYER bundles in ./bundles/${ENV}/"
+done
+```
+
 ## Terraform Integration
 
 ### Module: CNS Agent Deployment

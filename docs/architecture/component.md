@@ -621,9 +621,94 @@ See `pkg/component/gpuoperator/bundler.go` for a complete implementation:
 - No HelmValues struct generation
 - No measurement extraction
 
+## Deployer Integration
+
+After bundlers generate deployment artifacts, deployers transform them into deployment-specific formats. The deployer framework is separate from bundlers but works with their output.
+
+### How Bundlers and Deployers Work Together
+
+```mermaid
+flowchart LR
+    R[RecipeResult] --> B[Bundlers]
+    B --> A[Artifacts]
+    A --> D[Deployers]
+    D --> O[Deployment Output]
+    
+    subgraph "Bundler Output"
+        A1[values.yaml]
+        A2[manifests/]
+        A3[scripts/]
+    end
+    
+    subgraph "Deployer Output"
+        O1[ArgoCD Applications]
+        O2[Flux HelmReleases]
+        O3[Shell Scripts]
+    end
+```
+
+### Deployment Order
+
+Deployers respect the `deploymentOrder` field from the recipe to ensure components are deployed in the correct sequence:
+
+| Deployer | Ordering Mechanism |
+|----------|-------------------|
+| `script` | Components listed in order in README |
+| `argocd` | `sync-wave` annotations (0, 1, 2...) |
+| `flux` | `dependsOn` fields creating dependency chain |
+
+**Example Recipe with Deployment Order**:
+```yaml
+componentRefs:
+  - name: cert-manager
+    version: v1.17.2
+  - name: gpu-operator
+    version: v25.3.3
+  - name: network-operator
+    version: v25.4.0
+deploymentOrder:
+  - cert-manager
+  - gpu-operator
+  - network-operator
+```
+
+### Bundler Output for Deployers
+
+When the `--deployer` flag is set, bundlers generate standard artifacts that deployers then transform:
+
+**For ArgoCD** (`--deployer argocd`):
+- Bundler generates `values.yaml` and `manifests/`
+- Deployer creates `argocd/application.yaml` with sync-wave annotations
+
+**For Flux** (`--deployer flux`):
+- Bundler generates `values.yaml` and `manifests/`
+- Deployer creates `flux/helmrelease.yaml` with dependsOn chains
+
+**For Script** (`--deployer script`, default):
+- Bundler generates `values.yaml`, `manifests/`, and `scripts/`
+- Deployer creates README with deployment instructions in order
+
+### Using Deployers with Bundlers
+
+The deployer is specified at bundle generation time:
+
+```bash
+# Generate bundles with ArgoCD deployer
+cnsctl bundle -f recipe.yaml -o ./bundles --deployer argocd
+
+# Generate bundles with Flux deployer
+cnsctl bundle -f recipe.yaml -o ./bundles --deployer flux
+
+# Generate bundles with Script deployer (default)
+cnsctl bundle -f recipe.yaml -o ./bundles --deployer script
+```
+
+See [CLI Architecture](cli.md#deployer-framework-gitops-integration) for detailed deployer documentation.
+
 ## See Also
 
 - [Architecture Overview](README.md) - Complete bundler framework architecture
+- [CLI Architecture](cli.md) - Deployer framework and GitOps integration
 - [CLI Reference](../user-guide/cli-reference.md) - Bundle generation commands
 - [API Reference](../integration/api-reference.md) - Programmatic access (recipe generation only)
 - GPU Operator implementation (`pkg/component/gpuoperator/`) - Reference example

@@ -42,6 +42,7 @@ NVIDIA Cloud Native Stack (CNS) provides validated GPU-accelerated Kubernetes co
 - **API Server**: Recipe generation and bundle creation via REST API (https://cns.dgxc.io)
 - **Agent**: Kubernetes Job for automated cluster snapshots → ConfigMaps
 - **Bundlers**: Plugin-based artifact generators (GPU Operator, Network Operator, Cert-Manager, NVSentinel, Skyhook)
+- **Deployers**: GitOps integration providers (script, argocd, flux) with deployment ordering
 
 **Tech Stack:** Go 1.25, Kubernetes 1.33+, golangci-lint v2.6, Container images via Ko
 
@@ -438,6 +439,16 @@ cnsctl bundle -f recipe.yaml -b gpu-operator \
   --system-node-toleration dedicated=system:NoSchedule \
   --accelerated-node-selector nvidia.com/gpu.present=true \
   --accelerated-node-toleration nvidia.com/gpu=present:NoSchedule \
+  -o ./bundles
+
+# GitOps deployment with ArgoCD (sync-wave ordering)
+cnsctl bundle -f recipe.yaml -b gpu-operator,network-operator \
+  --deployer argocd \
+  -o ./bundles
+
+# GitOps deployment with Flux (dependsOn ordering)
+cnsctl bundle -f recipe.yaml -b gpu-operator,network-operator \
+  --deployer flux \
   -o ./bundles
 ```
 

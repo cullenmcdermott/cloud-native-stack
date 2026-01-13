@@ -2687,6 +2687,265 @@ slog.Debug("bundle generated successfully",
 - ✅ Profile bundle generation for bottlenecks
 - ❌ Don't generate synchronously without reason
 
+## Deployer Framework: GitOps Integration
+
+The bundle command integrates with GitOps tools through the **Deployer Framework**, which generates deployment-specific artifacts alongside the standard bundle files.
+
+### Overview
+
+**Purpose**: Generate GitOps-ready deployment artifacts that integrate with popular continuous delivery tools.
+
+**Supported Deployers**:
+| Type | Description | Output |
+|------|-------------|--------|
+| `script` | (Default) Shell scripts for manual deployment | `scripts/install.sh`, `scripts/uninstall.sh` |
+| `argocd` | ArgoCD Application manifests | `argocd/*.yaml` |
+| `flux` | Flux HelmRelease resources | `flux/*.yaml` |
+
+**Key Feature: Deployment Order**
+
+All deployers respect the `deploymentOrder` field from the recipe, ensuring components are installed in the correct sequence:
+
+```yaml
+# Recipe excerpt
+deploymentOrder:
+  - gpu-operator      # First
+  - network-operator  # Second
+  - nvsentinel        # Third
+```
+
+### Deployer Architecture
+
+```mermaid
+flowchart TD
+    A[Bundle Command] --> B[Parse --deployer flag]
+    B --> C{Deployer Type}
+    C -->|script| D[Script Deployer]
+    C -->|argocd| E[ArgoCD Deployer]
+    C -->|flux| F[Flux Deployer]
+    
+    D --> G[Generate Shell Scripts]
+    E --> H[Generate Applications]
+    F --> I[Generate HelmReleases]
+    
+    G --> J[Order: README listing]
+    H --> K[Order: sync-wave annotations]
+    I --> L[Order: dependsOn chain]
+    
+    J --> M[Bundle Output]
+    K --> M
+    L --> M
+```
+
+### ArgoCD Deployer
+
+Generates ArgoCD Application manifests with proper sync ordering.
+
+**Ordering Mechanism**: Uses `argocd.argoproj.io/sync-wave` annotation.
+
+```yaml
+# gpu-operator-app.yaml (sync-wave: 0 = first)
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: gpu-operator
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  source:
+    repoURL: https://helm.ngc.nvidia.com/nvidia
+    chart: gpu-operator
+    targetRevision: v25.3.3
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: gpu-operator
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true
+```
+
+**Output Structure**:
+```
+bundles/argocd/
+├── gpu-operator-app.yaml      # sync-wave: 0
+├── network-operator-app.yaml  # sync-wave: 1
+├── nvsentinel-app.yaml        # sync-wave: 2
+├── app-of-apps.yaml           # Parent Application
+└── README.md                  # ArgoCD deployment guide
+```
+
+### Flux Deployer
+
+Generates Flux HelmRelease resources with dependency chains.
+
+**Ordering Mechanism**: Uses `spec.dependsOn` field to create a dependency chain.
+
+```yaml
+# network-operator-release.yaml (depends on gpu-operator)
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: network-operator
+  namespace: flux-system
+spec:
+  interval: 5m
+  chart:
+    spec:
+      chart: network-operator
+      version: "v25.4.0"
+      sourceRef:
+        kind: HelmRepository
+        name: nvidia
+  dependsOn:
+    - name: gpu-operator
+      namespace: flux-system
+  install:
+    remediation:
+      retries: 3
+  upgrade:
+    remediation:
+      retries: 3
+```
+
+**Output Structure**:
+```
+bundles/flux/
+├── kustomization.yaml              # Parent Kustomization
+├── gpu-operator-release.yaml       # First in chain (no dependsOn)
+├── network-operator-release.yaml   # dependsOn: gpu-operator
+├── nvsentinel-release.yaml         # dependsOn: network-operator
+└── README.md                       # Flux deployment guide
+```
+
+### Script Deployer (Default)
+
+Generates shell scripts for manual deployment with components listed in order.
+
+**Ordering Mechanism**: Components listed in deployment order in README and install scripts.
+
+**Output Structure**:
+```
+bundles/gpu-operator/scripts/
+├── install.sh     # Deploys components in order
+└── uninstall.sh   # Removes components in reverse order
+```
+
+### Deployer Data Flow
+
+```mermaid
+sequenceDiagram
+    participant CLI
+    participant Bundler
+    participant Deployer
+    participant Template
+    participant FileSystem
+    
+    CLI->>Bundler: bundle --deployer argocd
+    Bundler->>Bundler: Generate component bundles
+    Bundler->>Deployer: Generate(recipeResult, bundleDir)
+    Deployer->>Deployer: orderComponentsByDeployment()
+    
+    loop For each component (in order)
+        Deployer->>Template: Render with order metadata
+        Template-->>Deployer: Rendered manifest
+        Deployer->>FileSystem: Write file
+    end
+    
+    Deployer-->>Bundler: Artifacts result
+    Bundler-->>CLI: Bundle output
+```
+
+### Usage Examples
+
+```bash
+# Generate bundle with ArgoCD Applications
+cnsctl bundle -f recipe.yaml --deployer argocd -o ./bundles
+
+# Generate bundle with Flux HelmReleases
+cnsctl bundle -f recipe.yaml --deployer flux -o ./bundles
+
+# Default: script-based deployment
+cnsctl bundle -f recipe.yaml -o ./bundles
+
+# Combine with specific bundlers
+cnsctl bundle -f recipe.yaml \
+  -b gpu-operator \
+  -b network-operator \
+  --deployer argocd \
+  -o ./bundles
+```
+
+### Deployment Order Implementation
+
+The `orderComponentsByDeployment` function ensures components are processed in the correct sequence:
+
+```go
+// orderComponentsByDeployment sorts components according to deploymentOrder.
+// Components not in deploymentOrder are appended at the end in their original order.
+func orderComponentsByDeployment(components []recipe.ComponentRef, 
+    order []string) []recipe.ComponentRef {
+    
+    if len(order) == 0 {
+        return components
+    }
+    
+    orderMap := make(map[string]int)
+    for i, name := range order {
+        orderMap[name] = i
+    }
+    
+    // Separate ordered and unordered components
+    ordered := make([]recipe.ComponentRef, 0)
+    unordered := make([]recipe.ComponentRef, 0)
+    
+    for _, c := range components {
+        if _, exists := orderMap[c.Name]; exists {
+            ordered = append(ordered, c)
+        } else {
+            unordered = append(unordered, c)
+        }
+    }
+    
+    // Sort ordered components by their position in deploymentOrder
+    sort.SliceStable(ordered, func(i, j int) bool {
+        return orderMap[ordered[i].Name] < orderMap[ordered[j].Name]
+    })
+    
+    return append(ordered, unordered...)
+}
+```
+
+### Testing Deployers
+
+Each deployer has tests verifying deployment order correctness:
+
+```go
+func TestDeployer_Generate_DeploymentOrder(t *testing.T) {
+    recipeResult := &recipe.RecipeResult{
+        DeploymentOrder: []string{"gpu-operator", "network-operator"},
+        ComponentRefs: []recipe.ComponentRef{
+            {Name: "network-operator", Version: "v25.4.0"},
+            {Name: "gpu-operator", Version: "v25.3.3"},
+        },
+    }
+    
+    d := NewDeployer()
+    artifacts, err := d.Generate(ctx, recipeResult, tmpDir)
+    require.NoError(t, err)
+    
+    // Verify ordering mechanism (sync-wave/dependsOn/README order)
+    // ...
+}
+```
+
 ## References
 
 ### Official Documentation

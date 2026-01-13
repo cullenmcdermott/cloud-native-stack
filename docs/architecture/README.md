@@ -20,6 +20,11 @@ This directory contains architecture documentation for the Cloud Native Stack (C
   - Current bundlers: GPU Operator, Network Operator, Skyhook, Cert-Manager, NVSentinel
   - Value overrides: CLI `--set` flag allows runtime customization of bundle values
   - Node scheduling: `--system-node-selector`, `--accelerated-node-selector`, `--*-toleration` flags for workload placement
+- **Deployer Framework**: GitOps integration for deployment artifacts
+  - Deployment methods: `script` (default), `argocd`, `flux`
+  - Deployment ordering: Respects `deploymentOrder` from recipe for correct component installation sequence
+  - ArgoCD: Uses `sync-wave` annotations for ordered deployment
+  - Flux: Uses `dependsOn` fields for dependency chains between HelmReleases
 
 ## Overview
 
@@ -29,8 +34,8 @@ Cloud Native Stack provides a four-step workflow for optimizing GPU infrastructu
 ┌──────────────┐      ┌──────────────┐      ┌──────────────┐      ┌──────────────┐
 │   Snapshot   │─────▶│    Recipe    │─────▶│   Validate   │─────▶│    Bundle    │
 └──────────────┘      └──────────────┘      └──────────────┘      └──────────────┘
-   Capture system      Generate optimized    Check cluster         Create deployment
-   configuration        recommendations       compatibility         artifacts
+Capture system        Generate optimized    Check cluster         Create deployment
+configuration         recommendations       compatibility         artifacts
 ```
 
 ### Step 1: Snapshot – Capture System Configuration
@@ -66,6 +71,11 @@ Generates deployment-ready bundles (Helm values, Kubernetes manifests, installat
 - **ConfigMap Input**: Can read recipes from ConfigMap URIs (CLI only)
 - **Parallel execution** of multiple bundlers by default
 - **Available bundlers**: GPU Operator, Network Operator, Skyhook, Cert-Manager, NVSentinel
+- **Deployment methods** (`--deployer` flag):
+  - `script` (default): Shell scripts for manual deployment
+  - `argocd`: ArgoCD Application manifests with sync-wave ordering
+  - `flux`: Flux HelmRelease resources with dependsOn chains
+- **Deployment ordering**: Components deployed in sequence defined by recipe's `deploymentOrder` field
 - **Value Overrides**: Use `--set bundler:path.to.field=value` to customize generated bundles (CLI only)
 - **Node Scheduling**: Use `--system-node-selector`, `--accelerated-node-selector`, and toleration flags for workload placement (CLI only)
 - **Output**: Complete deployment bundle with values, manifests, scripts, and checksums

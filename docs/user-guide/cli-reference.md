@@ -460,10 +460,11 @@ cnsctl bundle [flags]
 
 **Flags:**
 | Flag | Short | Type | Description |
-|------|-------|------|-------------|
+|---------------------------------|-------|------|-------------|
 | `--recipe` | `-f` | string | Path to recipe file (required) |
 | `--bundlers` | `-b` | string[] | Bundler types to execute (repeatable) |
 | `--output` | `-o` | string | Output directory (default: current dir) |
+| `--deployer` | | string | Deployment method: script (default), argocd, flux |
 | `--set` | | string[] | Override values in bundle files (repeatable) |
 | `--system-node-selector` | | string[] | Node selector for system components (format: key=value, repeatable) |
 | `--system-node-toleration` | | string[] | Toleration for system components (format: key=value:effect, repeatable) |
@@ -481,6 +482,25 @@ cnsctl bundle [flags]
 - If `--bundlers` is omitted, **all registered bundlers** execute
 - Bundlers run in **parallel** by default
 - Each bundler creates a subdirectory in the output directory
+- Components are deployed in the order specified by `deploymentOrder` in the recipe
+
+**Deployment Methods (`--deployer`):**
+
+The `--deployer` flag controls how deployment artifacts are generated:
+
+| Method | Description |
+|--------|-------------|
+| `script` | (Default) Generates shell scripts for manual deployment with `helm` commands |
+| `argocd` | Generates ArgoCD Application manifests for GitOps deployment |
+| `flux` | Generates Flux HelmRelease resources for GitOps deployment |
+
+**Deployment Order:**
+
+All deployers respect the `deploymentOrder` field from the recipe, ensuring components are installed in the correct sequence:
+
+- **Script**: Components listed in README in deployment order
+- **ArgoCD**: Uses `argocd.argoproj.io/sync-wave` annotation (0 = first, 1 = second, etc.)
+- **Flux**: Uses `spec.dependsOn` to create a dependency chain between HelmReleases
 
 **Value Overrides (`--set`):**
 
@@ -560,6 +580,19 @@ cnsctl bundle -f recipe.yaml -b gpu-operator \
   --accelerated-node-selector accelerator=nvidia-h100 \
   --accelerated-node-toleration nvidia.com/gpu=present:NoSchedule \
   -o ./bundles
+
+# Generate ArgoCD Application manifests for GitOps
+cnsctl bundle -f recipe.yaml --deployer argocd -o ./bundles
+
+# Generate Flux HelmRelease resources for GitOps
+cnsctl bundle -f recipe.yaml --deployer flux -o ./bundles
+
+# Combine deployer with specific bundlers
+cnsctl bundle -f recipe.yaml \
+  -b gpu-operator \
+  -b network-operator \
+  --deployer argocd \
+  -o ./bundles
 ```
 
 **Bundle structure** (GPU Operator example):
@@ -573,6 +606,34 @@ gpu-operator/
 │   └── uninstall.sh              # Cleanup script
 ├── README.md                      # Deployment guide
 └── checksums.txt                  # SHA256 checksums
+```
+
+**ArgoCD bundle structure** (with `--deployer argocd`):
+```
+bundles/
+├── gpu-operator/
+│   └── ...                        # Component-specific files
+├── network-operator/
+│   └── ...
+└── argocd/
+    ├── gpu-operator-app.yaml      # ArgoCD Application (sync-wave: 0)
+    ├── network-operator-app.yaml  # ArgoCD Application (sync-wave: 1)
+    ├── app-of-apps.yaml           # Parent Application
+    └── README.md                  # ArgoCD deployment guide
+```
+
+**Flux bundle structure** (with `--deployer flux`):
+```
+bundles/
+├── gpu-operator/
+│   └── ...                        # Component-specific files
+├── network-operator/
+│   └── ...
+└── flux/
+    ├── kustomization.yaml         # Parent Kustomization
+    ├── gpu-operator-release.yaml  # HelmRelease (first in chain)
+    ├── network-operator-release.yaml # HelmRelease (dependsOn: gpu-operator)
+    └── README.md                  # Flux deployment guide
 ```
 
 **Deploying a bundle:**

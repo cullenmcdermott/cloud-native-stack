@@ -510,6 +510,175 @@ bundle-output/
     └── checksums.txt
 ```
 
+## Stage 5: Deployment (GitOps Integration)
+
+### Deployer Framework
+
+After bundlers generate artifacts, the deployer framework transforms them into deployment-specific formats based on the `--deployer` flag.
+
+```
+┌────────────────────────────────────────────────────────┐
+│ Deployer Selection                                     │
+├────────────────────────────────────────────────────────┤
+│                                                        │
+│  Bundle Artifacts + Recipe → Deployer → Output         │
+│                                                        │
+│  ┌─────────────────┐    ┌─────────────────┐            │
+│  │ Bundle Output   │    │ Recipe          │            │
+│  │ ├─ values.yaml  │    │ deploymentOrder │            │
+│  │ ├─ manifests/   │    │ componentRefs   │            │
+│  │ └─ scripts/     │    └────────┬────────┘            │
+│  └────────┬────────┘             │                     │
+│           │                      │                     │
+│           └───────────┬──────────┘                     │
+│                       │                                │
+│  ┌────────────────────▼────────────────────┐           │
+│  │ Deployer Selection (--deployer flag)    │           │
+│  │                                         │           │
+│  │ ├─ script (default)                     │           │
+│  │ │   └─ Shell scripts + README           │           │
+│  │ │                                       │           │
+│  │ ├─ argocd                               │           │
+│  │ │   └─ ArgoCD Application + sync-wave   │           │
+│  │ │                                       │           │
+│  │ └─ flux                                 │           │
+│  │     └─ HelmRelease + dependsOn          │           │
+│  └─────────────────────────────────────────┘           │
+│                                                        │
+└────────────────────────────────────────────────────────┘
+```
+
+### Deployment Order Flow
+
+The `deploymentOrder` field in recipes specifies component deployment sequence. Each deployer implements ordering differently:
+
+```
+┌─────────────────────────────────────────────────────────┐
+│ Deployment Order Processing                             │
+├─────────────────────────────────────────────────────────┤
+│                                                         │
+│  Recipe deploymentOrder:                                │
+│    1. cert-manager                                      │
+│    2. gpu-operator                                      │
+│    3. network-operator                                  │
+│                                                         │
+│         │                                               │
+│         ▼                                               │
+│  ┌──────────────────────────────────────────────────┐   │
+│  │ orderComponentsByDeployment()                    │   │
+│  │   Sorts components based on deploymentOrder      │   │
+│  │   Returns: []orderedComponent{Name, Order}       │   │
+│  └───────────────────────┬──────────────────────────┘   │
+│                          │                              │
+│         ┌────────────────┼────────────────┐             │
+│         ▼                ▼                ▼             │
+│  ┌────────────┐   ┌────────────┐   ┌────────────┐       │
+│  │  Script    │   │  ArgoCD    │   │   Flux     │       │
+│  │  Deployer  │   │  Deployer  │   │  Deployer  │       │
+│  └──────┬─────┘   └──────┬─────┘   └──────┬─────┘       │
+│         │                │                │             │
+│         ▼                ▼                ▼             │
+│  README order:    sync-wave:       dependsOn:           │
+│  1. cert-manager  - cert-manager:0  - none              │
+│  2. gpu-operator  - gpu-operator:1  - cert-manager      │
+│  3. network-op    - network-op:2    - gpu-operator      │
+│                                                         │
+└─────────────────────────────────────────────────────────┘
+```
+
+### Deployer-Specific Output
+
+**Script Deployer** (default):
+```
+bundle-output/gpu-operator/
+├── values.yaml
+├── manifests/
+├── scripts/
+│   ├── install.sh
+│   └── uninstall.sh
+└── README.md              # Lists components in order
+```
+
+**ArgoCD Deployer**:
+```
+bundle-output/gpu-operator/
+├── values.yaml
+├── manifests/
+└── argocd/
+    └── application.yaml   # With sync-wave annotation
+```
+
+ArgoCD Application with sync-wave:
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: gpu-operator
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"  # After cert-manager (0)
+spec:
+  source:
+    chart: gpu-operator
+    helm:
+      valueFiles:
+        - values.yaml
+```
+
+**Flux Deployer**:
+```
+bundle-output/gpu-operator/
+├── values.yaml
+├── manifests/
+└── flux/
+    └── helmrelease.yaml   # With dependsOn field
+```
+
+Flux HelmRelease with dependsOn:
+```yaml
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: gpu-operator
+spec:
+  dependsOn:
+    - name: cert-manager
+      namespace: cert-manager
+  chart:
+    spec:
+      chart: gpu-operator
+```
+
+### Deployer Data Flow
+
+```
+┌──────────────────────────────────────────────────────────────┐
+│ Complete Bundle + Deploy Flow                                │
+├──────────────────────────────────────────────────────────────┤
+│                                                              │
+│  cnsctl bundle -f recipe.yaml --deployer argocd -o ./out     │
+│                                                              │
+│  1. Parse recipe                                             │
+│     └─ Extract componentRefs + deploymentOrder               │
+│                                                              │
+│  2. Order components                                         │
+│     └─ orderComponentsByDeployment()                         │
+│                                                              │
+│  3. Run bundlers (parallel)                                  │
+│     ├─ cert-manager   → values.yaml, manifests/              │
+│     ├─ gpu-operator   → values.yaml, manifests/              │
+│     └─ network-operator → values.yaml, manifests/            │
+│                                                              │
+│  4. Run deployer (argocd)                                    │
+│     ├─ cert-manager   → argocd/application.yaml (wave: 0)    │
+│     ├─ gpu-operator   → argocd/application.yaml (wave: 1)    │
+│     └─ network-operator → argocd/application.yaml (wave: 2)  │
+│                                                              │
+│  5. Generate checksums                                       │
+│     └─ checksums.txt for each component                      │
+│                                                              │
+└──────────────────────────────────────────────────────────────┘
+```
+
 ## Data Serialization
 
 ### Formats Supported
