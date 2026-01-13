@@ -2,6 +2,7 @@ package api
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
 	"net/http"
 
@@ -44,7 +45,10 @@ func Serve() error {
 	)
 
 	// Setup bundle handler
-	bb := bundler.New()
+	bb, err := bundler.New()
+	if err != nil {
+		return fmt.Errorf("failed to create bundler: %w", err)
+	}
 
 	r := map[string]http.HandlerFunc{
 		"/v1/recipe": rb.HandleRecipes,

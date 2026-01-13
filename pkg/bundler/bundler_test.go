@@ -82,10 +82,13 @@ func TestDefaultBundler_Make(t *testing.T) {
 		},
 	}
 
-	bundler := New(
+	bundler, err := New(
 		WithRegistry(testReg),
 		WithBundlerTypes([]types.BundleType{"mock"}),
 	)
+	if err != nil {
+		t.Fatalf("New() error = %v", err)
+	}
 	output, err := bundler.Make(ctx, rec, tmpDir)
 	if err != nil {
 		t.Fatalf("Make() error = %v", err)
@@ -117,8 +120,11 @@ func TestDefaultBundler_MakeWithNilRecipe(t *testing.T) {
 	ctx := context.Background()
 	tmpDir := t.TempDir()
 
-	bundler := New()
-	_, err := bundler.Make(ctx, nil, tmpDir)
+	bundler, err := New()
+	if err != nil {
+		t.Fatalf("New() error = %v", err)
+	}
+	_, err = bundler.Make(ctx, nil, tmpDir)
 	if err == nil {
 		t.Error("Make() with nil recipe should return error")
 	}
@@ -132,8 +138,11 @@ func TestDefaultBundler_MakeWithEmptyMeasurements(t *testing.T) {
 		Measurements: []*measurement.Measurement{},
 	}
 
-	bundler := New()
-	_, err := bundler.Make(ctx, rec, tmpDir)
+	bundler, err := New()
+	if err != nil {
+		t.Fatalf("New() error = %v", err)
+	}
+	_, err = bundler.Make(ctx, rec, tmpDir)
 	if err == nil {
 		t.Error("Make() with empty measurements should return error")
 	}
@@ -161,9 +170,12 @@ func TestDefaultBundler_MakeWithOptions(t *testing.T) {
 
 	config := config.NewConfig()
 
-	bundler := New(WithRegistry(testReg), WithBundlerTypes([]types.BundleType{"mock"}),
+	bundler, err := New(WithRegistry(testReg), WithBundlerTypes([]types.BundleType{"mock"}),
 		WithConfig(config),
 	)
+	if err != nil {
+		t.Fatalf("New() error = %v", err)
+	}
 	output, err := bundler.Make(ctx, rec, tmpDir)
 	if err != nil {
 		t.Fatalf("Make() error = %v", err)
@@ -194,11 +206,14 @@ func TestDefaultBundler_MakeCreatesDirectory(t *testing.T) {
 		},
 	}
 
-	bundler := New(
+	bundler, err := New(
 		WithRegistry(testReg),
 		WithBundlerTypes([]types.BundleType{"mock"}),
 	)
-	_, err := bundler.Make(ctx, rec, tmpDir)
+	if err != nil {
+		t.Fatalf("New() error = %v", err)
+	}
+	_, err = bundler.Make(ctx, rec, tmpDir)
 	if err != nil {
 		t.Fatalf("Make() error = %v", err)
 	}
@@ -230,9 +245,12 @@ func TestDefaultBundler_MakeWithMultipleBundlers(t *testing.T) {
 	}
 
 	// Bundlers execute in parallel
-	bundler := New(
+	bundler, err := New(
 		WithRegistry(testReg),
 	)
+	if err != nil {
+		t.Fatalf("New() error = %v", err)
+	}
 	output, err := bundler.Make(ctx, rec, tmpDir)
 	if err != nil {
 		t.Fatalf("Make() error = %v", err)
@@ -269,12 +287,15 @@ func TestDefaultBundler_MakeWithFailFast(t *testing.T) {
 		},
 	}
 
-	bundler := New(
+	bundler, err := New(
 		WithRegistry(testReg),
 		WithBundlerTypes([]types.BundleType{"mock-fail", "mock"}),
 		WithFailFast(true),
 	)
-	_, err := bundler.Make(ctx, rec, tmpDir)
+	if err != nil {
+		t.Fatalf("New() error = %v", err)
+	}
+	_, err = bundler.Make(ctx, rec, tmpDir)
 	if err == nil {
 		t.Error("Expected error with FailFast and failing bundler")
 	}
@@ -300,11 +321,14 @@ func TestDefaultBundler_MakeWithoutFailFast(t *testing.T) {
 		},
 	}
 
-	bundler := New(
+	bundler, err := New(
 		WithRegistry(testReg),
 		WithBundlerTypes([]types.BundleType{"mock-fail", "mock"}),
 		WithFailFast(false),
 	)
+	if err != nil {
+		t.Fatalf("New() error = %v", err)
+	}
 	output, err := bundler.Make(ctx, rec, tmpDir)
 	if err != nil {
 		t.Fatalf("Make() error = %v", err)
@@ -343,9 +367,12 @@ func TestDefaultBundler_MakeWithConfiguration(t *testing.T) {
 
 	config := config.NewConfig()
 
-	bundler := New(WithRegistry(testReg), WithBundlerTypes([]types.BundleType{"mock-configurable"}),
+	bundler, err := New(WithRegistry(testReg), WithBundlerTypes([]types.BundleType{"mock-configurable"}),
 		WithConfig(config),
 	)
+	if err != nil {
+		t.Fatalf("New() error = %v", err)
+	}
 	output, err := bundler.Make(ctx, rec, tmpDir)
 	if err != nil {
 		t.Fatalf("Make() error = %v", err)
@@ -377,7 +404,10 @@ func TestDefaultBundler_MakeWithAllBundlers(t *testing.T) {
 	}
 
 	// No bundler types specified - should use all registered bundlers
-	bundler := New()
+	bundler, err := New()
+	if err != nil {
+		t.Fatalf("New() error = %v", err)
+	}
 	output, err := bundler.Make(ctx, rec, tmpDir)
 	if err != nil {
 		t.Fatalf("Make() error = %v", err)
@@ -414,10 +444,13 @@ func TestDefaultBundler_MakeWithEmptyDirectory(t *testing.T) {
 	}
 
 	// Empty dir should default to current directory
-	bundler := New(
+	bundler, err := New(
 		WithRegistry(testReg),
 		WithBundlerTypes([]types.BundleType{"mock"}),
 	)
+	if err != nil {
+		t.Fatalf("New() error = %v", err)
+	}
 	output, err := bundler.Make(ctx, rec, "")
 	if err != nil {
 		t.Fatalf("Make() error = %v", err)
@@ -449,8 +482,11 @@ func TestDefaultBundler_MakeWithNoBundlers(t *testing.T) {
 	}
 
 	// Specify non-existent bundler type
-	bundler := New(WithBundlerTypes([]types.BundleType{"non-existent"}))
-	_, err := bundler.Make(ctx, rec, tmpDir)
+	bundler, err := New(WithBundlerTypes([]types.BundleType{"non-existent"}))
+	if err != nil {
+		t.Fatalf("New() error = %v", err)
+	}
+	_, err = bundler.Make(ctx, rec, tmpDir)
 	if err == nil {
 		t.Error("Expected error when no bundlers are selected")
 	}

@@ -14,6 +14,8 @@ import (
 	"github.com/NVIDIA/cloud-native-stack/pkg/bundler/config"
 	"github.com/NVIDIA/cloud-native-stack/pkg/bundler/registry"
 	"github.com/NVIDIA/cloud-native-stack/pkg/bundler/types"
+	deployerRegistry "github.com/NVIDIA/cloud-native-stack/pkg/deployer/registry"
+	deployerTypes "github.com/NVIDIA/cloud-native-stack/pkg/deployer/types"
 	"github.com/NVIDIA/cloud-native-stack/pkg/recipe"
 	"github.com/NVIDIA/cloud-native-stack/pkg/serializer"
 	"github.com/NVIDIA/cloud-native-stack/pkg/snapshotter"
@@ -72,6 +74,12 @@ func bundleCmd() *cli.Command {
 				Name:  "accelerated-node-toleration",
 				Usage: "Toleration for accelerated/GPU nodes (format: key=value:effect, can be repeated)",
 			},
+			&cli.StringFlag{
+				Name:  "deployer",
+				Value: string(deployerTypes.DeployerTypeScript),
+				Usage: fmt.Sprintf("Deployment method for generated components (supported: %s)",
+					strings.Join(deployerTypesToStrings(deployerTypes.AllDeployerTypes()), ", ")),
+			},
 		},
 		Action: func(ctx context.Context, cmd *cli.Command) error {
 			recipeFilePath := cmd.String("recipe")
@@ -105,6 +113,17 @@ func bundleCmd() *cli.Command {
 				return fmt.Errorf("invalid --accelerated-node-toleration: %w", err)
 			}
 
+			// Parse and validate deployer type
+			deployerTypeStr := cmd.String("deployer")
+			deployerType := deployerTypes.DeployerType(deployerTypeStr)
+			if !deployerType.IsValid() {
+				// Get list of valid types from registry
+				deployerReg := deployerRegistry.NewFromGlobal()
+				registeredTypes := deployerReg.Types()
+				return fmt.Errorf("invalid deployer type '%s': must be one of %s",
+					deployerTypeStr, strings.Join(deployerTypesToStrings(registeredTypes), ", "))
+			}
+
 			// Parse bundler types
 			var bundlerTypes []types.BundleType
 			for _, t := range bundlerTypesStr {
@@ -118,6 +137,7 @@ func bundleCmd() *cli.Command {
 				slog.String("recipeFilePath", recipeFilePath),
 				slog.String("outputDir", outputDir),
 				slog.Any("bundlerTypes", bundlerTypes),
+				slog.String("deployerType", string(deployerType)),
 			)
 
 			rec, err := serializer.FromFile[recipe.RecipeResult](recipeFilePath)
@@ -139,12 +159,17 @@ func bundleCmd() *cli.Command {
 			)
 
 			// Create bundler instance
-			b := bundler.New(
+			b, err := bundler.New(
 				// If bundler types are not specified, all supported bundlers are used.
 				// An empty or nil slice means all bundlers as well.
 				bundler.WithBundlerTypes(bundlerTypes),
 				bundler.WithRegistry(reg),
+				bundler.WithDeployer(deployerType),
 			)
+			if err != nil {
+				slog.Error("failed to create bundler", "error", err)
+				return err
+			}
 
 			out, err := b.Make(ctx, rec, outputDir)
 			if err != nil {
@@ -214,4 +239,13 @@ func parseSetFlags(setFlags []string) (map[string]map[string]string, error) {
 	}
 
 	return overrides, nil
+}
+
+// deployerTypesToStrings converts deployer types to string slice for help text
+func deployerTypesToStrings(types []deployerTypes.DeployerType) []string {
+	result := make([]string, len(types))
+	for i, t := range types {
+		result[i] = string(t)
+	}
+	return result
 }

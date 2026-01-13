@@ -63,7 +63,10 @@ func TestRouteConfiguration(t *testing.T) {
 	rb := recipe.NewBuilder(
 		recipe.WithVersion("test-version"),
 	)
-	bb := bundler.New()
+	bb, err := bundler.New()
+	if err != nil {
+		t.Fatalf("failed to create bundler: %v", err)
+	}
 
 	routes := map[string]http.HandlerFunc{
 		"/v1/recipe": rb.HandleRecipes,

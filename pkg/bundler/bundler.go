@@ -8,11 +8,15 @@ import (
 	"sync"
 	"time"
 
+	"gopkg.in/yaml.v3"
+
 	"github.com/NVIDIA/cloud-native-stack/pkg/bundler/types"
 
 	"github.com/NVIDIA/cloud-native-stack/pkg/bundler/config"
 	"github.com/NVIDIA/cloud-native-stack/pkg/bundler/registry"
 	"github.com/NVIDIA/cloud-native-stack/pkg/bundler/result"
+	deployerRegistry "github.com/NVIDIA/cloud-native-stack/pkg/deployer/registry"
+	deployerTypes "github.com/NVIDIA/cloud-native-stack/pkg/deployer/types"
 	"github.com/NVIDIA/cloud-native-stack/pkg/errors"
 	"github.com/NVIDIA/cloud-native-stack/pkg/recipe"
 
@@ -22,6 +26,11 @@ import (
 	_ "github.com/NVIDIA/cloud-native-stack/pkg/component/networkoperator"
 	_ "github.com/NVIDIA/cloud-native-stack/pkg/component/nvsentinel"
 	_ "github.com/NVIDIA/cloud-native-stack/pkg/component/skyhook"
+
+	// Import deployer packages for auto-registration via init()
+	_ "github.com/NVIDIA/cloud-native-stack/pkg/deployer/provider/argocd"
+	_ "github.com/NVIDIA/cloud-native-stack/pkg/deployer/provider/flux"
+	_ "github.com/NVIDIA/cloud-native-stack/pkg/deployer/provider/script"
 )
 
 // DefaultBundler provides default options for bundling operations.
@@ -45,6 +54,13 @@ type DefaultBundler struct {
 
 	// Registry to retrieve bundlers from.
 	Registry *registry.Registry
+
+	// DeployerType specifies which deployment method to use.
+	// Default is DeployerTypeScript for manual deployment.
+	DeployerType deployerTypes.DeployerType
+
+	// DeployerRegistry to retrieve deployers from.
+	DeployerRegistry *deployerRegistry.Registry
 }
 
 // Option defines a functional option for configuring DefaultBundler.
@@ -90,6 +106,16 @@ func WithRegistry(registry *registry.Registry) Option {
 	}
 }
 
+// WithDeployer sets the deployment method to use for generating artifacts.
+// Default is DeployerTypeScript.
+func WithDeployer(deployerType deployerTypes.DeployerType) Option {
+	return func(db *DefaultBundler) {
+		if deployerType.IsValid() {
+			db.DeployerType = deployerType
+		}
+	}
+}
+
 // New creates a new DefaultBundler with the given options.
 // If no options are provided, default settings are used.
 //
@@ -99,6 +125,7 @@ func WithRegistry(registry *registry.Registry) Option {
 //   - Runs bundlers in parallel
 //   - Continues on errors (use WithFailFast to stop on first error)
 //   - Uses default configuration (use WithConfig to customize)
+//   - Uses script deployer for deployment artifacts (use WithDeployer to change)
 //
 // Example:
 //
@@ -106,17 +133,23 @@ func WithRegistry(registry *registry.Registry) Option {
 //		bundler.WithBundlerTypes([]types.BundleType{types.BundleTypeGpuOperator}),
 //		bundler.WithFailFast(true),
 //	)
-func New(opts ...Option) *DefaultBundler {
+func New(opts ...Option) (*DefaultBundler, error) {
 	cfg := config.NewConfig()
 
 	// Create registry populated with all globally registered bundlers
 	// Bundlers register themselves via init() in their packages
 	reg := registry.NewFromGlobal(cfg)
 
+	// Create deployer registry populated with all globally registered deployers
+	// Deployers register themselves via init() in their packages
+	deployerReg := deployerRegistry.NewFromGlobal()
+
 	// Create DefaultBundler with defaults
 	db := &DefaultBundler{
-		Config:   cfg,
-		Registry: reg,
+		Config:           cfg,
+		Registry:         reg,
+		DeployerType:     deployerTypes.DeployerTypeScript, // Default to script
+		DeployerRegistry: deployerReg,
 	}
 
 	// Apply options
@@ -124,7 +157,19 @@ func New(opts ...Option) *DefaultBundler {
 		opt(db)
 	}
 
-	return db
+	// Validate deployer type upfront
+	if !db.DeployerType.IsValid() {
+		return nil, errors.New(errors.ErrCodeInvalidRequest,
+			fmt.Sprintf("invalid deployer type: %s", db.DeployerType))
+	}
+
+	// Verify deployer is registered
+	if _, ok := db.DeployerRegistry.Get(db.DeployerType); !ok {
+		return nil, errors.New(errors.ErrCodeInvalidRequest,
+			fmt.Sprintf("deployer type %s not found in registry", db.DeployerType))
+	}
+
+	return db, nil
 }
 
 // Make generates bundles from the given recipe into the specified directory.
@@ -186,6 +231,12 @@ func (b *DefaultBundler) Make(ctx context.Context, input recipe.RecipeInput, dir
 
 	output.TotalDuration = time.Since(start)
 	output.OutputDir = dir
+
+	// Create root bundle artifacts (recipe file + README)
+	if err := b.createRootArtifacts(ctx, input, dir); err != nil {
+		return output, errors.Wrap(errors.ErrCodeInternal,
+			"failed to create root artifacts", err)
+	}
 
 	slog.Debug("bundle generation complete", "summary", output.Summary())
 
@@ -371,4 +422,56 @@ func (b *DefaultBundler) selectBundlers(input recipe.RecipeInput, bundleTypes []
 	}
 
 	return selected
+}
+
+// createRootArtifacts generates root-level bundle artifacts:
+// 1. Copies the recipe file to the bundle directory
+// 2. Uses the configured deployer to generate deployment artifacts and README
+func (b *DefaultBundler) createRootArtifacts(ctx context.Context, input recipe.RecipeInput, dir string) error {
+	recipeResult, ok := input.(*recipe.RecipeResult)
+	if !ok {
+		// Legacy Recipe format - skip root artifacts
+		return nil
+	}
+
+	// Write recipe file to bundle directory
+	if err := b.writeRecipeFile(recipeResult, dir); err != nil {
+		return fmt.Errorf("failed to write recipe file: %w", err)
+	}
+
+	// Get deployer from registry (already validated in New())
+	deployer, ok := b.DeployerRegistry.Get(b.DeployerType)
+	if !ok {
+		return fmt.Errorf("deployer type %s not found in registry", b.DeployerType)
+	}
+
+	// Generate deployment artifacts using the configured deployer
+	artifacts, err := deployer.Generate(ctx, recipeResult, dir)
+	if err != nil {
+		return fmt.Errorf("failed to generate deployment artifacts with %s deployer: %w", b.DeployerType, err)
+	}
+
+	slog.Debug("generated deployment artifacts",
+		"deployer_type", b.DeployerType,
+		"files", len(artifacts.Files),
+		"duration", artifacts.Duration,
+	)
+
+	return nil
+}
+
+// writeRecipeFile serializes the recipe to the bundle directory
+func (b *DefaultBundler) writeRecipeFile(recipeResult *recipe.RecipeResult, dir string) error {
+	recipeData, err := yaml.Marshal(recipeResult)
+	if err != nil {
+		return fmt.Errorf("failed to serialize recipe: %w", err)
+	}
+
+	recipePath := fmt.Sprintf("%s/recipe.yaml", dir)
+	if err := os.WriteFile(recipePath, recipeData, 0600); err != nil {
+		return fmt.Errorf("failed to write recipe file: %w", err)
+	}
+
+	slog.Debug("wrote recipe file", "path", recipePath)
+	return nil
 }

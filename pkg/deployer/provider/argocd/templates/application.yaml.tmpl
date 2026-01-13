@@ -1,0 +1,30 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: {{ .Name }}
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "{{ .SyncWave }}"
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  source:
+    repoURL: '{{ .Source }}'
+    targetRevision: '{{ .Version }}'
+    chart: {{ .Name }}
+    helm:
+      releaseName: {{ .Name }}
+      values: |
+        # Values are loaded from the component's values.yaml in the bundle
+        # Edit {{ .Name }}/values.yaml and commit to your GitOps repository
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: {{ .Namespace }}
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true

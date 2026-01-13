@@ -13,7 +13,10 @@ import (
 
 // TestBundlerHandlerNew verifies DefaultBundler can be created for HTTP handling.
 func TestBundlerHandlerNew(t *testing.T) {
-	b := New()
+	b, err := New()
+	if err != nil {
+		t.Fatalf("New() error = %v", err)
+	}
 	if b == nil {
 		t.Fatal("expected non-nil bundler")
 	}
@@ -21,7 +24,10 @@ func TestBundlerHandlerNew(t *testing.T) {
 
 // TestBundleEndpointMethods verifies only POST is allowed.
 func TestBundleEndpointMethods(t *testing.T) {
-	b := New()
+	b, err := New()
+	if err != nil {
+		t.Fatalf("New() error = %v", err)
+	}
 
 	methods := []string{http.MethodGet, http.MethodPut, http.MethodDelete, http.MethodPatch}
 
@@ -50,7 +56,10 @@ func TestBundleEndpointMethods(t *testing.T) {
 
 // TestBundleEndpointInvalidJSON tests invalid JSON body handling.
 func TestBundleEndpointInvalidJSON(t *testing.T) {
-	b := New()
+	b, err := New()
+	if err != nil {
+		t.Fatalf("New() error = %v", err)
+	}
 
 	tests := []struct {
 		name string
@@ -85,7 +94,10 @@ func TestBundleEndpointInvalidJSON(t *testing.T) {
 
 // TestBundleEndpointMissingRecipe tests handling of empty/invalid recipe body.
 func TestBundleEndpointMissingRecipe(t *testing.T) {
-	b := New()
+	b, err := New()
+	if err != nil {
+		t.Fatalf("New() error = %v", err)
+	}
 
 	// Request with empty componentRefs (simulates empty recipe)
 	body := `{"apiVersion": "cns.nvidia.com/v1alpha1", "kind": "Recipe", "componentRefs": []}`
@@ -112,7 +124,10 @@ func TestBundleEndpointMissingRecipe(t *testing.T) {
 
 // TestBundleEndpointEmptyComponentRefs tests handling of recipes without components.
 func TestBundleEndpointEmptyComponentRefs(t *testing.T) {
-	b := New()
+	b, err := New()
+	if err != nil {
+		t.Fatalf("New() error = %v", err)
+	}
 
 	// Recipe with no component references (direct RecipeResult in body)
 	body := `{"apiVersion": "cns.nvidia.com/v1alpha1", "kind": "Recipe", "componentRefs": []}`
@@ -138,7 +153,10 @@ func TestBundleEndpointEmptyComponentRefs(t *testing.T) {
 
 // TestBundleEndpointInvalidBundlerType tests handling of invalid bundler types in query param.
 func TestBundleEndpointInvalidBundlerType(t *testing.T) {
-	b := New()
+	b, err := New()
+	if err != nil {
+		t.Fatalf("New() error = %v", err)
+	}
 
 	// Recipe with valid components, invalid bundler in query param
 	body := `{
@@ -182,7 +200,10 @@ func TestBundleEndpointInvalidBundlerType(t *testing.T) {
 
 // TestBundleEndpointValidRequest tests a valid bundle generation request.
 func TestBundleEndpointValidRequest(t *testing.T) {
-	b := New()
+	b, err := New()
+	if err != nil {
+		t.Fatalf("New() error = %v", err)
+	}
 
 	// Create a valid recipe (direct RecipeResult in body, bundlers in query param)
 	body := `{
@@ -264,7 +285,10 @@ func TestBundleEndpointValidRequest(t *testing.T) {
 
 // TestBundleEndpointAllBundlers tests bundle generation with no bundler filter.
 func TestBundleEndpointAllBundlers(t *testing.T) {
-	b := New()
+	b, err := New()
+	if err != nil {
+		t.Fatalf("New() error = %v", err)
+	}
 
 	// Create a recipe with multiple components (no bundlers query param = all bundlers)
 	body := `{
@@ -291,7 +315,10 @@ func TestBundleEndpointAllBundlers(t *testing.T) {
 
 // TestBundleRequestQueryParamParsing tests bundlers query param parsing.
 func TestBundleRequestQueryParamParsing(t *testing.T) {
-	b := New()
+	b, err := New()
+	if err != nil {
+		t.Fatalf("New() error = %v", err)
+	}
 
 	tests := []struct {
 		name       string
@@ -347,7 +374,10 @@ func TestBundleRequestQueryParamParsing(t *testing.T) {
 
 // TestZipResponseContainsExpectedFiles validates zip structure.
 func TestZipResponseContainsExpectedFiles(t *testing.T) {
-	b := New()
+	b, err := New()
+	if err != nil {
+		t.Fatalf("New() error = %v", err)
+	}
 
 	// Recipe direct in body, bundlers as query param
 	body := `{
@@ -398,7 +428,10 @@ func TestZipResponseContainsExpectedFiles(t *testing.T) {
 
 // TestZipCanBeExtracted verifies that the returned zip can be extracted.
 func TestZipCanBeExtracted(t *testing.T) {
-	b := New()
+	b, err := New()
+	if err != nil {
+		t.Fatalf("New() error = %v", err)
+	}
 
 	// Recipe direct in body, bundlers as query param
 	body := `{

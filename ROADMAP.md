@@ -56,8 +56,10 @@ It does not aim to replace Kubernetes distributions, provisioning systems, or ma
 Validate existing bundlers against known-good deployments to ensure they reliably reproduce validated configurations.
 
 **Current Bundlers**
+- Cert Manager
 - GPU Operator
 - Network Operator
+- NVSentinel
 - Skyhook
 
 **Acceptance Criteria**
@@ -65,20 +67,11 @@ Validate existing bundlers against known-good deployments to ensure they reliabl
 - [ ] Generated artifacts reproduce known-good configurations
 - [ ] Documentation clearly describes deployment steps and configuration options
 
-### P1. Schema Validation
-
-**User Story**  
-As a CI/CD pipeline developer, I want to validate snapshots against versioned schemas so malformed data is caught before downstream processing.
-
-**Acceptance Criteria**
-- [ ] `cnsctl validate --schema v1 snapshot.yaml` command
-- [ ] JSON Schema embedded via `go:embed`
-- [ ] Validation using `github.com/santhosh-tekuri/jsonschema/v5`
-- [ ] Clear validation errors with paths and line numbers
-- [ ] Exit codes: `0 = valid`, `1 = invalid`
-- [ ] Example CI/CD integrations
-
 ## Launch Blockers
+
+TBD
+
+## Backlog
 
 ### Differential Snapshots & Drift Detection
 
@@ -101,20 +94,6 @@ As a compliance or platform operator, I want to detect configuration drift betwe
 - [ ] CI/CD integration examples
 - [ ] Ignore rules for expected differences (timestamps, unique IDs)
 
-### Caching Layer
-
-**User Story**  
-As a CI/CD pipeline operator, I want snapshot caching to avoid redundant collection and speed up repeated CLI invocations.
-
-**Acceptance Criteria**
-- [ ] In-memory cache with configurable TTL (default: 5 minutes)
-- [ ] `--cache-ttl` flag
-- [ ] `--no-cache` flag to force fresh collection
-- [ ] Cache key derived from collection parameters
-- [ ] Automatic cache invalidation on TTL expiry
-- [ ] Measurable performance improvement for repeated calls
-
-## Backlog
 ### Core Platform Capabilities
 
 #### Measurement Filtering

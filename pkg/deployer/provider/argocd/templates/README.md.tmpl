@@ -1,0 +1,55 @@
+# Cloud Native Stack Bundle - ArgoCD Deployment
+
+Generated: {{ .Timestamp }}
+
+## Components
+
+{{- range .Components }}
+- **{{ .Name }}** ({{ .Version }})
+{{- end }}
+
+## Prerequisites
+
+- ArgoCD v2.4+ installed in your cluster
+- Git repository to host bundle manifests
+- kubectl and argocd CLI configured with cluster access
+
+## Deployment
+
+1. Push bundle to Git repository:
+   ```bash
+   git add .
+   git commit -m "Add CNS bundle"
+   git push
+   ```
+
+2. Update app-of-apps.yaml with your Git repository URL:
+   ```bash
+   sed -i 's|<YOUR_GIT_REPO>|https://github.com/your-org/your-repo.git|' argocd/app-of-apps.yaml
+   ```
+
+3. Deploy the app-of-apps:
+   ```bash
+   kubectl apply -f argocd/app-of-apps.yaml
+   ```
+
+4. Verify deployment:
+   ```bash
+   argocd app list
+   kubectl get applications -n argocd
+   kubectl get pods -A
+   ```
+
+## Architecture
+
+This bundle uses the **App of Apps** pattern:
+- **app-of-apps.yaml** - Parent Application that manages all child Applications
+- **<component>-app.yaml** - Individual Application per component
+
+## Notes
+
+- Applications use automated sync with prune and self-heal enabled
+- Namespaces are created automatically via `CreateNamespace=true` sync option
+- Server-side apply is enabled for better conflict resolution
+- Resource finalizers ensure proper cleanup on deletion
+- Charts are deployed directly from their source repositories

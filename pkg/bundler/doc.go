@@ -37,7 +37,10 @@ Basic usage with default settings (generates all registered components):
 		_ "github.com/NVIDIA/cloud-native-stack/pkg/component/gpuoperator"  // Auto-registers
 	)
 
-	b := bundler.New()
+	b, err := bundler.New()
+	if err != nil {
+		log.Fatal(err)
+	}
 	output, err := b.Make(ctx, recipe, "./bundles")
 	if err != nil {
 		log.Fatal(err)
@@ -46,10 +49,13 @@ Basic usage with default settings (generates all registered components):
 
 Customize with functional options:
 
-	b := bundler.New(
+	b, err := bundler.New(
 		bundler.WithBundlerTypes([]types.BundleType{types.BundleTypeGpuOperator}),
 		bundler.WithFailFast(true),
 	)
+	if err != nil {
+		log.Fatal(err)
+	}
 
 Use custom configuration:
 
@@ -58,7 +64,10 @@ Use custom configuration:
 		config.WithIncludeScripts(true),
 	)
 
-	b := bundler.New(bundler.WithConfig(cfg))
+	b, err := bundler.New(bundler.WithConfig(cfg))
+	if err != nil {
+		log.Fatal(err)
+	}
 
 # Component Implementation
 
@@ -91,7 +100,10 @@ Currently supported bundlers:
 
 Bundlers run concurrently for better performance:
 
-	b := bundler.New() // Parallel by default
+	b, err := bundler.New() // Parallel by default
+	if err != nil {
+		log.Fatal(err)
+	}
 
 Benefits:
   - Faster execution with multiple bundlers
@@ -118,7 +130,10 @@ All bundlers execute, errors are collected:
 
 Stop on first error:
 
-	b := bundler.New(bundler.WithFailFast(true))
+	b, err := bundler.New(bundler.WithFailFast(true))
+	if err != nil {
+		return err
+	}
 	output, err := b.Make(ctx, recipe, dir)
 	if err != nil {
 		// First bundler failure
@@ -142,7 +157,10 @@ Customize bundler behavior with config.Config:
 	cfg.CustomLabels["environment"] = "production"
 	cfg.CustomAnnotations["owner"] = "platform-team"
 
-	b := bundler.New(bundler.WithConfig(cfg))
+	b, err := bundler.New(bundler.WithConfig(cfg))
+	if err != nil {
+		return err
+	}
 
 # Registry Management
 
@@ -153,7 +171,10 @@ Create and populate custom registry:
 	reg.Register("network-operator", networkoperator.NewBundler(cfg))
 
 	// Use custom registry
-	b := bundler.New(bundler.WithRegistry(reg))
+	b, err := bundler.New(bundler.WithRegistry(reg))
+	if err != nil {
+		return err
+	}
 
 Registry operations are thread-safe:
 
@@ -307,7 +328,10 @@ Best practices:
 ## Generate All Bundles
 
 	func generateAll(recipe *recipe.Recipe) error {
-		b := bundler.New()
+		b, err := bundler.New()
+		if err != nil {
+			return fmt.Errorf("failed to create bundler: %w", err)
+		}
 		output, err := b.Make(context.Background(), recipe, "./output")
 		if err != nil {
 			return fmt.Errorf("generation failed: %w", err)
@@ -323,11 +347,14 @@ Best practices:
 		cfg.Namespace = "nvidia-gpu-operator"
 		cfg.CustomLabels["env"] = "prod"
 
-		b := bundler.New(
+		b, err := bundler.New(
 			bundler.WithBundlerTypes([]types.BundleType{types.BundleTypeGpuOperator}),
 			bundler.WithConfig(cfg),
 			bundler.WithFailFast(true),
 		)
+		if err != nil {
+			return err
+		}
 
 		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 		defer cancel()
@@ -347,7 +374,7 @@ Best practices:
 
 ## Custom Registry with Multiple Bundlers
 
-	func setupCustomBundlers() *bundler.DefaultBundler {
+	func setupCustomBundlers() (*bundler.DefaultBundler, error) {
 		cfg := config.NewConfig()
 		reg := bundler.NewRegistry()
 

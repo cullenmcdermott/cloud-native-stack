@@ -111,10 +111,17 @@ func (b *DefaultBundler) HandleBundles(w http.ResponseWriter, r *http.Request) {
 	defer os.RemoveAll(tempDir) // Clean up on exit
 
 	// Create a new bundler with specified types (or use all if empty)
-	bundler := New(
+	bundler, err := New(
 		WithBundlerTypes(bundlerTypes),
 		WithFailFast(false), // Collect all errors
 	)
+	if err != nil {
+		server.WriteError(w, r, http.StatusInternalServerError, cnserrors.ErrCodeInternal,
+			"Failed to create bundler", true, map[string]interface{}{
+				"error": err.Error(),
+			})
+		return
+	}
 
 	// Generate bundles
 	output, err := bundler.Make(ctx, &recipeResult, tempDir)
