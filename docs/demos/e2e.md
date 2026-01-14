@@ -184,3 +184,16 @@ GPU Operator README:
 ```shell
 grip --browser --quiet ./bundles/gpu-operator/README.md
 ```
+
+Bundle is deployable:
+
+```shell
+grip --browser --quiet ./bundles/README.md
+```
+
+
+## 5. Future
+
+* CNCF AI Conformance (recipe and cluster validation)
+* New recipe based on configured cluster measurements (API > CNS Repo > Release)
+* Recipe + synthetic workload (expected perf characteristic)
