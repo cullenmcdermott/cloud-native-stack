@@ -6,6 +6,9 @@ DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 . "${DIR}/common"
 ROOT=$(dirname "${DIR}")
 
+# Check required tools
+has_tools awk find grep make sed uname
+
 # Default values
 OUTPUT_DIR=""
 CNSCTL_BIN=""
