@@ -56,6 +56,7 @@ func TestNoGPUMeasurement(t *testing.T) {
 
 	if m == nil {
 		t.Fatal("expected non-nil measurement")
+		return
 	}
 
 	if m.Type != measurement.TypeGPU {
@@ -104,6 +105,7 @@ func TestCollector_GracefulDegradation_WhenNvidiaSmiMissing(t *testing.T) {
 	// Should return a valid measurement
 	if m == nil {
 		t.Fatal("expected non-nil measurement")
+		return
 	}
 
 	if m.Type != measurement.TypeGPU {
