@@ -10,7 +10,7 @@ Cloud Native Stack (CNS) provides supply chain security artifacts:
 
 - **SBOM Attestation**: Complete inventory of packages, libraries, and components in SPDX format
 - **SLSA Build Provenance**: Verifiable build information (how and where images were created)
-- **Keyless Signing**: Artifacts signed using Sigstore (Fulcio + Rekor)
+- **Keyless Signing**: Artifacts signed using Sigstore (Fulcio CA + Rekor Transparency Log)
 
 ## Image Attestations
 
@@ -24,16 +24,16 @@ Cloud Native Stack (CNS) provides supply chain security artifacts:
 Get latest release tag:
 
 ```shell
-export TAG=$(curl -s https://api.github.com/repos/NVIDIA/cloud-native-stack/releases/latest | jq -r '.tag_name')
+TAG=$(curl -s https://api.github.com/repos/mchmarny/cloud-native-stack/releases/latest | jq -r '.tag_name')
 echo "Using tag: $TAG"
 ```
 Resolve tag to immutable digest:
 
 ```shell
-export IMAGE="ghcr.io/mchmarny/cns"
-export DIGEST=$(crane digest "${IMAGE}:${TAG}")
+IMAGE="ghcr.io/mchmarny/cns"
+DIGEST=$(crane digest "${IMAGE}:${TAG}")
 echo "Resolved digest: $DIGEST"
-export IMAGE_DIGEST="${IMAGE}@${DIGEST}"
+IMAGE_DIGEST="${IMAGE}@${DIGEST}"
 ```
 
 > Tags are mutable and can be changed to point to different images. Digests are immutable SHA256 hashes that uniquely identify an image, providing stronger security guarantees.
@@ -43,15 +43,15 @@ export IMAGE_DIGEST="${IMAGE}@${DIGEST}"
 Verify using digest:
 
 ```shell
-gh attestation verify oci://${IMAGE_DIGEST} --owner nvidia
+gh attestation verify oci://${IMAGE_DIGEST} --owner mchmarny
 ```
 
 Verify the cnsd image:
 
 ```shell
-export IMAGE_API="ghcr.io/mchmarny/cnsd"
-export DIGEST_API=$(crane digest "${IMAGE_API}:${TAG}")
-gh attestation verify oci://${IMAGE_API}@${DIGEST_API} --owner nvidia
+IMAGE_API="ghcr.io/mchmarny/cnsd"
+DIGEST_API=$(crane digest "${IMAGE_API}:${TAG}")
+gh attestation verify oci://${IMAGE_API}@${DIGEST_API} --owner mchmarny
 ```
 
 **Method 2: Cosign (SBOM Attestations)**
@@ -62,10 +62,9 @@ Verify SBOM attestation using digest:
 cosign verify-attestation \
   --type spdxjson \
   --certificate-oidc-issuer https://token.actions.githubusercontent.com \
-  --certificate-identity-regexp 'https://github.com/NVIDIA/cloud-native-stack/.github/workflows/.*' \
-  ${IMAGE_DIGEST}
+  --certificate-identity-regexp 'https://github.com/mchmarny/cloud-native-stack/.github/workflows/.*' \
+  ${IMAGE_DIGEST} > predicate.json
 ```
-
 
 ## SBOM
 
@@ -80,57 +79,18 @@ cosign verify-attestation \
 Get latest release tag:
 
 ```shell
-export TAG=$(curl -s https://api.github.com/repos/NVIDIA/cloud-native-stack/releases/latest | jq -r '.tag_name')
-export VERSION=${TAG#v}  # Remove 'v' prefix for filenames
+VERSION=${TAG#v}  # Remove 'v' prefix for filenames
+echo "Using version: $VERSION"
 ```
 
-Detect OS and architecture:
+Download SBOM:
 ```shell
-export OS=$(uname -s | tr '[:upper:]' '[:lower:]')
-export ARCH=$(uname -m | sed 's/x86_64/amd64/; s/aarch64/arm64/')
-```
-
-Download binary from GitHub releases:
-```shell
-curl -LO https://github.com/NVIDIA/cloud-native-stack/releases/download/${TAG}/cns_${TAG}_${OS}_${ARCH}
-chmod +x cns_${TAG}_${OS}_${ARCH}
-```
-
-Download SBOM (separate file):
-```shell
-curl -LO https://github.com/NVIDIA/cloud-native-stack/releases/download/${TAG}/cns_${VERSION}_${OS}_${ARCH}.sbom.json
+curl -Ls https://github.com/mchmarny/cloud-native-stack/releases/download/${TAG}/cnsctl_${VERSION}_linux_arm64.sbom.json -o sbom.json
 ```
 
 View SBOM
 ```shell
-cat cns_${VERSION}_${OS}_${ARCH}.sbom.json
-```
-
-### Container Image SBOMs (API Server & Agent)
-
-Get latest release tag and resolve digest:
-
-```shell
-export TAG=$(curl -s https://api.github.com/repos/NVIDIA/cloud-native-stack/releases/latest | jq -r '.tag_name')
-export IMAGE="ghcr.io/mchmarny/cnsd"
-export DIGEST=$(crane digest "${IMAGE}:${TAG}")
-export IMAGE_DIGEST="${IMAGE}@${DIGEST}"
-```
-
-*Method 1*: Using Cosign (extracts attestation) - uses digest to avoid warnings:
-
-```shell
-cosign verify-attestation \
-  --type spdxjson \
-  --certificate-oidc-issuer https://token.actions.githubusercontent.com \
-  --certificate-identity-regexp 'https://github.com/NVIDIA/cloud-native-stack/.github/workflows/.*' \
-  ${IMAGE_DIGEST} | \
-  jq -r '.payload' | base64 -d | jq '.predicate' > sbom.json
-```
-
-*Method 2*: Using GitHub CLI (shows all attestations)
-```shell
-gh attestation verify oci://${IMAGE_DIGEST} --owner nvidia --format json
+cat sbom.json | jq .
 ```
 
 **SBOM Use Cases:**
@@ -152,7 +112,6 @@ gh attestation verify oci://${IMAGE_DIGEST} --owner nvidia --format json
 
 4. **Audit Trail** – Maintain records for compliance
    ```shell
-   # SBOM timestamp proves when components were included
    jq '.creationInfo.created' sbom.json
    ```
 
@@ -227,7 +186,7 @@ spec:
 Get latest release tag:
 
 ```shell
-export TAG=$(curl -s https://api.github.com/repos/mchmarny/cloud-native-stack/releases/latest | jq -r '.tag_name')
+TAG=$(curl -s https://api.github.com/repos/mchmarny/cloud-native-stack/releases/latest | jq -r '.tag_name')
 ```
 
 This should succeed (image with valid attestation):
@@ -258,15 +217,15 @@ All CNS releases are built using GitHub Actions with full transparency:
 List all releases with attestations:
 
 ```shell
-gh api repos/NVIDIA/cloud-native-stack/releases | \
+gh api repos/mchmarny/cloud-native-stack/releases | \
   jq -r '.[] | "\(.tag_name): \(.html_url)"'
 ```
 
 View specific build logs:
 
 ```shell
-gh run list --repo NVIDIA/cloud-native-stack --workflow=on-tag.yaml
-gh run view 20642050863 --repo NVIDIA/cloud-native-stack --log
+gh run list --repo mchmarny/cloud-native-stack --workflow=on-tag.yaml
+gh run view 21076668418 --repo mchmarny/cloud-native-stack --log
 ```
 
 **Verify in Transparency Log (Rekor):**
@@ -274,7 +233,7 @@ gh run view 20642050863 --repo NVIDIA/cloud-native-stack --log
 Search Rekor for attestations:
 
 ```shell
-rekor-cli search --artifact ghcr.io/mchmarny/cns:v0.8.12
+rekor-cli search --sha $(crane digest ghcr.io/mchmarny/cns:${TAG})
 ```
 
 Get entry details:

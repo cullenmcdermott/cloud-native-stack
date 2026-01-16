@@ -26,6 +26,7 @@ dist
 # Keys 
 cosign.*
 *.pem
+sbom.json
 
 # ko 
 /.digest

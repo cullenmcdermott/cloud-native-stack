@@ -1,199 +1,133 @@
 # CNS End-to-End Demo
 
-Four-stage workflow: **Snapshot → Recipe → Validate → Bundle**
-
-![demo overview](images/e2e.png)
-
 ## Install
 
 ```shell
 curl -sfL https://raw.githubusercontent.com/mchmarny/cloud-native-stack/main/install | bash -s --
 ```
 
-Quick test: 
+Test CLI:
 
 ```shell
-cnsctl -v
+cnsctl -h
 ```
 
-## 1. Snapshot 
+## Recipe
 
-Deploy a Kubernetes Job to capture GPU node configuration:
+Basic:
+
+```shell
+cnsctl recipe \
+  --service eks \
+  --accelerator gb200 \
+  --os ubuntu \
+  --intent training
+```
+
+Metadata overlays: `components=4 overlays=4`
+
+![data flow](images/recipe.png)
+
+Recipe from API: 
+
+```shell
+curl -s "https://cns.dgxc.io/v1/recipe?service=eks&accelerator=gb200&intent=training" | jq .
+```
+
+Make Snapshot: 
 
 ```shell
 cnsctl snapshot \
     --deploy-agent \
     --namespace gpu-operator \
     --image ghcr.io/mchmarny/cns:latest \
-    --node-selector nodeGroup=customer-gpu \
-    --cleanup
+    --node-selector nodeGroup=customer-gpu
 ```
 
-> **Note**: By default, all taints are tolerated. Use `--toleration key=value:effect` to override.
-
-Output:
-
-```shell
-deploying agent: namespace=gpu-operator
-job completed successfully
-snapshot saved to ConfigMap: uri=cm://gpu-operator/cns-snapshot
-```
-
-View the snapshot:
+Check Snapshot in ConfigMap:
 
 ```shell
 kubectl -n gpu-operator get cm cns-snapshot -o jsonpath='{.data.snapshot\.yaml}' | yq .
 ```
 
-## 2. Recipe
-
-Generate optimized configuration from the snapshot:
+Recipe from Snapshot: 
 
 ```shell
 cnsctl recipe \
-    --snapshot cm://gpu-operator/cns-snapshot \
-    --intent training \
-    --output recipe.yaml
+  --snapshot cm://gpu-operator/cns-snapshot \
+  --intent training \
+  --output recipe.yaml
 ```
 
-View component versions:
+Recipe Constraints:
 
 ```shell
-yq eval '.componentRefs[] | {"name": .name, "version": .version, "type": .type}' recipe.yaml
+cat recipe.yaml | yq .constraints
 ```
 
-**Alternative**: Generate recipe directly from parameters (no snapshot needed):
-
-```shell
-cnsctl recipe \
-    --service eks \
-    --accelerator h100 \
-    --os ubuntu \
-    --intent training | yq
-```
-
-Or query the [CNS API](https://cns.dgxc.io) directly:
-
-```shell
-curl -s "https://cns.dgxc.io/v1/recipe?service=eks&accelerator=h100&intent=training" | jq .
-```
-
-![data flow](images/recipe.png)
-
-## 3. Validate 
-
-Validate a target cluster against the recipe: 
+Validate Recipe: 
 
 ```shell
 cnsctl validate \
-    --recipe recipe.yaml \
-    --snapshot cm://gpu-operator/cns-snapshot
+  --recipe recipe.yaml \
+  --snapshot cm://gpu-operator/cns-snapshot
 ```
 
-Outputs: 
+## Bundle
 
-```
-loading recipe: uri=recipe.yaml
-loading snapshot: uri=cm://gpu-operator/cns-snapshot
-validating constraints: recipe=recipe.yaml snapshot=cm://gpu-operator/cns-snapshot constraints=4
-```
-
-Save results to a file:
-
-```shell
-cnsctl validate \
-    --recipe recipe.yaml \
-    --snapshot cm://gpu-operator/cns-snapshot \
-    --output validation-results.yaml
-```
-
-Output: 
-
-```yaml
-kind: ValidationResult
-apiVersion: cns.nvidia.com/v1alpha1
-metadata:
-  timestamp: "2026-01-12T21:53:03Z"
-  version: 0.16.2
-recipeSource: recipe.yaml
-snapshotSource: cm://gpu-operator/cns-snapshot
-summary:
-  passed: 4
-  failed: 0
-  skipped: 0
-  total: 4
-  status: pass
-  duration: 20.958µs
-results:
-  - name: K8s.server.version
-    expected: '>= 1.32.4'
-    actual: v1.33.5-eks-3025e55
-    status: passed
-  - name: OS.release.ID
-    expected: ubuntu
-    actual: ubuntu
-    status: passed
-  - name: OS.release.VERSION_ID
-    expected: "24.04"
-    actual: "24.04"
-    status: passed
-  - name: OS.sysctl./proc/sys/kernel/osrelease
-    expected: '>= 6.8'
-    actual: 6.8.0-1028-aws
-    status: passed
-```
-
-## 4. Bundle
-
-Generate deployment artifacts with node scheduling:
+Bundle from Recipe:
 
 ```shell
 cnsctl bundle \
-    --recipe recipe.yaml \
-    --output ./bundles \
-    --system-node-selector nodeGroup=system-pool \
-    --accelerated-node-selector nodeGroup=customer-gpu \
-    --accelerated-node-toleration nvidia.com/gpu=present:NoSchedule \
-    --deployer argocd
+  --recipe recipe.yaml \
+  --output ./bundles \
+  --system-node-selector nodeGroup=system-pool \
+  --accelerated-node-selector nodeGroup=customer-gpu \
+  --accelerated-node-toleration nvidia.com/gpu=present:NoSchedule \
+  --deployer argocd
 ```
 
-Output:
+Check bundle content: 
 
 ```shell
-bundle generation completed: success=4 errors=0 summary=Generated 24 files (33.2 KB)
+tree ./bundles
 ```
 
-Similarly, bundles using API with full options: 
+Bundle from Recipe using API: 
 
 ```shell
-# Query recipe API and pipe response to bundle API
 curl -s "https://cns.dgxc.io/v1/recipe?service=eks&accelerator=h100&intent=training" | \
   curl -X POST "https://cns.dgxc.io/v1/bundle?deployer=argocd" \
     -H "Content-Type: application/json" -d @- -o bundles.zip
-
-# List generated bundles
-unzip bundles.zip -d ./bundles
 ```
 
-Bundles could be wrapped in: 
-* ArgoCD App of Apps (combining N bundles)
-* Signed container image (self-extracting in cluster)
-
-GPU Operator README:
-
-```shell
-grip --browser --quiet ./bundles/gpu-operator/README.md
-```
-
-Bundle is deployable:
+View bundle README: 
 
 ```shell
 grip --browser --quiet ./bundles/README.md
 ```
 
+View component README in a bundle (e.g. gpu-operator):
 
-## 5. Future
+```shell
+grip --browser --quiet ./bundles/gpu-operator/README.md
+```
 
-* CNCF AI Conformance (recipe and cluster validation)
-* New recipe based on configured cluster measurements (API > CNS Repo > Release)
-* Recipe + synthetic workload (expected perf characteristic)
+## Links
+
+Top 3 for each audience
+
+### [For Users](https://github.com/mchmarny/cloud-native-stack/tree/main/docs/user-guide)
+* [Installation Guide](https://github.com/mchmarny/cloud-native-stack/blob/main/docs/user-guide/installation.md)
+* [CLI Reference](https://github.com/mchmarny/cloud-native-stack/blob/main/docs/user-guide/cli-reference.md)
+* [API Reference](https://github.com/mchmarny/cloud-native-stack/blob/main/docs/user-guide/api-reference.md)
+
+### [For Integrators](https://github.com/mchmarny/cloud-native-stack/tree/main/docs/integration) (use CNS in their own solution)
+* [Recipe Development Guide](https://github.com/mchmarny/cloud-native-stack/blob/main/docs/integration/recipe-development.md)
+* [Automation and CI/CD Integration](https://github.com/mchmarny/cloud-native-stack/blob/main/docs/integration/automation.md)
+* [Data Flow Architecture](https://github.com/mchmarny/cloud-native-stack/blob/main/docs/integration/data-flow.md)
+
+### [For Contributors](https://github.com/mchmarny/cloud-native-stack/tree/main/docs/architecture) (develop CNS itself)
+* [Code of Conduct](https://github.com/mchmarny/cloud-native-stack/blob/main/CODE_OF_CONDUCT.md)
+* [How to Contribute](https://github.com/mchmarny/cloud-native-stack/blob/main/CONTRIBUTING.md)
+* [Metadata Concepts](https://github.com/mchmarny/cloud-native-stack/blob/main/docs/architecture/data.md)
