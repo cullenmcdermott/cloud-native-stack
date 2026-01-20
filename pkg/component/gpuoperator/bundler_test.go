@@ -59,12 +59,6 @@ func TestBundler_Make(t *testing.T) {
 					t.Errorf("Expected values.yaml not found")
 				}
 
-				// Verify ClusterPolicy manifest
-				policyPath := filepath.Join(bundleDir, "manifests/clusterpolicy.yaml")
-				if _, err := os.Stat(policyPath); os.IsNotExist(err) {
-					t.Errorf("Expected manifests/clusterpolicy.yaml not found")
-				}
-
 				// Verify install script
 				installPath := filepath.Join(bundleDir, "scripts/install.sh")
 				if _, err := os.Stat(installPath); os.IsNotExist(err) {
@@ -146,7 +140,6 @@ func TestBundler_Make(t *testing.T) {
 
 func TestGetTemplate(t *testing.T) {
 	expectedTemplates := []string{
-		"clusterpolicy",
 		"install.sh",
 		"uninstall.sh",
 		"README.md",

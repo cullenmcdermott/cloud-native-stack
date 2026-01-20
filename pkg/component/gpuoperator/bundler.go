@@ -148,7 +148,7 @@ func (b *Bundler) Make(ctx context.Context, input recipe.RecipeInput, dir string
 	// Get criteria to make accelerator-specific decisions
 	criteria := input.GetCriteria()
 
-	// Generate ClusterPolicy manifest using values map directly
+	// Generate manifests using values map directly
 	if err := b.generateManifestsFromData(ctx, values, scriptData, criteria, dirs.Root); err != nil {
 		return b.Result, err
 	}
@@ -208,13 +208,6 @@ func (b *Bundler) generateManifestsFromData(ctx context.Context, values map[stri
 	manifestData := map[string]interface{}{
 		"Values": values,
 		"Script": scriptData,
-	}
-
-	// Generate ClusterPolicy manifest (always generated)
-	filePath := filepath.Join(dir, "manifests", "clusterpolicy.yaml")
-	if err := b.GenerateFileFromTemplate(ctx, GetTemplate, "clusterpolicy",
-		filePath, manifestData, 0644); err != nil {
-		return err
 	}
 
 	// Generate DCGM Exporter ConfigMap if enabled
