@@ -16,7 +16,7 @@ Test CLI:
 cnsctl -h
 ```
 
-## Explore Recipe Data
+## Recipe Data (Design time == files in git)
 
 View embedded recipe files structure:
 
@@ -38,53 +38,80 @@ pkg/recipe/data/
 └── README.md
 ```
 
-## Multi-Level Inheritance
+### Base
 
-View base recipe (foundation for all recipes):
+Base recipe (foundation for all recipes):
 
 ```shell
-cat pkg/recipe/data/base.yaml | yq .
+yq . pkg/recipe/data/base.yaml
 ```
 
-View EKS recipe (inherits from base):
+### Constraints
+
+Based on measurements:
 
 ```shell
-cat pkg/recipe/data/eks.yaml | yq .
+yq . examples/snapshots/gb200.yaml | head -n 20
 ```
 
-View EKS training recipe (inherits from eks):
+Constraint format: `{MeasurementType}.{Subtype}.{Key}`
+
+Examples:
+- `K8s.server.version` - Kubernetes version
+- `OS.release.ID` - Operating system ID
+- `GPU.smi.driver_version` - GPU driver version
+
+### Base Values
+
+GPU Operator 
 
 ```shell
-cat pkg/recipe/data/eks-training.yaml | yq .
+cat pkg/recipe/data/components/gpu-operator/values.yaml | yq .
+```
+
+### Multi-Level Inheritance
+
+EKS recipe (example of inheritance from base):
+
+```shell
+yq . pkg/recipe/data/eks.yaml
+```
+
+EKS training recipe (inherits from eks):
+
+```shell
+yq . pkg/recipe/data/eks-training.yaml
 ```
 
 View GB200 EKS training recipe (inherits from eks-training):
 
 ```shell
-cat pkg/recipe/data/gb200-eks-training.yaml | yq .
+yq . pkg/recipe/data/gb200-eks-training.yaml
+```
+
+### Multi-Level Inheritance (Values)
+
+Training-optimized values:
+
+```shell
+cat pkg/recipe/data/components/gpu-operator/values-eks-training.yaml | yq .
+```
+
+Values are merged in order (later = higher priority):
+
+```
+Base ValuesFile → Overlay ValuesFile → Overlay Overrides → CLI --set flags
 ```
 
 View leaf recipe (inherits from gb200-eks-training):
 
 ```shell
-cat pkg/recipe/data/gb200-eks-ubuntu-training.yaml | yq .
+yq pkg/recipe/data/gb200-eks-ubuntu-training.yaml
 ```
 
-### Inheritance Chain
+## Criteria Matching (runtime == at query time, compiled binary)
 
-```
-base.yaml
-    │
-    └── eks.yaml (service: eks)
-            │
-            └── eks-training.yaml (service: eks, intent: training)
-                    │
-                    └── gb200-eks-training.yaml (service: eks, accelerator: gb200, intent: training)
-                            │
-                            └── gb200-eks-ubuntu-training.yaml (full criteria)
-```
-
-## Criteria Matching
+At query time, a de facto graph is created, user queries then "selects" the things that match.
 
 ### Broad Query (matches multiple overlays)
 
@@ -98,6 +125,12 @@ This matches:
   appliedOverlays:
     - base
     - eks
+```
+
+Versions: 
+
+```shell
+cnsctl -v
 ```
 
 ### More Specific Query
@@ -118,27 +151,7 @@ This matches:
     - eks-training
 ```
 
-### Fully Specific Query
-
-```shell
-cnsctl recipe \
-    --service eks \
-    --accelerator gb200 \
-    --intent training \
-    | yq .metadata
-```
-
-This matches:
-
-```yaml
-  appliedOverlays:
-    - base
-    - eks
-    - eks-training
-    - gb200-eks-training
-```
-
-### Full Criteria Query (with OS)
+### Most Specific Query
 
 ```shell
 cnsctl recipe \
@@ -149,7 +162,7 @@ cnsctl recipe \
     | yq .metadata
 ```
 
-This matches all 5 levels:
+This matches all levels:
 
 ```yaml
   appliedOverlays:
@@ -160,75 +173,31 @@ This matches all 5 levels:
     - gb200-eks-ubuntu-training
 ```
 
-## Component Configuration
-
-### View Base Component Values
-
-GPU Operator base values:
-
-```shell
-cat pkg/recipe/data/components/gpu-operator/values.yaml | yq .
-```
-
-Training-optimized values:
-
-```shell
-cat pkg/recipe/data/components/gpu-operator/values-eks-training.yaml | yq .
-```
-
-### Value Merge Precedence
-
-Values are merged in order (later = higher priority):
-
-```
-Base ValuesFile → Overlay ValuesFile → Overlay Overrides → CLI --set flags
-```
-
-Example with CLI overrides:
-
-```shell
-cnsctl recipe \
-  --service eks \
-  --accelerator h100 \
-  --intent training \
-  --format yaml | yq .componentRefs
-```
-
-## Constraints
-
-View constraints for a recipe:
-
-```shell
-cnsctl recipe \
-  --service eks \
-  --accelerator gb200 \
-  --intent training \
-  --format yaml | yq .constraints
-```
-
-Constraint format: `{MeasurementType}.{Subtype}.{Key}`
-
-Examples:
-- `K8s.server.version` - Kubernetes version
-- `OS.release.ID` - Operating system ID
-- `GPU.smi.driver_version` - GPU driver version
-
 ## Deployment Order
 
-View computed deployment order (topological sort based on dependencies):
+Recipes define their own dependencies:
+
+```shell
+yq . pkg/recipe/data/base.yaml
+```
+
+View computed deployment order is computed at recipe composition time and sorted based on dependencies:
 
 ```shell
 cnsctl recipe \
-  --service eks \
-  --accelerator h100 \
-  --intent training \
-  --format yaml | yq .deploymentOrder
+    --service eks \
+    --accelerator gb200 \
+    --intent training \
+    --os ubuntu \
+    | yq .deploymentOrder
 ```
 
-Expected order respects `dependencyRefs`:
+Order in `dependencyRefs`:
 1. `cert-manager` (no dependencies)
 2. `gpu-operator` (depends on cert-manager)
 3. Other components...
+
+> Asymmetric rule matching based on [Kahn's algorithm](https://www.geeksforgeeks.org/dsa/topological-sorting-indegree-based-solution/) algorithm.
 
 ## API Access
 
@@ -246,25 +215,29 @@ curl -s "https://cns.dgxc.io/v1/recipe?service=eks&accelerator=gb200&intent=trai
 
 ## Validation Tests
 
-Run recipe data validation tests:
+Run recipe data validation tests (checks inheritance ref, criteria enums, cycle refs, etc.):
 
 ```shell
-go test -v ./pkg/recipe/... -run TestAllMetadataFilesParseCorrectly
+go test -v ./pkg/recipe/...
 ```
 
-Check inheritance references:
+E2E tests runs every recipe for every combo of criteria:
 
 ```shell
-go test -v ./pkg/recipe/... -run TestAllBaseReferencesPointToExistingRecipes
+make e2e
 ```
 
-Check criteria enums:
+> All of this is executed on PRs, can't merge sans these tests passing
 
-```shell
-go test -v ./pkg/recipe/... -run TestAllOverlayCriteriaUseValidEnums
-```
+Integrity of the metadata is paramount!
+
+![](docs/demos/images/recipe.png)
 
 ## Links
+
+### Demo
+
+- [This Demo](https://github.com/mchmarny/cloud-native-stack/blob/main/docs/demos/data.md) - Full architecture documentation
 
 ### Documentation
 - [Data Architecture](https://github.com/mchmarny/cloud-native-stack/blob/main/docs/architecture/data.md) - Full architecture documentation

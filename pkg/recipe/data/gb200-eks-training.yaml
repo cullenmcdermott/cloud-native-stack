@@ -35,8 +35,8 @@ spec:
         gdrcopy:
           enabled: true
 
-    # Override with basic Lix customization for Skyhook
+    # Override with basic Linux training customization for Skyhook
     - name: skyhook
       type: Helm
       overrides:
-        customization: linux
+        customization: training
