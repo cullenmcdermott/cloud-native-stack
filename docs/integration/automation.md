@@ -159,7 +159,7 @@ jobs:
             SERVICE="eks"
             
             # Generate recipe
-            curl -s "https://cns.dgxc.io/v1/recipe?os=${OS}&gpu=${GPU}&service=${SERVICE}&intent=training" \
+            curl -s "http://localhost:8080/v1/recipe?os=${OS}&gpu=${GPU}&service=${SERVICE}&intent=training" \
               -o recipe.json
             
             # Validate
@@ -740,7 +740,7 @@ def get_recipe_cached(params):
     cache_key = frozenset(params.items())
     
     if cache_key not in recipe_cache:
-        response = requests.get('https://cns.dgxc.io/v1/recipe', params=params)
+        response = requests.get('http://localhost:8080/v1/recipe', params=params)
         recipe_cache[cache_key] = response.json()
     
     return recipe_cache[cache_key]
@@ -757,7 +757,7 @@ from tenacity import retry, stop_after_attempt, wait_exponential
     wait=wait_exponential(multiplier=1, min=4, max=10)
 )
 def get_recipe_with_retry(params):
-    response = requests.get('https://cns.dgxc.io/v1/recipe', params=params)
+    response = requests.get('http://localhost:8080/v1/recipe', params=params)
     response.raise_for_status()
     return response.json()
 ```
@@ -769,7 +769,7 @@ from concurrent.futures import ThreadPoolExecutor
 import requests
 
 def get_recipe(params):
-    response = requests.get('https://cns.dgxc.io/v1/recipe', params=params)
+    response = requests.get('http://localhost:8080/v1/recipe', params=params)
     return response.json()
 
 # Generate recipes for multiple environments in parallel
@@ -847,7 +847,7 @@ headers = {
 }
 
 response = requests.get(
-    'https://cns.dgxc.io/v1/recipe',
+    'http://localhost:8080/v1/recipe',
     params={'os': 'ubuntu', 'gpu': 'h100'},
     headers=headers
 )
@@ -907,14 +907,14 @@ env:
 
 ```bash
 # Verbose curl
-curl -v "https://cns.dgxc.io/v1/recipe?os=ubuntu&gpu=h100"
+curl -v "http://localhost:8080/v1/recipe?os=ubuntu&gpu=h100"
 
 # With timing
 curl -w "\nTime: %{time_total}s\n" \
-  "https://cns.dgxc.io/v1/recipe?os=ubuntu&gpu=h100"
+  "http://localhost:8080/v1/recipe?os=ubuntu&gpu=h100"
 
 # Check headers
-curl -I "https://cns.dgxc.io/v1/recipe?os=ubuntu&gpu=h100"
+curl -I "http://localhost:8080/v1/recipe?os=ubuntu&gpu=h100"
 ```
 
 ### Validate Snapshots

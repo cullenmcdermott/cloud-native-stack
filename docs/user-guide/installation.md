@@ -35,12 +35,12 @@ This script:
 
 Visit the [releases page](https://github.com/nvidia/cloud-native-stack/releases/latest) and download the appropriate binary for your platform:
 
-- **macOS ARM64** (M1/M2/M3): `cns_darwin_arm64.tar.gz`
-- **macOS Intel**: `cns_darwin_amd64.tar.gz`
-- **Linux ARM64**: `cns_linux_arm64.tar.gz`
-- **Linux x86_64**: `cns_linux_amd64.tar.gz`
+- **macOS ARM64** (M1/M2/M3): `cnsctl_v0.22.0_darwin_arm64`
+- **macOS Intel**: `cnsctl_v0.22.0_darwin_amd64`
+- **Linux ARM64**: `cnsctl_v0.22.0_linux_arm64`
+- **Linux x86_64**: `cnsctl_v0.22.0_linux_amd64`
 
-2. **Extract and install**
+1. **Extract and install**
 
 ```shell
 # Example for Linux x86_64
@@ -59,18 +59,9 @@ cnsctl --version
 
 **Requirements:**
 - Go 1.21 or higher
-- `make`
 
 ```shell
-# Clone repository
-git clone https://github.com/NVIDIA/cloud-native-stack.git
-cd cloud-native-stack
-
-# Build
-make build
-
-# Binary location
-./dist/cns_<platform>/cnsctl
+go install https://github.com/NVIDIA/cloud-native-stack/cmd/cnsctl
 ```
 
 ## Verify Installation
@@ -114,18 +105,6 @@ source <(cnsctl completion zsh)
 cnsctl completion fish | source
 ```
 
-### Kubernetes Access (Optional)
-
-If you plan to use the agent or generate bundles for Kubernetes, ensure kubectl is configured:
-
-```shell
-# Test Kubernetes connectivity
-kubectl cluster-info
-
-# Verify GPU nodes (if applicable)
-kubectl get nodes -l nvidia.com/gpu.present=true
-```
-
 ## Container Images
 
 CNS is also available as container images for integration into automated pipelines:
@@ -136,47 +115,15 @@ docker pull ghcr.io/nvidia/cns:latest
 docker run ghcr.io/nvidia/cns:latest --version
 ```
 
-### API Server Image
+### API Server Image (Self-hosting)
 ```shell
 docker pull ghcr.io/nvidia/cnsd:latest
 docker run -p 8080:8080 ghcr.io/nvidia/cnsd:latest
 ```
 
-**Production API Server**: The API server is deployed at https://cns.dgxc.io with auto-scaling and SLSA Build Level 3 attestations.
-
-## E2E Testing
-
-Validate the complete workflow with the e2e testing script:
-
-```shell
-# Clone repository
-git clone https://github.com/NVIDIA/cloud-native-stack.git
-cd cloud-native-stack
-
-# Test complete workflow: agent → snapshot → recipe → bundle
-./tools/e2e -s examples/snapshots/gb200.yaml \
-           -r examples/recipes/gb200-eks-ubuntu-training.yaml \
-           -b examples/bundles/gb200-eks-ubuntu-training
-
-# Test just snapshot capture
-./tools/e2e -s snapshot.yaml
-
-# Test recipe and bundle generation
-./tools/e2e -r recipe.yaml -b ./bundles
-```
-
-The e2e script:
-- Deploys agent Job with RBAC
-- Waits for snapshot to be written to ConfigMap
-- Generates recipe and bundle from ConfigMap
-- Validates each step completes successfully
-- Preserves resources on failure for debugging
-
 ## Next Steps
 
-- **Users**: See [CLI Reference](cli-reference.md) for command usage
-- **Kubernetes Users**: See [Agent Deployment](agent-deployment.md) to deploy the snapshot agent
-- **Integrators**: See [API Reference](../integration/api-reference.md) for programmatic access
+See [CLI Reference](cli-reference.md) for command usage
 
 ## Troubleshooting
 
@@ -209,16 +156,6 @@ Snapshot GPU measurements require `nvidia-smi` in PATH:
 nvidia-smi
 
 # If missing, install NVIDIA drivers for your platform
-```
-
-### Kubernetes Connection Issues
-
-```shell
-# Check kubeconfig
-kubectl config current-context
-
-# Verify cluster access
-kubectl get nodes
 ```
 
 ## Uninstall

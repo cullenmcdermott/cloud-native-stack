@@ -167,6 +167,5 @@ cd bundles/gpu-operator
 ## Links
 
 - **GitHub Repository:** [github.com/NVIDIA/cloud-native-stack](https://github.com/NVIDIA/cloud-native-stack)
-- **API Server:** [cns.dgxc.io](https://cns.dgxc.io)
 - **Contributing:** [CONTRIBUTING.md](../CONTRIBUTING.md)
 - **Security:** [SECURITY.md](../SECURITY.md)

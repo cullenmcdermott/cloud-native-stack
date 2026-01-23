@@ -6,7 +6,7 @@ Complete reference for the CNS API Server REST API.
 
 The API server provides HTTP REST access to recipe generation and bundle creation for GPU-accelerated infrastructure. The API accepts query parameters or recipe payloads and returns configuration recommendations or deployment bundles.
 
-**Base URL:** `https://cns.dgxc.io`
+**Base URL:** `http://localhost:8080`
 
 **Capabilities:**
 
@@ -45,10 +45,6 @@ See [CLI Reference](../user-guide/cli-reference.md) and [Agent Deployment](../us
 **Note:** Authentication may be added in future releases. Check release notes before upgrading production integrations.
 
 ## Base URL
-
-```
-https://cns.dgxc.io
-```
 
 For local development:
 ```
@@ -398,34 +394,34 @@ cns_rate_limit_rejects_total 5
 
 **Basic query:**
 ```shell
-curl "https://cns.dgxc.io/v1/recipe?os=ubuntu&gpu=h100"
+curl "http://localhost:8080/v1/recipe?os=ubuntu&gpu=h100"
 ```
 
 **Full specification:**
 ```shell
-curl "https://cns.dgxc.io/v1/recipe?service=eks&accelerator=h100&intent=training&os=ubuntu&nodes=8"
+curl "http://localhost:8080/v1/recipe?service=eks&accelerator=h100&intent=training&os=ubuntu&nodes=8"
 ```
 
 **With request ID:**
 ```shell
 curl -H "X-Request-Id: $(uuidgen)" \
-  "https://cns.dgxc.io/v1/recipe?os=ubuntu&gpu=gb200"
+  "http://localhost:8080/v1/recipe?os=ubuntu&gpu=gb200"
 ```
 
 **Save to file:**
 ```shell
-curl "https://cns.dgxc.io/v1/recipe?os=ubuntu&gpu=h100" -o recipe.json
+curl "http://localhost:8080/v1/recipe?os=ubuntu&gpu=h100" -o recipe.json
 ```
 
 **Generate bundles (pipe recipe directly):**
 ```shell
 # One-liner: get recipe and generate bundle
-curl -s "https://cns.dgxc.io/v1/recipe?os=ubuntu&gpu=h100&service=eks" | \
-  curl -X POST "https://cns.dgxc.io/v1/bundle?bundlers=gpu-operator" \
+curl -s "http://localhost:8080/v1/recipe?os=ubuntu&gpu=h100&service=eks" | \
+  curl -X POST "http://localhost:8080/v1/bundle?bundlers=gpu-operator" \
     -H "Content-Type: application/json" -d @- -o bundles.zip
 
 # Or from saved recipe file
-curl -X POST "https://cns.dgxc.io/v1/bundle?bundlers=gpu-operator,network-operator" \
+curl -X POST "http://localhost:8080/v1/bundle?bundlers=gpu-operator,network-operator" \
   -H "Content-Type: application/json" -d @recipe.json -o bundles.zip
 ```
 
@@ -442,7 +438,7 @@ params = {
     'os': 'ubuntu'
 }
 
-response = requests.get('https://cns.dgxc.io/v1/recipe', params=params)
+response = requests.get('http://localhost:8080/v1/recipe', params=params)
 
 if response.status_code == 200:
     recipe = response.json()
@@ -461,7 +457,7 @@ import time
 
 def get_recipe_with_retry(params, max_retries=3):
     for attempt in range(max_retries):
-        response = requests.get('https://cns.dgxc.io/v1/recipe', params=params)
+        response = requests.get('http://localhost:8080/v1/recipe', params=params)
         
         if response.status_code == 200:
             return response.json()
@@ -505,7 +501,7 @@ type ComponentRef struct {
 }
 
 func main() {
-    baseURL := "https://cns.dgxc.io/v1/recipe"
+    baseURL := "http://localhost:8080/v1/recipe"
     
     // Build query
     params := url.Values{}
@@ -536,7 +532,7 @@ func main() {
 // Basic request
 async function getRecipe(params) {
   const query = new URLSearchParams(params);
-  const response = await fetch(`https://cns.dgxc.io/v1/recipe?${query}`);
+  const response = await fetch(`http://localhost:8080/v1/recipe?${query}`);
   
   if (!response.ok) {
     const error = await response.json();
@@ -562,7 +558,7 @@ console.log(`Got ${recipe.componentRefs.length} component references`);
 async function getRecipeWithRetry(params, maxRetries = 3) {
   for (let attempt = 0; attempt < maxRetries; attempt++) {
     const query = new URLSearchParams(params);
-    const response = await fetch(`https://cns.dgxc.io/v1/recipe?${query}`);
+    const response = await fetch(`http://localhost:8080/v1/recipe?${query}`);
     
     if (response.ok) {
       return response.json();
@@ -598,7 +594,7 @@ environments=(
 for env in "${environments[@]}"; do
   echo "Fetching recipe for: $env"
   
-  curl -s "https://cns.dgxc.io/v1/recipe?${env}" \
+  curl -s "http://localhost:8080/v1/recipe?${env}" \
     | jq -r '.componentRefs[] | "\(.name): \(.version)"'
   
   echo ""
@@ -672,15 +668,15 @@ See [Kubernetes Deployment](kubernetes-deployment.md) for deploying your own API
 **Health checks:**
 ```shell
 # Liveness
-curl https://cns.dgxc.io/health
+curl http://localhost:8080/health
 
 # Readiness
-curl https://cns.dgxc.io/ready
+curl http://localhost:8080/ready
 ```
 
 **Metrics (Prometheus):**
 ```shell
-curl https://cns.dgxc.io/metrics
+curl http://localhost:8080/metrics
 ```
 
 **Key metrics:**

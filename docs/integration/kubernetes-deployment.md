@@ -10,7 +10,6 @@ Deploy the CNS API Server in your Kubernetes cluster for self-hosted recipe gene
 - Custom recipes: Modify embedded recipe data (`data-v1.yaml`)
 - High availability: Deploy multiple replicas with load balancing
 - Observability: Prometheus `/metrics` endpoint and structured logging
-- Public instance: https://cns.dgxc.io (managed deployment)
 
 **API Server scope:**
 

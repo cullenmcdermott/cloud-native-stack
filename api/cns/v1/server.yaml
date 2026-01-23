@@ -10,8 +10,6 @@ info:
     with environment-specific overlays based on criteria matching.
 
 servers:
-  - url: https://cns.dgxc.io/v1
-    description: Production server
   - url: http://localhost:8080
     description: Local development server
 

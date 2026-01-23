@@ -174,7 +174,7 @@ cloud-native-stack/
   - `GET /ready` - Readiness probe
   - `GET /metrics` - Prometheus metrics
 - **Purpose**: HTTP service for recipe generation with rate limiting and observability
-- **Deployment**: https://cns.dgxc.io
+- **Deployment**: http://localhost:8080
 
 #### Collectors
 - **Location**: `pkg/collector/`

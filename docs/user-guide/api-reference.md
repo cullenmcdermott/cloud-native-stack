@@ -31,19 +31,15 @@ The CNS API Server provides HTTP REST access to recipe generation and bundle cre
 
 ## Base URL
 
-**Production:**
-```
-https://cns.dgxc.io
-```
-
-**Local development:**
+Local development (example):
 ```
 http://localhost:8080
 ```
 
 Start the local server:
 ```shell
-make server
+docker pull ghcr.io/nvidia/cnsd:latest
+docker run -p 8080:8080 ghcr.io/nvidia/cnsd:latest
 ```
 
 ## Quick Start
@@ -54,13 +50,13 @@ Generate an optimized configuration recipe for your environment:
 
 ```shell
 # Basic recipe for H100 on EKS
-curl "https://cns.dgxc.io/v1/recipe?accelerator=h100&service=eks"
+curl "http://localhost:8080/v1/recipe?accelerator=h100&service=eks"
 
 # Training workload on Ubuntu
-curl "https://cns.dgxc.io/v1/recipe?accelerator=h100&service=eks&intent=training&os=ubuntu"
+curl "http://localhost:8080/v1/recipe?accelerator=h100&service=eks&intent=training&os=ubuntu"
 
 # Save recipe to file
-curl -s "https://cns.dgxc.io/v1/recipe?accelerator=h100&service=eks" -o recipe.json
+curl -s "http://localhost:8080/v1/recipe?accelerator=h100&service=eks" -o recipe.json
 ```
 
 ### Generate Bundles
@@ -69,8 +65,8 @@ Create deployment bundles from a recipe:
 
 ```shell
 # Pipe recipe directly to bundle endpoint
-curl -s "https://cns.dgxc.io/v1/recipe?accelerator=h100&service=eks" | \
-  curl -X POST "https://cns.dgxc.io/v1/bundle?bundlers=gpu-operator" \
+curl -s "http://localhost:8080/v1/recipe?accelerator=h100&service=eks" | \
+  curl -X POST "http://localhost:8080/v1/bundle?bundlers=gpu-operator" \
     -H "Content-Type: application/json" -d @- -o bundles.zip
 
 # Extract the bundles
@@ -98,19 +94,19 @@ Generate an optimized configuration recipe based on environment parameters.
 
 ```shell
 # Minimal request
-curl "https://cns.dgxc.io/v1/recipe"
+curl "http://localhost:8080/v1/recipe"
 
 # Specify accelerator
-curl "https://cns.dgxc.io/v1/recipe?accelerator=h100"
+curl "http://localhost:8080/v1/recipe?accelerator=h100"
 
 # Full specification
-curl "https://cns.dgxc.io/v1/recipe?service=eks&accelerator=h100&intent=training&os=ubuntu&nodes=8"
+curl "http://localhost:8080/v1/recipe?service=eks&accelerator=h100&intent=training&os=ubuntu&nodes=8"
 
 # Using gpu alias
-curl "https://cns.dgxc.io/v1/recipe?gpu=gb200&service=gke"
+curl "http://localhost:8080/v1/recipe?gpu=gb200&service=gke"
 
 # Pretty print with jq
-curl -s "https://cns.dgxc.io/v1/recipe?accelerator=h100" | jq '.'
+curl -s "http://localhost:8080/v1/recipe?accelerator=h100" | jq '.'
 ```
 
 **Response:**
@@ -194,29 +190,29 @@ The request body is the recipe (RecipeResult) directly. No wrapper object needed
 
 ```shell
 # Basic: pipe recipe to bundle (GPU Operator only)
-curl -s "https://cns.dgxc.io/v1/recipe?accelerator=h100&service=eks" | \
-  curl -X POST "https://cns.dgxc.io/v1/bundle?bundlers=gpu-operator" \
+curl -s "http://localhost:8080/v1/recipe?accelerator=h100&service=eks" | \
+  curl -X POST "http://localhost:8080/v1/bundle?bundlers=gpu-operator" \
     -H "Content-Type: application/json" -d @- -o bundles.zip
 
 # Advanced: with value overrides and ArgoCD deployer
-curl -s "https://cns.dgxc.io/v1/recipe?accelerator=h100&service=eks" | \
-  curl -X POST "https://cns.dgxc.io/v1/bundle?bundlers=gpu-operator&deployer=argocd&repo=https://github.com/my-org/my-gitops-repo.git&set=gpuoperator:gds.enabled=true" \
+curl -s "http://localhost:8080/v1/recipe?accelerator=h100&service=eks" | \
+  curl -X POST "http://localhost:8080/v1/bundle?bundlers=gpu-operator&deployer=argocd&repo=https://github.com/my-org/my-gitops-repo.git&set=gpuoperator:gds.enabled=true" \
     -H "Content-Type: application/json" -d @- -o bundles.zip
 
 # With node scheduling for system and GPU nodes
-curl -X POST "https://cns.dgxc.io/v1/bundle?bundlers=gpu-operator&system-node-selector=nodeGroup=system&system-node-toleration=dedicated=system:NoSchedule&accelerated-node-selector=nvidia.com/gpu.present=true&accelerated-node-toleration=nvidia.com/gpu=present:NoSchedule" \
+curl -X POST "http://localhost:8080/v1/bundle?bundlers=gpu-operator&system-node-selector=nodeGroup=system&system-node-toleration=dedicated=system:NoSchedule&accelerated-node-selector=nvidia.com/gpu.present=true&accelerated-node-toleration=nvidia.com/gpu=present:NoSchedule" \
   -H "Content-Type: application/json" \
   -d @recipe.json \
   -o bundles.zip
 
 # Generate GPU Operator bundle from saved recipe
-curl -X POST "https://cns.dgxc.io/v1/bundle?bundlers=gpu-operator" \
+curl -X POST "http://localhost:8080/v1/bundle?bundlers=gpu-operator" \
   -H "Content-Type: application/json" \
   -d @recipe.json \
   -o bundles.zip
 
 # Generate all available bundles (no bundlers param)
-curl -X POST "https://cns.dgxc.io/v1/bundle" \
+curl -X POST "http://localhost:8080/v1/bundle" \
   -H "Content-Type: application/json" \
   -d '{
     "apiVersion": "cns.nvidia.com/v1alpha1",
@@ -229,7 +225,7 @@ curl -X POST "https://cns.dgxc.io/v1/bundle" \
   -o bundles.zip
 
 # Generate multiple specific bundles
-curl -X POST "https://cns.dgxc.io/v1/bundle?bundlers=gpu-operator,network-operator" \
+curl -X POST "https://http://localhost:8080/v1/bundle?bundlers=gpu-operator,network-operator" \
   -H "Content-Type: application/json" \
   -d '{
     "apiVersion": "cns.nvidia.com/v1alpha1",
@@ -277,7 +273,7 @@ bundles.zip
 Service health check (liveness probe).
 
 ```shell
-curl "https://cns.dgxc.io/health"
+curl "https://http://localhost:8080/health"
 ```
 
 **Response:**
@@ -295,7 +291,7 @@ curl "https://cns.dgxc.io/health"
 Service readiness check (readiness probe).
 
 ```shell
-curl "https://cns.dgxc.io/ready"
+curl "https://http://localhost:8080/ready"
 ```
 
 **Response:**
@@ -313,7 +309,7 @@ curl "https://cns.dgxc.io/ready"
 Prometheus metrics endpoint.
 
 ```shell
-curl "https://cns.dgxc.io/metrics"
+curl "https://http://localhost:8080/metrics"
 ```
 
 **Key Metrics:**
@@ -334,7 +330,7 @@ Fetch a recipe and generate bundles in one workflow:
 
 # Step 1: Get recipe for H100 on EKS for training
 echo "Fetching recipe..."
-curl -s "https://cns.dgxc.io/v1/recipe?accelerator=h100&service=eks&intent=training" \
+curl -s "https://http://localhost:8080/v1/recipe?accelerator=h100&service=eks&intent=training" \
   -o recipe.json
 
 # Display recipe summary
@@ -343,14 +339,14 @@ jq -r '.componentRefs[] | "  - \(.name): \(.version)"' recipe.json
 
 # Step 2: Generate bundles from recipe (pipe directly)
 echo "Generating bundles..."
-curl -s -X POST "https://cns.dgxc.io/v1/bundle?bundlers=gpu-operator" \
+curl -s -X POST "https://http://localhost:8080/v1/bundle?bundlers=gpu-operator" \
   -H "Content-Type: application/json" \
   -d @recipe.json \
   -o bundles.zip
 
 # Alternative: one-liner without intermediate file
-# curl -s "https://cns.dgxc.io/v1/recipe?accelerator=h100&service=eks" | \
-#   curl -X POST "https://cns.dgxc.io/v1/bundle?bundlers=gpu-operator" \
+# curl -s "https://http://localhost:8080/v1/recipe?accelerator=h100&service=eks" | \
+#   curl -X POST "https://http://localhost:8080/v1/bundle?bundlers=gpu-operator" \
 #     -H "Content-Type: application/json" -d @- -o bundles.zip
 
 # Step 3: Extract and verify
@@ -396,7 +392,7 @@ ls -la
 
 ```shell
 # Check rate limit headers
-curl -I "https://cns.dgxc.io/v1/recipe?accelerator=h100"
+curl -I "https://http://localhost:8080/v1/recipe?accelerator=h100"
 
 # Response headers:
 # X-RateLimit-Limit: 100
@@ -408,9 +404,9 @@ When rate limited (HTTP 429), use the `Retry-After` header:
 
 ```shell
 # Retry with backoff
-response=$(curl -s -w "%{http_code}" "https://cns.dgxc.io/v1/recipe?accelerator=h100")
+response=$(curl -s -w "%{http_code}" "https://http://localhost:8080/v1/recipe?accelerator=h100")
 if [ "${response: -3}" = "429" ]; then
-  retry_after=$(curl -sI "https://cns.dgxc.io/v1/recipe" | grep -i "Retry-After" | awk '{print $2}')
+  retry_after=$(curl -sI "https://http://localhost:8080/v1/recipe" | grep -i "Retry-After" | awk '{print $2}')
   echo "Rate limited. Retrying after ${retry_after}s..."
   sleep "$retry_after"
 fi
@@ -432,7 +428,7 @@ import requests
 import zipfile
 import io
 
-BASE_URL = "https://cns.dgxc.io"
+BASE_URL = "https://http://localhost:8080"
 
 # Get recipe
 params = {
@@ -478,7 +474,7 @@ import (
 )
 
 func main() {
-    baseURL := "https://cns.dgxc.io"
+    baseURL := "https://http://localhost:8080"
 
     // Get recipe
     params := url.Values{}
@@ -502,7 +498,7 @@ func main() {
 ### JavaScript/Node.js
 
 ```javascript
-const BASE_URL = "https://cns.dgxc.io";
+const BASE_URL = "https://http://localhost:8080";
 
 async function main() {
     // Get recipe
@@ -565,13 +561,13 @@ openapi-generator-cli generate -i openapi.yaml -g typescript-fetch -o ./ts-clien
 **"Invalid accelerator type" error:**
 ```shell
 # Use valid values: h100, gb200, a100, l40, any
-curl "https://cns.dgxc.io/v1/recipe?accelerator=h100"
+curl "https://http://localhost:8080/v1/recipe?accelerator=h100"
 ```
 
 **"Recipe is required" error:**
 ```shell
 # Ensure recipe is in request body
-curl -X POST "https://cns.dgxc.io/v1/bundle" \
+curl -X POST "https://http://localhost:8080/v1/bundle" \
   -H "Content-Type: application/json" \
   -d '{"recipe": {...}}'  # recipe must not be null
 ```
@@ -579,7 +575,7 @@ curl -X POST "https://cns.dgxc.io/v1/bundle" \
 **Empty zip file:**
 ```shell
 # Check recipe has componentRefs
-curl -s "https://cns.dgxc.io/v1/recipe?accelerator=h100" | jq '.componentRefs'
+curl -s "https://http://localhost:8080/v1/recipe?accelerator=h100" | jq '.componentRefs'
 ```
 
 **Connection refused (local):**

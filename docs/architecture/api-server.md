@@ -435,7 +435,7 @@ curl http://localhost:8080/metrics
 The API server is deployed to Google Cloud Run with the following configuration:
 
 **Live Service:**
-- **URL**: https://cns.dgxc.io
+- **URL**: http://localhost:8080
 - **Platform**: Google Cloud Run (fully managed serverless)
 - **Authentication**: Public access
 - **Auto-scaling**: 0-100 instances based on load

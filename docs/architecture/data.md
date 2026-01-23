@@ -64,7 +64,7 @@ pkg/recipe/data/
 
 3. **API Server** - HTTP endpoint (query mode only):
    ```bash
-   curl "https://cns.dgxc.io/v1/recipe?os=ubuntu&accelerator=h100&service=eks&intent=training"
+   curl "http://localhost:8080/v1/recipe?os=ubuntu&accelerator=h100&service=eks&intent=training"
    ```
 
 ## Data Structure
@@ -755,12 +755,12 @@ cnsctl recipe --snapshot snapshot.yaml --intent training --output recipe.yaml
 
 **Basic query:**
 ```bash
-curl "https://cns.dgxc.io/v1/recipe?os=ubuntu&service=eks&accelerator=h100"
+curl "http://localhost:8080/v1/recipe?os=ubuntu&service=eks&accelerator=h100"
 ```
 
 **Full specification:**
 ```bash
-curl "https://cns.dgxc.io/v1/recipe?os=ubuntu&service=eks&accelerator=gb200&intent=training&nodes=8"
+curl "http://localhost:8080/v1/recipe?os=ubuntu&service=eks&accelerator=gb200&intent=training&nodes=8"
 ```
 
 ### Example Response (RecipeResult)
