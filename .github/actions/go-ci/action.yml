@@ -42,7 +42,7 @@ runs:
     - name: Run Tests with Coverage
       uses: flox/activate-action@410568008895a0f2e09a34bbd9523f8ef1f2d292  # v1.1.0
       with:
-        command: make test
+        command: CGO_ENABLED=1 make test
 
     - name: Upload Coverage to Codecov
       if: inputs.upload_codecov == 'true'
