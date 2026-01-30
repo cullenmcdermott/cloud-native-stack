@@ -14,23 +14,7 @@ This roadmap tracks remaining work for Cloud Native Stack v2 launch and future e
 
 ## Remaining MVP Work
 
-### 1. CODEOWNERS Configuration
-
-**Status:** Not started
-
-Add CODEOWNERS file for automated review assignment.
-
-| Path | Owner |
-|------|-------|
-| `pkg/*` | @nvidia/cns-maintainers |
-| `docs/*` | @nvidia/cns-docs |
-| `.github/*` | @nvidia/cns-maintainers |
-
-**Acceptance:** PR modifications trigger auto-assignment.
-
----
-
-### 2. MVP Recipe Matrix Completion
+### MVP Recipe Matrix Completion
 
 **Status:** In progress (5 of ~20 recipes complete)
 
@@ -51,14 +35,16 @@ Expand recipe coverage for MVP platforms and accelerators.
 | AKS | H100 | Training | Not started |
 | AKS | H100 | Inference | Not started |
 | OKE | H100 | Training | Not started |
+| OKE | H100 | Inference | Not started |
+| OKE | GB200 | Training | Not started |
 | EKS | H100 | Training | Not started |
 | EKS | A100 | Training | Not started |
 
-**Acceptance:** `cnsctl recipe --list` shows all MVP recipes; each validates and generates bundles.
+**Acceptance:** each validates and generates bundles.
 
 ---
 
-### 3. Validator Enhancements
+### Validator Enhancements
 
 **Status:** Core complete, advanced features pending
 
@@ -79,7 +65,7 @@ Expand recipe coverage for MVP platforms and accelerators.
 
 ---
 
-### 4. E2E Deployment Validation
+### E2E Deployment Validation
 
 **Status:** Partial
 

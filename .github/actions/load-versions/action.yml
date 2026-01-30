@@ -46,6 +46,9 @@ outputs:
   helm:
     description: 'Helm version'
     value: ${{ steps.versions.outputs.helm }}
+  grype:
+    description: 'Grype version'
+    value: ${{ steps.versions.outputs.grype }}
 
 runs:
   using: 'composite'
@@ -66,6 +69,9 @@ runs:
         echo "golangci_lint=$(yq eval '.linting.golangci_lint' .versions.yaml)" >> $GITHUB_OUTPUT
         echo "addlicense=$(yq eval '.linting.addlicense' .versions.yaml)" >> $GITHUB_OUTPUT
 
+        # Security tools
+        echo "grype=$(yq eval '.security_tools.grype' .versions.yaml)" >> $GITHUB_OUTPUT
+
         # Testing tools
         echo "kind=$(yq eval '.testing_tools.kind' .versions.yaml)" >> $GITHUB_OUTPUT
         echo "ctlptl=$(yq eval '.testing_tools.ctlptl' .versions.yaml)" >> $GITHUB_OUTPUT
@@ -82,6 +88,7 @@ runs:
         echo "  crane: ${{ steps.versions.outputs.crane }}"
         echo "  golangci_lint: ${{ steps.versions.outputs.golangci_lint }}"
         echo "  addlicense: ${{ steps.versions.outputs.addlicense }}"
+        echo "  grype: ${{ steps.versions.outputs.grype }}"
         echo "  kind: ${{ steps.versions.outputs.kind }}"
         echo "  ctlptl: ${{ steps.versions.outputs.ctlptl }}"
         echo "  tilt: ${{ steps.versions.outputs.tilt }}"

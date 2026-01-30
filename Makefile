@@ -44,12 +44,21 @@ check-tools: ## Verifies required tools are installed
 	@echo "All required tools installed"
 
 .PHONY: deps
-deps: ## Installs required development tools
+deps: ## Installs required development tools (versions from .versions.yaml)
 	@echo "Installing development tools..."
-	@go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
-	@go install github.com/goreleaser/goreleaser/v2@latest
-	@go install github.com/google/ko@latest
-	@go install github.com/anchore/grype@latest
+	@command -v yq >/dev/null || (echo "ERROR: yq is required to read .versions.yaml. Install: brew install yq" && exit 1)
+	@GOLANGCI_VERSION=$$(yq eval '.linting.golangci_lint' .versions.yaml) && \
+		echo "Installing golangci-lint@$$GOLANGCI_VERSION..." && \
+		go install github.com/golangci/golangci-lint/cmd/golangci-lint@$$GOLANGCI_VERSION
+	@GORELEASER_VERSION=$$(yq eval '.build_tools.goreleaser' .versions.yaml) && \
+		echo "Installing goreleaser@$$GORELEASER_VERSION..." && \
+		go install github.com/goreleaser/goreleaser/v2@$$GORELEASER_VERSION
+	@KO_VERSION=$$(yq eval '.build_tools.ko' .versions.yaml) && \
+		echo "Installing ko@$$KO_VERSION..." && \
+		go install github.com/google/ko@$$KO_VERSION
+	@GRYPE_VERSION=$$(yq eval '.security_tools.grype' .versions.yaml) && \
+		echo "Installing grype@$$GRYPE_VERSION..." && \
+		go install github.com/anchore/grype@$$GRYPE_VERSION
 	@pip install --user yamllint 2>/dev/null || echo "Install yamllint manually: pip install yamllint"
 	@echo "Development tools installed"
 
@@ -225,8 +234,10 @@ cleanup: ## Cleans up CNS Kubernetes resources (requires kubectl)
 	tools/cleanup
 
 .PHONY: demos
-demos: ## Creates demo GIFs using VHS tool
+demos: ## Creates demo GIFs using VHS tool (requires: brew install vhs)
+	@command -v vhs >/dev/null 2>&1 || (echo "Error: vhs is not installed. Install: brew install vhs" && exit 1)
 	vhs docs/demos/videos/cli.tape -o docs/demos/videos/cli.gif
+	vhs docs/demos/videos/e2e.tape -o docs/demos/videos/e2e.gif
 
 # =============================================================================
 # Tilt Local Development
@@ -345,3 +356,53 @@ help: ## Displays available commands
 	@echo "Available make targets:"
 	@grep -E '^[a-zA-Z0-9_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk \
 		'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-20s\033[0m %s\n", $$1, $$2}'
+
+.PHONY: help-full
+help-full: ## Displays commands grouped by category
+	@echo ""
+	@echo "\033[1m=== Quality & Testing ===\033[0m"
+	@echo "  make qualify        Full qualification (test + lint + e2e + scan)"
+	@echo "  make test           Unit tests with race detector"
+	@echo "  make test-coverage  Tests with coverage threshold enforcement"
+	@echo "  make lint           Lint Go, YAML, and license headers"
+	@echo "  make e2e            CLI end-to-end tests"
+	@echo "  make e2e-tilt       E2E tests with Tilt cluster"
+	@echo "  make scan           Vulnerability scan with grype"
+	@echo "  make bench          Run benchmarks"
+	@echo ""
+	@echo "\033[1m=== Build & Release ===\033[0m"
+	@echo "  make build          Build binaries for current OS/arch"
+	@echo "  make image          Build and push container image"
+	@echo "  make release        Full release with goreleaser"
+	@echo "  make bump-major     Bump major version (1.2.3 -> 2.0.0)"
+	@echo "  make bump-minor     Bump minor version (1.2.3 -> 1.3.0)"
+	@echo "  make bump-patch     Bump patch version (1.2.3 -> 1.2.4)"
+	@echo ""
+	@echo "\033[1m=== Local Development ===\033[0m"
+	@echo "  make dev-env        Create cluster and start Tilt (full setup)"
+	@echo "  make dev-env-clean  Stop Tilt and delete cluster (full cleanup)"
+	@echo "  make dev-restart    Restart Tilt without recreating cluster"
+	@echo "  make cluster-create Create Kind cluster with registry"
+	@echo "  make cluster-delete Delete Kind cluster and registry"
+	@echo "  make cluster-status Show cluster and registry status"
+	@echo "  make tilt-up        Start Tilt development environment"
+	@echo "  make tilt-down      Stop Tilt development environment"
+	@echo "  make server         Start local development server"
+	@echo ""
+	@echo "\033[1m=== Code Maintenance ===\033[0m"
+	@echo "  make tidy           Format code and update dependencies"
+	@echo "  make fmt-check      Check code formatting (CI-friendly)"
+	@echo "  make upgrade        Upgrade all dependencies"
+	@echo "  make generate       Run go generate"
+	@echo "  make license        Add/verify license headers"
+	@echo ""
+	@echo "\033[1m=== Utilities ===\033[0m"
+	@echo "  make info           Print project info"
+	@echo "  make check-tools    Verify required tools are installed"
+	@echo "  make deps           Install development tools"
+	@echo "  make docs           Serve Go documentation"
+	@echo "  make demos          Create demo GIFs (requires vhs)"
+	@echo "  make clean          Clean build artifacts"
+	@echo "  make clean-all      Deep clean including module cache"
+	@echo "  make cleanup        Clean up CNS Kubernetes resources"
+	@echo ""
