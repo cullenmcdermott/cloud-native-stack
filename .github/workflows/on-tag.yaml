@@ -50,13 +50,9 @@ jobs:
         id: versions
         uses: ./.github/actions/load-versions
 
-      # Setup, Test, and Lint
       - name: Run Go CI (setup, test, lint)
         uses: ./.github/actions/go-ci
         with:
-          go_version: ${{ steps.versions.outputs.go }}
-          golangci_lint_version: ${{ steps.versions.outputs.golangci_lint }}
-          addlicense_version: ${{ steps.versions.outputs.addlicense }}
           upload_codecov: 'false'
 
       # Build and Release

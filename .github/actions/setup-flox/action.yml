@@ -1,0 +1,79 @@
+# Copyright (c) 2025, NVIDIA CORPORATION.  All rights reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+name: 'Setup Flox Environment'
+description: 'Install Flox and cache the Nix store. Use flox/activate-action to run commands.'
+
+inputs:
+  cache_name:
+    description: 'Name suffix for the Nix cache (for different workflow caches)'
+    required: false
+    default: 'default'
+
+outputs:
+  cache_hit:
+    description: 'Whether the Nix cache was restored'
+    value: ${{ steps.nix-cache.outputs.cache-hit }}
+
+runs:
+  using: 'composite'
+  steps:
+    # Restore Nix cache first (before Flox install to speed up package resolution)
+    - name: Restore Nix cache
+      id: nix-cache
+      uses: actions/cache/restore@5a3ec84eff668545956fd18022155c47e93e2684  # v4.2.3
+      with:
+        path: |
+          /nix/store
+          /nix/var/nix/profiles
+          ~/.cache/nix
+          ~/.local/state/nix/profiles
+        key: nix-${{ runner.os }}-${{ runner.arch }}-${{ inputs.cache_name }}-${{ hashFiles('.flox/env/manifest.toml', '.flox/env/manifest.lock') }}
+        restore-keys: |
+          nix-${{ runner.os }}-${{ runner.arch }}-${{ inputs.cache_name }}-
+          nix-${{ runner.os }}-${{ runner.arch }}-
+
+    # Install Flox using official action (includes Nix)
+    - name: Install Flox
+      uses: flox/install-flox-action@5e460c4e73a50be8e68fc3b33b379ecf47f42673  # v2.2.0
+      with:
+        disable-metrics: 'true'
+
+    # Verify Flox environment and trigger package downloads (populates cache)
+    - name: Verify Flox environment
+      uses: flox/activate-action@194312cdfc58ad5fabbe33e5508d20873e872d38  # v1.1.0
+      with:
+        command: |
+          echo "=== Flox Environment ==="
+          go version
+          golangci-lint --version | head -1
+          goreleaser --version | head -1
+          ko version
+          kind version
+          kubectl version --client
+          tilt version
+          syft --version
+          echo "========================"
+
+    # Save Nix cache after packages are downloaded
+    - name: Save Nix cache
+      if: steps.nix-cache.outputs.cache-hit != 'true'
+      uses: actions/cache/save@5a3ec84eff668545956fd18022155c47e93e2684  # v4.2.3
+      with:
+        path: |
+          /nix/store
+          /nix/var/nix/profiles
+          ~/.cache/nix
+          ~/.local/state/nix/profiles
+        key: nix-${{ runner.os }}-${{ runner.arch }}-${{ inputs.cache_name }}-${{ hashFiles('.flox/env/manifest.toml', '.flox/env/manifest.lock') }}

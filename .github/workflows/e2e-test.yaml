@@ -48,15 +48,10 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
 
-      - name: Load versions
-        id: versions
-        uses: ./.github/actions/load-versions
-
-      - name: Set up Go
-        uses: actions/setup-go@7a3fe6cf4cb3a834922a1244abfce67bcef6a0c5  # v6.2.0
+      - name: Setup Flox
+        uses: ./.github/actions/setup-flox
         with:
-          go-version: ${{ steps.versions.outputs.go }}
-          cache: true
+          cache_name: 'e2e'
 
       - name: Free up disk space
         run: |
@@ -72,47 +67,56 @@ jobs:
           sudo sysctl -w fs.inotify.max_user_watches=524288
           sudo sysctl -w fs.inotify.max_user_instances=1024
 
-      - name: Install E2E testing tools
-        uses: ./.github/actions/install-e2e-tools
-
       - name: Create Kind cluster
-        run: make cluster-create
+        uses: flox/activate-action@194312cdfc58ad5fabbe33e5508d20873e872d38  # v1.1.0
+        with:
+          command: make cluster-create
 
       - name: Run Tilt CI
-        run: make tilt-ci
+        uses: flox/activate-action@194312cdfc58ad5fabbe33e5508d20873e872d38  # v1.1.0
+        with:
+          command: make tilt-ci
 
       - name: Build and push CNS image to local registry
-        run: |
-          # Build and push cns image for snapshot agent
-          KO_DOCKER_REPO=localhost:5001/cns ko build --bare --tags=local ./cmd/cnsctl
-          # Verify image is available
-          curl -sf http://localhost:5001/v2/cns/tags/list
+        uses: flox/activate-action@194312cdfc58ad5fabbe33e5508d20873e872d38  # v1.1.0
+        with:
+          command: |
+            # Build and push cns image for snapshot agent
+            KO_DOCKER_REPO=localhost:5001/cns ko build --bare --tags=local ./cmd/cnsctl
+            # Verify image is available
+            curl -sf http://localhost:5001/v2/cns/tags/list
 
       - name: Set up fake GPU environment
-        run: |
-          # Create gpu-operator namespace
-          kubectl create namespace gpu-operator --dry-run=client -o yaml | kubectl apply -f -
+        uses: flox/activate-action@194312cdfc58ad5fabbe33e5508d20873e872d38  # v1.1.0
+        with:
+          command: |
+            # Create gpu-operator namespace
+            kubectl create namespace gpu-operator --dry-run=client -o yaml | kubectl apply -f -
 
-          # Inject fake nvidia-smi into Kind worker nodes
-          for node in $(docker ps --filter "name=-worker" --format "{{.Names}}"); do
-            echo "Injecting fake nvidia-smi into $node"
-            docker cp tools/fake-nvidia-smi "${node}:/usr/local/bin/nvidia-smi"
-            docker exec "$node" chmod +x /usr/local/bin/nvidia-smi
-            # Verify it works
-            docker exec "$node" nvidia-smi --version
-          done
+            # Inject fake nvidia-smi into Kind worker nodes
+            for node in $(docker ps --filter "name=-worker" --format "{{.Names}}"); do
+              echo "Injecting fake nvidia-smi into $node"
+              docker cp tools/fake-nvidia-smi "${node}:/usr/local/bin/nvidia-smi"
+              docker exec "$node" chmod +x /usr/local/bin/nvidia-smi
+              # Verify it works
+              docker exec "$node" nvidia-smi --version
+            done
 
       - name: Set up port forwarding
-        run: |
-          kubectl port-forward -n cns svc/cnsd 8080:8080 &
-          sleep 5
-          curl -sf http://localhost:8080/health || exit 1
+        uses: flox/activate-action@194312cdfc58ad5fabbe33e5508d20873e872d38  # v1.1.0
+        with:
+          command: |
+            kubectl port-forward -n cns svc/cnsd 8080:8080 &
+            sleep 5
+            curl -sf http://localhost:8080/health || exit 1
 
       - name: Run E2E tests
+        uses: flox/activate-action@194312cdfc58ad5fabbe33e5508d20873e872d38  # v1.1.0
         env:
           CNS_IMAGE: localhost:5001/cns:local
           FAKE_GPU_ENABLED: "true"
-        run: ./tests/e2e/run.sh
+        with:
+          command: ./tests/e2e/run.sh
 
       - name: Collect debug artifacts
         if: failure()

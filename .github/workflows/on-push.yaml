@@ -51,17 +51,9 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
 
-      - name: Load versions
-        id: versions
-        uses: ./.github/actions/load-versions
-
-      # Setup, Test, and Lint
       - name: Run Go CI (setup, test, lint)
         uses: ./.github/actions/go-ci
         with:
-          go_version: ${{ steps.versions.outputs.go }}
-          golangci_lint_version: ${{ steps.versions.outputs.golangci_lint }}
-          addlicense_version: ${{ steps.versions.outputs.addlicense }}
           upload_codecov: 'true'
           codecov_token: ${{ secrets.CODECOV_TOKEN }}
 

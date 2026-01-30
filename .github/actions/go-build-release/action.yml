@@ -37,13 +37,6 @@ outputs:
 runs:
   using: 'composite'
   steps:
-    - name: Setup build tools
-      uses: ./.github/actions/setup-build-tools
-      with:
-        install_ko: 'true'
-        install_syft: 'true'
-        install_goreleaser: 'true'
-
     - name: Authenticate to registry
       uses: ./.github/actions/ghcr-login
       with:
@@ -51,11 +44,10 @@ runs:
 
     - name: Build and Release
       id: release
-      shell: bash
+      uses: flox/activate-action@194312cdfc58ad5fabbe33e5508d20873e872d38  # v1.1.0
       env:
         GITHUB_TOKEN: ${{ github.token }}
         KO_DOCKER_REPO: ${{ inputs.ko_docker_repo }}
         HOMEBREW_TAP_GITHUB_TOKEN: ${{ inputs.homebrew_tap_token }}
-      run: |
-        set -euo pipefail
-        make release
+      with:
+        command: make release
