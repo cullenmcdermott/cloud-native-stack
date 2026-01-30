@@ -23,6 +23,13 @@ runs:
       with:
         disable-metrics: 'true'
 
+    - name: Configure Nix for unsigned cache
+      shell: bash
+      run: |
+        # magic-nix-cache stores unsigned paths; this is acceptable since
+        # the GHA cache is scoped to the repo and branch
+        sudo tee -a /etc/nix/nix.conf > /dev/null <<< "require-sigs = false"
+
     - name: Setup Nix Cache
       uses: DeterminateSystems/magic-nix-cache-action@565684385bcd71bad329742eefe8d12f2e765b39  # v13
 
