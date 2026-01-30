@@ -23,6 +23,9 @@ runs:
       with:
         disable-metrics: 'true'
 
+    - name: Setup Nix Cache
+      uses: DeterminateSystems/magic-nix-cache-action@565684385bcd71bad329742eefe8d12f2e765b39  # v13
+
     - name: Verify Flox environment
       shell: bash
       run: |
