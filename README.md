@@ -1,7 +1,7 @@
 # Cloud Native Stack
 
 [![On Push CI](https://github.com/mchmarny/cloud-native-stack/actions/workflows/on-push.yaml/badge.svg)](https://github.com/mchmarny/cloud-native-stack/actions/workflows/on-push.yaml)
-[![On Tag Release](https://github.com/mchmarny/cloud-native-stack/actions/workflows/on-tag.yaml/badge.svg?branch=main)](https://github.com/mchmarny/cloud-native-stack/actions/workflows/on-tag.yaml)
+[![On Tag Release](https://github.com/mchmarny/cloud-native-stack/actions/workflows/on-tag.yaml/badge.svg)](https://github.com/mchmarny/cloud-native-stack/actions/workflows/on-tag.yaml)
 [![Codecov](https://codecov.io/gh/mchmarny/cloud-native-stack/branch/main/graph/badge.svg)](https://codecov.io/gh/mchmarny/cloud-native-stack)
 [![Go Version](https://img.shields.io/github/go-mod/go-version/mchmarny/cloud-native-stack)](https://go.dev/)
 [![Go Report Card](https://goreportcard.com/badge/github.com/mchmarny/cloud-native-stack)](https://goreportcard.com/report/github.com/mchmarny/cloud-native-stack)
