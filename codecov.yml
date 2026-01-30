@@ -47,7 +47,6 @@ ignore:
   - "cmd/**/main.go"
 
   # Non-code directories
-  - "~archive/**"
   - "examples/**"
   - "docs/**"
   - "tools/**"

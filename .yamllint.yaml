@@ -9,9 +9,6 @@ ignore: |
   dist/
   node_modules/
 
-  # Archived content (legacy, not actively maintained)
-  ~archive/
-
   # Examples (generated/reference files with varying styles)
   examples/
 
