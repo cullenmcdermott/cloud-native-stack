@@ -77,8 +77,8 @@ generate: ## Runs go generate for code generation
 	@echo "Code generation completed"
 
 .PHONY: lint
-lint: lint-go lint-yaml ## Lints the entire project (Go and YAML)
-	@echo "Completed Go and YAML lints"
+lint: lint-go lint-yaml license ## Lints the entire project (Go, YAML, and license headers)
+	@echo "Completed Go and YAML lints and ensured license headers"
 
 .PHONY: lint-go
 lint-go: ## Lints Go files with golangci-lint and go vet
@@ -95,6 +95,30 @@ lint-yaml: ## Lints YAML files with yamllint
 	else \
 		echo "No YAML files found to lint."; \
 	fi
+
+# License ignore patterns (reused by license target)
+LICENSE_IGNORES = \
+	-ignore '.flox/**' \
+	-ignore '.git/**' \
+	-ignore '.venv/**' \
+	-ignore '**/__pycache__/**' \
+	-ignore '**/.venv/**' \
+	-ignore '**/site-packages/**' \
+	-ignore '*/.venv/**' \
+	-ignore '**/.idea/**' \
+	-ignore '**/*.csv' \
+	-ignore '**/*.pyc' \
+	-ignore '**/*.xml' \
+	-ignore '**/*.toml' \
+	-ignore '**/*lock.hcl' \
+	-ignore '**/*pb2*' \
+	-ignore 'bundles/**' \
+	-ignore 'dist/**'
+
+.PHONY: license
+license: ## Add/verify license headers in source files
+	@echo "Ensuring license headers..."
+	@addlicense -f .github/headers/LICENSE $(LICENSE_IGNORES) .
 
 .PHONY: test
 test: ## Runs unit tests with race detector and coverage
