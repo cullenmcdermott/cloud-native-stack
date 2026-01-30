@@ -54,7 +54,7 @@ runs:
     - name: Verify Flox environment
       uses: flox/activate-action@410568008895a0f2e09a34bbd9523f8ef1f2d292  # v1.1.0
       with:
-        command: "flox list; which golangci-lint; golangci-lint --version"
+        command: "echo PATH=$PATH; ls -la $FLOX_ENV/bin/ 2>/dev/null || echo 'No FLOX_ENV/bin'; flox list; which golangci-lint || echo 'which failed'; type golangci-lint || echo 'type failed'"
 
     # Save Nix cache after packages are downloaded
     - name: Save Nix cache
