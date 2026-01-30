@@ -68,17 +68,17 @@ jobs:
           sudo sysctl -w fs.inotify.max_user_instances=1024
 
       - name: Create Kind cluster
-        uses: flox/activate-action@194312cdfc58ad5fabbe33e5508d20873e872d38  # v1.1.0
+        uses: flox/activate-action@410568008895a0f2e09a34bbd9523f8ef1f2d292  # v1.1.0
         with:
           command: make cluster-create
 
       - name: Run Tilt CI
-        uses: flox/activate-action@194312cdfc58ad5fabbe33e5508d20873e872d38  # v1.1.0
+        uses: flox/activate-action@410568008895a0f2e09a34bbd9523f8ef1f2d292  # v1.1.0
         with:
           command: make tilt-ci
 
       - name: Build and push CNS image to local registry
-        uses: flox/activate-action@194312cdfc58ad5fabbe33e5508d20873e872d38  # v1.1.0
+        uses: flox/activate-action@410568008895a0f2e09a34bbd9523f8ef1f2d292  # v1.1.0
         with:
           command: |
             # Build and push cns image for snapshot agent
@@ -87,7 +87,7 @@ jobs:
             curl -sf http://localhost:5001/v2/cns/tags/list
 
       - name: Set up fake GPU environment
-        uses: flox/activate-action@194312cdfc58ad5fabbe33e5508d20873e872d38  # v1.1.0
+        uses: flox/activate-action@410568008895a0f2e09a34bbd9523f8ef1f2d292  # v1.1.0
         with:
           command: |
             # Create gpu-operator namespace
@@ -103,7 +103,7 @@ jobs:
             done
 
       - name: Set up port forwarding
-        uses: flox/activate-action@194312cdfc58ad5fabbe33e5508d20873e872d38  # v1.1.0
+        uses: flox/activate-action@410568008895a0f2e09a34bbd9523f8ef1f2d292  # v1.1.0
         with:
           command: |
             kubectl port-forward -n cns svc/cnsd 8080:8080 &
@@ -111,7 +111,7 @@ jobs:
             curl -sf http://localhost:8080/health || exit 1
 
       - name: Run E2E tests
-        uses: flox/activate-action@194312cdfc58ad5fabbe33e5508d20873e872d38  # v1.1.0
+        uses: flox/activate-action@410568008895a0f2e09a34bbd9523f8ef1f2d292  # v1.1.0
         env:
           CNS_IMAGE: localhost:5001/cns:local
           FAKE_GPU_ENABLED: "true"

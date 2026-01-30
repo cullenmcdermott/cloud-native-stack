@@ -46,13 +46,13 @@ runs:
 
     # Install Flox using official action (includes Nix)
     - name: Install Flox
-      uses: flox/install-flox-action@5e460c4e73a50be8e68fc3b33b379ecf47f42673  # v2.2.0
+      uses: flox/install-flox-action@74a05bf80df0461f277202a8cbb7039fb55e7a67  # v2.2.0
       with:
         disable-metrics: 'true'
 
     # Verify Flox environment and trigger package downloads (populates cache)
     - name: Verify Flox environment
-      uses: flox/activate-action@194312cdfc58ad5fabbe33e5508d20873e872d38  # v1.1.0
+      uses: flox/activate-action@410568008895a0f2e09a34bbd9523f8ef1f2d292  # v1.1.0
       with:
         command: |
           echo "=== Flox Environment ==="

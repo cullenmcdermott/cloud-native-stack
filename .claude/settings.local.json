@@ -16,7 +16,9 @@
       "WebFetch(domain:golangci-lint.run)",
       "WebFetch(domain:goreleaser.com)",
       "WebFetch(domain:raw.githubusercontent.com)",
-      "WebSearch"
+      "WebSearch",
+      "WebFetch(domain:api.github.com)",
+      "WebFetch(domain:results-receiver.actions.githubusercontent.com)"
     ]
   }
 }
