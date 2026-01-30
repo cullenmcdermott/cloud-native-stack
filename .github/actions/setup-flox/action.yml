@@ -26,4 +26,6 @@ runs:
     - name: Verify Flox environment
       uses: flox/activate-action@410568008895a0f2e09a34bbd9523f8ef1f2d292  # v1.1.0
       with:
-        command: go version && golangci-lint --version
+        command: |
+          env |grep FLOX
+          flox list
