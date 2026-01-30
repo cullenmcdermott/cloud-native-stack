@@ -33,12 +33,12 @@ runs:
 
     # Unit Tests
     - name: Tidy Modules
-      uses: flox/activate-action@410568008895a0f2e09a34bbd9523f8ef1f2d292  # v1.1.0
+      uses: ./.github/actions/flox-run
       with:
         command: make tidy
 
     - name: Run Tests with Coverage
-      uses: flox/activate-action@410568008895a0f2e09a34bbd9523f8ef1f2d292  # v1.1.0
+      uses: ./.github/actions/flox-run
       with:
         command: CGO_ENABLED=1 make test
 
@@ -62,7 +62,7 @@ runs:
 
     - name: Lint Go
       if: steps.golangci_config.outputs.files_exists == 'true'
-      uses: flox/activate-action@410568008895a0f2e09a34bbd9523f8ef1f2d292  # v1.1.0
+      uses: ./.github/actions/flox-run
       with:
         command: golangci-lint run --timeout=5m
 
@@ -74,12 +74,12 @@ runs:
 
     - name: Lint YAML
       if: steps.yamllint_config.outputs.files_exists == 'true'
-      uses: flox/activate-action@410568008895a0f2e09a34bbd9523f8ef1f2d292  # v1.1.0
+      uses: ./.github/actions/flox-run
       with:
         command: make lint-yaml
 
     - name: Ensure License Headers
-      uses: flox/activate-action@410568008895a0f2e09a34bbd9523f8ef1f2d292  # v1.1.0
+      uses: ./.github/actions/flox-run
       with:
         command: make license
 
@@ -92,6 +92,6 @@ runs:
 
     - name: Run E2E Integration Tests
       if: steps.e2e_config.outputs.files_exists == 'true'
-      uses: flox/activate-action@410568008895a0f2e09a34bbd9523f8ef1f2d292  # v1.1.0
+      uses: ./.github/actions/flox-run
       with:
         command: ./tools/e2e

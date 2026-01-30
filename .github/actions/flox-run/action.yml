@@ -12,18 +12,24 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-name: 'Setup Flox Environment'
-description: 'Install Flox. Use .github/actions/flox-run to run commands.'
+name: 'Flox Run'
+description: 'Run a command inside the Flox environment'
+
+inputs:
+  command:
+    description: 'Command to run inside flox activate'
+    required: true
 
 runs:
   using: 'composite'
   steps:
-    - name: Install Flox
-      uses: flox/install-flox-action@74a05bf80df0461f277202a8cbb7039fb55e7a67  # v2.2.0
-      with:
-        disable-metrics: 'true'
-
-    - name: Verify Flox environment
+    - name: Run in Flox environment
       shell: bash
+      env:
+        _FLOX_CMD: ${{ inputs.command }}
       run: |
-        flox activate -- bash -c 'env | grep FLOX && flox list'
+        SCRIPT=$(mktemp)
+        trap "rm -f $SCRIPT" EXIT
+        printf '%s\n' "$_FLOX_CMD" > "$SCRIPT"
+        chmod +x "$SCRIPT"
+        flox activate -- bash "$SCRIPT"
