@@ -50,8 +50,6 @@ jobs:
 
       - name: Setup Flox
         uses: ./.github/actions/setup-flox
-        with:
-          cache_name: 'e2e'
 
       - name: Free up disk space
         run: |

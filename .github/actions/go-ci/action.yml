@@ -30,8 +30,6 @@ runs:
   steps:
     - name: Setup Flox
       uses: ./.github/actions/setup-flox
-      with:
-        cache_name: 'go-ci'
 
     # Unit Tests
     - name: Tidy Modules
